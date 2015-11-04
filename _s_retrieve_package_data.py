@@ -12,6 +12,7 @@ import json     # to export dependency data
 #       bandersnatch mirror of the PyPI archive.
 #     
 #     ASSUMPTIONS:
+#        - run on a *NIX-based system ('/' dir slashes)
 #        - sdists are .tar.gz files
 #        - names of files do not contain '/' characters. :P
 #        - metadata files are not binary files, but text files
@@ -28,11 +29,12 @@ SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch gra
 SETUPPY_FILETYPE = 'setup.py'
 REQUIREMENTS_FILETYPE = "requirements.txt"
 METADATA_FILETYPES = [SETUPPY_FILETYPE,REQUIREMENTS_FILETYPE] # These files, found in the sdists, will be inspected for package metadata. No string in this set should be a substring of any other string in this set, please.
-DEBUG__N_SDISTS_TO_PROCESS = 5000 # debug; max packages to explore during debug
+DEBUG__N_SDISTS_TO_PROCESS = 15000 # debug; max packages to explore during debug
 #LOG__FAILURES = "_s_retrieve_package_data__failures.log"
 JSON_OUTPUT_FILE_DEPENDENCIES = 'output/_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
 JSON_OUTPUT_FILE_VERSIONS = 'output/_s_out_versions.json' # the list of detected packages will be written here in JSON format.
 JSON_OUTPUT_FILE_ERRORS = 'output/_s_out_errors.json' # the list of errors will be written here
+EXTRACTED_SETUPPYS_DIR = 'extracted_setuppys/'
 
 #     Error constants
 ERROR_NO_SETUPPY = 1
@@ -116,9 +118,8 @@ def main():
         
         # Make a local copy of the metadata file, writing to a file named using the
         #   tarfile name followed by the metadata filename.
-        # TEMPORARILY COMMENTING OUT THE WRITE LINE
-        #outfilename = fname+"."+contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
-        #open(outfilename,'w').writelines(contained_metafileobj)
+        outfilename = EXTRACTED_SETUPPYS_DIR + fname + "." + contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
+        open(outfilename,'w').writelines(contained_metafileobj)
           
         # This function will parse the setup.py file (contained_metafileobj) and return dependency
         #   strings. In the event that it needs to read another of the sdist's files, e.g.
