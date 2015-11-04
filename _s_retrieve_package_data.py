@@ -11,9 +11,8 @@ import json     # to export dependency data
 #     This script assumes that dirTop (below) is set to the source directory of a
 #       bandersnatch mirror of the PyPI archive.
 #     
-#     Partially cannibalized from Bing's getData.py script.
-#
 #     ASSUMPTIONS:
+#        - sdists are .tar.gz files
 #        - names of files do not contain '/' characters. :P
 #        - metadata files are not binary files, but text files
 #        - directory structure internal to .tar.gz files (the sdists) has substance to it
@@ -31,9 +30,9 @@ REQUIREMENTS_FILETYPE = "requirements.txt"
 METADATA_FILETYPES = [SETUPPY_FILETYPE,REQUIREMENTS_FILETYPE] # These files, found in the sdists, will be inspected for package metadata. No string in this set should be a substring of any other string in this set, please.
 DEBUG__N_SDISTS_TO_PROCESS = 5000 # debug; max packages to explore during debug
 #LOG__FAILURES = "_s_retrieve_package_data__failures.log"
-JSON_OUTPUT_FILE_DEPENDENCIES = '_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
-JSON_OUTPUT_FILE_VERSIONS = '_s_out_versions.json' # the list of detected packages will be written here in JSON format.
-JSON_OUTPUT_FILE_ERRORS = '_s_out_errors.json' # the list of errors will be written here
+JSON_OUTPUT_FILE_DEPENDENCIES = 'output/_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
+JSON_OUTPUT_FILE_VERSIONS = 'output/_s_out_versions.json' # the list of detected packages will be written here in JSON format.
+JSON_OUTPUT_FILE_ERRORS = 'output/_s_out_errors.json' # the list of errors will be written here
 
 #     Error constants
 ERROR_NO_SETUPPY = 1
@@ -53,98 +52,103 @@ def main():
 
   for dir,subdirs,files in os.walk(BANDERSNATCH_MIRROR_DIR):
     for fname in files:
-      if is_sdist(fname):
-        debug__n_metadata_files_found += 1
-        tarfilename_full = os.path.join(dir,fname)
-        #print "Found presumed sdist: "+tarfilename_full+". Scanning it for interesting files."
+      
+      # If the file found isn't an sdist, move on to the next.
+      if !is_sdist(fname):
+        continue
 
-        # I expect to move the following code into a helper function that will deal with packages one by one.
+      # Otherwise, we found an sdist. Load some temp variables to use.
+      tarfilename_full = os.path.join(dir,fname)
+      packagename = get_package_name_given_full_filename(tarfilename_full)
+      packagename_withversion = get_package_and_version_string_from_full_filename(tarfilename_full)
 
-        # switching to a new func instead
-        #contained_metafilename = find_setuppy_file_in_package(tarfilename_full): # this func is a generator
+      #print "Found presumed sdist: "+tarfilename_full+". Scanning it for interesting files."
+      
+      # I expect to move the following code into a helper function that will deal with packages one by one.
 
-        # fetch a dict containing the metadata files in the package
-        #   e.g.:
-        #     {'setup.py': 'foo/bar/setup.py',
-        #      'restrictions.txt': 'foo/bar/baz/restrictions.txt'
-        contained_metafilenames = find_metadata_files_in_package(tarfilename_full)
+      # switching to a new func instead of find_setuppy_file_in_package
+      #contained_metafilename = find_setuppy_file_in_package(tarfilename_full): # this func is a generator
 
-        # Skip this sdist if there was no setup.py file in it.
-        if SETUPPY_FILETYPE not in contained_metafilenames:
-          print "-SDist",tarfilename_full,"lacks a setup.py file. Skipping. Error type 1."
-          debug__n_failures_to_parse_metadata += 1
-          debug__n_sdists_processed += 1
-          failed_sdists.append((tarfilename_full,ERROR_NO_SETUPPY))
-          continue
+      # Get all metadata files of interest in the sdist, in the form of a dict:
+      #   e.g.:
+      #     {'setup.py': 'foo/bar/setup.py',
+      #      'restrictions.txt': 'foo/bar/baz/restrictions.txt'
+      contained_metafilenames = find_metadata_files_in_package(tarfilename_full)
 
-        # Otherwise, we found a setup.py file and we continue.
-
-        # Note the setup.py filename, the package name, and the package name with version.
-        contained_setuppy_filename = contained_metafilenames[SETUPPY_FILETYPE] # e.g. 'foo/bar/setup.py'
-        packagename = get_package_name_given_full_filename(tarfilename_full)
-        packagename_withversion = get_package_and_version_string_from_full_filename(tarfilename_full)
-        
-        # Initialize dependency strings list to fill it in the below try block.
-        dependency_strings = []
-
-        try:
-            
-          # Extract the metadata file into a file obj in memory,
-          #   for parsing and copying purposes.
-          contained_metafileobj = tarfile.open(tarfilename_full).extractfile(contained_setuppy_filename)
-          
-          # Make a local copy of the metadata file, writing to a file named using the
-          #   tarfile name followed by the metadata filename.
-          # TEMPORARILY COMMENTING OUT THE WRITE LINE
-          #outfilename = fname+"."+contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
-          #open(outfilename,'w').writelines(contained_metafileobj)
-          
-          # This function will parse the setup.py file (contained_metafileobj) and return dependency
-          #   strings. In the event that it needs to read another of the sdist's files, e.g.
-          #   restrictions.txt, it will pull that from the other two arguments.
-          dependency_strings = find_dependencies_in_setuppy_fileobj(contained_metafileobj, tarfilename_full, contained_metafilenames)
-
-          # Record information about the package for future storage.
-          #   1. parsed_versions_by_package is a dictionary mapping a package name to the list of
-          #        package versions discovered by the dependency finder, e.g.:
-          #          {'potato': ['potato-1.0.0', 'potato-2.0.0'],
-          #           'oracle': ['oracle-5.0'],
-          #           'pasta':  ['pasta-1.0', 'pasta-2.0']}
-          #
-          #   2. dependencies_by_package is a dictionary mapping package versions to their
-          #        discovered dependencies, e.g.:
-          #           {'potato-1.0.0': ['tomato', 'pasta', 'oracle==5.0', 'foobar>=3.4'],
-          #            'pasta-1.0': [],
-          #            'pasta-2.0': [],
-          #            'foobar-3.1': ['salsa']}
-          #
-          if packagename not in parsed_versions_by_package:
-            parsed_versions_by_package[packagename] = []
-          parsed_versions_by_package[packagename].append(packagename_withversion)
-          dependencies_by_package[packagename_withversion] = dependency_strings
-
-          # Report what was discovered, for debugging purposes.
-          print "+SDist",tarfilename_full,"requires:",str(dependency_strings)
-
-        # end of try
-        except Exception, err:
-          print "-SDist",tarfilename_full,"encountered exception. Skipping. Exception text:",str(err)
-          failed_sdists.append((tarfilename_full, ERROR_PARSING))
-          debug__n_failures_to_parse_metadata += 1
-        
-        
+      # Skip this sdist if there was no setup.py file in it.
+      if SETUPPY_FILETYPE not in contained_metafilenames:
+        print "-SDist",tarfilename_full,"lacks a setup.py file. Skipping. Error type 1."
+        debug__n_failures_to_parse_metadata += 1
         debug__n_sdists_processed += 1
+        failed_sdists.append((tarfilename_full,ERROR_NO_SETUPPY))
+        continue
 
-        # If we've finished the allotted number of sdists, report results and return.
-        if debug__n_sdists_processed >= DEBUG__N_SDISTS_TO_PROCESS:
-          report_results(debug__n_metadata_files_found, \
-                           debug__n_sdists_processed, \
-                           debug__n_failures_to_parse_metadata, \
-                           dependencies_by_package, \
-                           parsed_versions_by_package, \
-                           failed_sdists)
-          return
-      # end of if file is a sdist file
+      # Otherwise, we found a setup.py file and we continue.
+      debug__n_metadata_files_found += 1
+      
+      # Note the setup.py filename, the package name, and the package name with version.
+      contained_setuppy_filename = contained_metafilenames[SETUPPY_FILETYPE] # e.g. 'foo/bar/setup.py'
+      
+      # Initialize dependency strings list to fill it in the below try block.
+      dependency_strings = []
+
+      try:
+        
+        # Extract the metadata file into a file obj in memory,
+        #   for parsing and copying purposes.
+        contained_metafileobj = tarfile.open(tarfilename_full).extractfile(contained_setuppy_filename)
+        
+        # Make a local copy of the metadata file, writing to a file named using the
+        #   tarfile name followed by the metadata filename.
+        # TEMPORARILY COMMENTING OUT THE WRITE LINE
+        #outfilename = fname+"."+contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
+        #open(outfilename,'w').writelines(contained_metafileobj)
+          
+        # This function will parse the setup.py file (contained_metafileobj) and return dependency
+        #   strings. In the event that it needs to read another of the sdist's files, e.g.
+        #   restrictions.txt, it will pull that from the other two arguments.
+        dependency_strings = find_dependencies_in_setuppy_fileobj(contained_metafileobj, tarfilename_full, contained_metafilenames)
+
+        # Record information about the package for future storage.
+        #   1. parsed_versions_by_package is a dictionary mapping a package name to the list of
+        #        package versions discovered by the dependency finder, e.g.:
+        #          {'potato': ['potato-1.0.0', 'potato-2.0.0'],
+        #           'oracle': ['oracle-5.0'],
+        #           'pasta':  ['pasta-1.0', 'pasta-2.0']}
+        #
+        #   2. dependencies_by_package is a dictionary mapping package versions to their
+        #        discovered dependencies, e.g.:
+        #           {'potato-1.0.0': ['tomato', 'pasta', 'oracle==5.0', 'foobar>=3.4'],
+        #            'pasta-1.0': [],
+        #            'pasta-2.0': [],
+        #            'foobar-3.1': ['salsa']}
+        #
+        if packagename not in parsed_versions_by_package:
+          parsed_versions_by_package[packagename] = []
+        parsed_versions_by_package[packagename].append(packagename_withversion)
+        dependencies_by_package[packagename_withversion] = dependency_strings
+
+        # Report what was discovered, for debugging purposes.
+        print "+SDist",tarfilename_full,"requires:",str(dependency_strings)
+
+      # end of try
+      except Exception, err:
+        print "-SDist",tarfilename_full,"encountered exception. Skipping. Exception text:",str(err)
+        failed_sdists.append((tarfilename_full, ERROR_PARSING))
+        debug__n_failures_to_parse_metadata += 1
+        
+        
+      debug__n_sdists_processed += 1
+
+      # If we've finished the allotted number of sdists, report results and return.
+      if debug__n_sdists_processed >= DEBUG__N_SDISTS_TO_PROCESS:
+        report_results(debug__n_metadata_files_found, \
+                         debug__n_sdists_processed, \
+                         debug__n_failures_to_parse_metadata, \
+                         dependencies_by_package, \
+                         parsed_versions_by_package, \
+                         failed_sdists)
+        return
     # end of loop through files within a particular directory
   # end of loop over os.walk
 
