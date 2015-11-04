@@ -28,7 +28,7 @@ SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch gra
 SETUPPY_FILETYPE = 'setup.py'
 REQUIREMENTS_FILETYPE = "requirements.txt"
 METADATA_FILETYPES = [SETUPPY_FILETYPE,REQUIREMENTS_FILETYPE] # These files, found in the sdists, will be inspected for package metadata. No string in this set should be a substring of any other string in this set, please.
-DEBUG__N_SDISTS_TO_PROCESS = 50 # debug; max packages to explore during debug
+DEBUG__N_SDISTS_TO_PROCESS = 5000 # debug; max packages to explore during debug
 #LOG__FAILURES = "_s_retrieve_package_data__failures.log"
 JSON_OUTPUT_FILE_DEPENDENCIES = 'output/_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
 JSON_OUTPUT_FILE_VERSIONS = 'output/_s_out_versions.json' # the list of detected packages will be written here in JSON format.
@@ -46,8 +46,8 @@ def main():
   debug__n_sdists_processed = 0 # debug; counter for number of packages explored
   debug__n_metadata_files_found = 0 # debug; counter for number of metdata files found
   debug__n_failures_to_parse_metadata = 0
-  dependencies_by_package = dict()
-  parsed_versions_by_package = dict()
+  dependencies_by_package_version = dict()
+  versions_by_package = dict()
   failed_sdists = [] # list of sdists for which parsing failed, along with the failure type, in the form of 2-tuples ('tarfilename',ERROR_NUMBER)
 
   for dir,subdirs,files in os.walk(BANDERSNATCH_MIRROR_DIR):
@@ -61,6 +61,22 @@ def main():
       tarfilename_full = os.path.join(dir,fname)
       packagename = get_package_name_given_full_filename(tarfilename_full)
       packagename_withversion = get_package_and_version_string_from_full_filename(tarfilename_full)
+
+      # Record information about the package for future storage.
+      #    versions_by_package is a dictionary mapping a package name to the list of
+      #      package versions discovered by the dependency finder, e.g.:
+      #          {'potato': ['potato-1.0.0', 'potato-2.0.0'],
+      #           'oracle': ['oracle-5.0'],
+      #           'pasta':  ['pasta-1.0', 'pasta-2.0']}
+      #
+      # If we don't have an entry for this package (e.g. potato) in the versions_by_package
+      #   dict, create a blank one.
+      if packagename not in versions_by_package:
+        versions_by_package[packagename] = []
+      # Then add this discovered version (e.g. potato-1.1) to the list for its package (e.g. potato)
+      versions_by_package[packagename].append(packagename_withversion)
+
+
 
       #print "Found presumed sdist: "+tarfilename_full+". Scanning it for interesting files."
       
@@ -109,24 +125,15 @@ def main():
         #   restrictions.txt, it will pull that from the other two arguments.
         dependency_strings = find_dependencies_in_setuppy_fileobj(contained_metafileobj, tarfilename_full, contained_metafilenames)
 
-        # Record information about the package for future storage.
-        #   1. parsed_versions_by_package is a dictionary mapping a package name to the list of
-        #        package versions discovered by the dependency finder, e.g.:
-        #          {'potato': ['potato-1.0.0', 'potato-2.0.0'],
-        #           'oracle': ['oracle-5.0'],
-        #           'pasta':  ['pasta-1.0', 'pasta-2.0']}
-        #
-        #   2. dependencies_by_package is a dictionary mapping package versions to their
-        #        discovered dependencies, e.g.:
+        # Record the dependency information garnered.
+        #   dependencies_by_package_version is a dictionary mapping package versions to their
+        #     discovered dependencies, e.g.:
         #           {'potato-1.0.0': ['tomato', 'pasta', 'oracle==5.0', 'foobar>=3.4'],
         #            'pasta-1.0': [],
         #            'pasta-2.0': [],
         #            'foobar-3.1': ['salsa']}
         #
-        if packagename not in parsed_versions_by_package:
-          parsed_versions_by_package[packagename] = []
-        parsed_versions_by_package[packagename].append(packagename_withversion)
-        dependencies_by_package[packagename_withversion] = dependency_strings
+        dependencies_by_package_version[packagename_withversion] = dependency_strings
 
         # Report what was discovered, for debugging purposes.
         print "+SDist",tarfilename_full,"requires:",str(dependency_strings)
@@ -138,17 +145,28 @@ def main():
         debug__n_failures_to_parse_metadata += 1
         
         
+      # Done processing this particular sdist.
       debug__n_sdists_processed += 1
+
 
       # If we've finished the allotted number of sdists, report results and return.
       if debug__n_sdists_processed >= DEBUG__N_SDISTS_TO_PROCESS:
         report_results(debug__n_metadata_files_found, \
                          debug__n_sdists_processed, \
                          debug__n_failures_to_parse_metadata, \
-                         dependencies_by_package, \
-                         parsed_versions_by_package, \
+                         dependencies_by_package_version, \
+                         versions_by_package, \
                          failed_sdists)
         return
+      # Else we're not done. Test assertions and continue.
+      else:
+        test_assertions(debug__n_metadata_files_found, \
+                          debug__n_sdists_processed, \
+                          debug__n_failures_to_parse_metadata, \
+                          dependencies_by_package_version, \
+                          versions_by_package, \
+                          failed_sdists)
+
     # end of loop through files within a particular directory
   # end of loop over os.walk
 
@@ -156,31 +174,45 @@ def main():
 def report_results(debug__n_metadata_files_found, \
                      debug__n_sdists_processed, \
                      debug__n_failures_to_parse_metadata, \
-                     dependencies_by_package, \
-                     parsed_versions_by_package, \
+                     dependencies_by_package_version, \
+                     versions_by_package, \
                      failed_sdists):
   
   print "Processing ending."
   print "  Found "+str(debug__n_metadata_files_found)+" metadata files in "+str(debug__n_sdists_processed)+" sdist archives."
   print "  Encountered",str(debug__n_failures_to_parse_metadata),"errors."
   with open(JSON_OUTPUT_FILE_VERSIONS,'w') as fobj_jsonoutput1:
-    json.dump(parsed_versions_by_package,fobj_jsonoutput1)
+    json.dump(versions_by_package,fobj_jsonoutput1)
   print "  Saved lists of packages versions discovered as a {package:[v1,v2,v3,...],package2:[v1...]} dict:",JSON_OUTPUT_FILE_VERSIONS
   with open(JSON_OUTPUT_FILE_DEPENDENCIES,'w') as fobj_jsonoutput2:
-    json.dump(dependencies_by_package,fobj_jsonoutput2)
+    json.dump(dependencies_by_package_version,fobj_jsonoutput2)
   print "  Saved lists of dependencies determined as a {package:[dep1,dep2,dep3,...],package2:[dep1...]} dict:",JSON_OUTPUT_FILE_DEPENDENCIES
   with open(JSON_OUTPUT_FILE_ERRORS,'w') as fobj_jsonoutput3:
     json.dump(failed_sdists,fobj_jsonoutput3)
   print "  Saved lists of failed dependency parses as a [(package1,error_id), (package2,error_id)] list:",JSON_OUTPUT_FILE_ERRORS
 
+  test_assertions(debug__n_metadata_files_found, \
+                    debug__n_sdists_processed, \
+                    debug__n_failures_to_parse_metadata, \
+                    dependencies_by_package_version, \
+                    versions_by_package, \
+                    failed_sdists)
+  print "Assertions passed."
+
+
+def test_assertions(debug__n_metadata_files_found, \
+                      debug__n_sdists_processed, \
+                      debug__n_failures_to_parse_metadata, \
+                      dependencies_by_package_version, \
+                      versions_by_package, \
+                      failed_sdists):
   # We should have one entry in failed_sdists per recorded failure.
   assert(debug__n_failures_to_parse_metadata == len(failed_sdists))
-  # We should have one entry in failed_sdists or dependencies_by_package for each sdist processed.
-  assert(len(failed_sdists) + len([sdist for sdist in dependencies_by_package]) == debug__n_sdists_processed)
+  # We should have one entry in failed_sdists or dependencies_by_package_version for each sdist processed.
+  assert(len(failed_sdists) + len([sdist for sdist in dependencies_by_package_version]) == debug__n_sdists_processed)
   # We should see one entry in the version list for each sdist encountered.
-  assert(debug__n_sdists_processed == sum([ len(parsed_versions_by_package[package]) for package in parsed_versions_by_package]))
+  assert(debug__n_sdists_processed == sum([ len(versions_by_package[package]) for package in versions_by_package]))
 
-  print "Assertions passed."
 
 
 # <~> Given the fileobj for an sdist's setup.py file, find the dependencies in it,
