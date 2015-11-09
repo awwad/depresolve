@@ -242,7 +242,7 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
   #filecontents = metafileobj.read()
   #filecontents_by_line = metafileobj.readlines()
   
-  dependency_strings = None # output
+  dependency_strings = [] # output
   in_docstring = False
   in_requires = False
   #in_setup_call = False # True when we are in the setup call parameter list
@@ -265,79 +265,117 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
       interesting_token_indices.append(i)
     i += 1
     
-  dependency_strings = []
+  # We'll go through multiple lines with possible dependency lists,
+  #   so we'll use this bool to indicate when we've already found
+  #   something worth parsing.
+  have_found_dependencies = False
+
   for i in interesting_token_indices: #Note that this can happen multiple times per setup.py, and also that the code below acts in ways as if it happens once.
-      
-    # If we see a NAME token (variable name in this case) that is
-    #   either "requires" or "install_requires", then:
-    if tok_values[i] in ["install_requires","requires"] and tok_codes[i] == tokenize.NAME:
-      # Assume we're in the requirement specifying portion of the setup() call.
-      # Should verify this here, but will handle that later.
-      # (Otherwise, if the names "requires" or "install_requires" appears prior to the setup() call,
-      #   it might muck up this code.)
 
+    # We're only interested in lines with:
+    #    - token value equal to install_requires or requires
+    #    - token code indicating the token is a name (token.NAME)
+    # If that's not what we're looking at on this line, we can move on.
+    if tok_values[i] not in ["install_requires","requires"] or tok_codes[i] != tokenize.NAME:
+      continue
 
-      # Now confirm that the pattern is matched.
-      # The pattern we expect is roughly "requires = [ 'packagename'",
-      if tok_values[i+1] == "=" and \
+    # Otherwise, assume that we're dealing with a requirements specifying line.
+
+    # Now confirm that the pattern is matched.
+    # The pattern we expect is roughly "requires = [ 'packagename'",
+    elif tok_values[i+1] == "=" and \
           tok_values[i+2] in ["[","("]:# and \
           #tok_codes[i+3] == tokenize.STRING:
-        # So we're at requires=[
-        # We assume we found a simple single-line list of required packages
-        #   specified by individual hard-coded strings.
-        # For now, not dealing with multiple lines.
-        j = i+2 # Set to just before the first string literal dependency (due to loop structure below starting with +1 statement)
-        n_open_brackets = 0
-        n_open_paren = 0
-        if tok_values[i+2] == "[":
-          n_open_brackets += 1
-        else:
-          assert(tok_values[i+2] == "(")
-          n_open_paren += 1
-        
-          
-        while n_open_brackets > 0 or n_open_paren > 0:
-          assert(n_open_brackets >= 0 and n_open_paren >= 0) # Assert no bad or incomprehensible control structure.
-          j += 1
-          if tok_values[j] == ",":
-            continue
-          elif tok_values[j] == "[":
-            n_open_brackets += 1
-            continue
-          elif tok_values[j] == "(":
-            n_open_paren += 1
-            continue
-          elif tok_values[j] == "]":
-            n_open_brackets -= 1
-            continue
-          elif tok_values[j] == ")":
-            n_open_paren -= 1
-            continue
-          elif tok_codes[j] == tokenize.NL or tok_codes[j] == tokenize.COMMENT:
-            # tweaking to try to handle multi-line comments (removing exception, adding continue)
-            continue
-            #raise Exception("This setup.py does not employ a simple, single-line, inline list of string literals in a requires= line. Reached newline or comment without brackets and parens being closed. Error type 2. The requires line reads:\n"+full_lines[i])
-          elif tok_codes[j] == tokenize.STRING:
-            dependency_strings.append(tok_values[j])
-            continue
-          else:
-            raise Exception("Coding error or unexpected setup.py format- Unknown case reached while parsing requires line.")
-          
+      # So we're at requires=[
+      # We assume we found a simple single-line list of required packages
+      #   specified by individual hard-coded strings.
+      # For now, not dealing with multiple lines.
+      j = i+2 # Set to just before the first string literal dependency (due to loop structure below starting with +1 statement)
+      n_open_brackets = 0
+      n_open_paren = 0
+      if tok_values[i+2] == "[":
+        n_open_brackets += 1
+      else:
+        assert(tok_values[i+2] == "(")
+        n_open_paren += 1
       
-      else: # if requires=[ pattern is not matched to begin with:
-        if REQUIREMENTS_FILETYPE in full_lines[i]: # check for "requirements.txt" instead
-          if REQUIREMENTS_FILETYPE not in contained_metafilenames:
-            raise Exception("This setup.py includes a requires= line mentioning requirements.txt, but no requirements.txt file was found in the sdist. It will not be interpreted. Error type 3. The requires line reads:\n"+full_lines[i])
-          else:
-            dependency_strings = retrieve_dependencies_from_requirements_txt(tarfilename_full,contained_metafilenames)
+      # Loop over the tokens following requires=[ (or similar)
+      #   until we're done processing this list.
+      while n_open_brackets > 0 or n_open_paren > 0:
+        assert(n_open_brackets >= 0 and n_open_paren >= 0) # Assert no bad or incomprehensible control structure.
+        j += 1
+        if tok_values[j] == ",":
+          continue
+        elif tok_values[j] == "[":
+          n_open_brackets += 1
+          continue
+        elif tok_values[j] == "(":
+          n_open_paren += 1
+          continue
+        elif tok_values[j] == "]":
+          n_open_brackets -= 1
+          continue
+        elif tok_values[j] == ")":
+          n_open_paren -= 1
+          continue
+        elif tok_codes[j] == tokenize.NL or tok_codes[j] == tokenize.COMMENT:
+          # tweaking to try to handle multi-line comments (removing exception, adding continue)
+          continue
+          #raise Exception("This setup.py does not employ a simple, single-line, inline list of string literals in a requires= line. Reached newline or comment without brackets and parens being closed. Error type 2. The requires line reads:\n"+full_lines[i])
+        elif tok_codes[j] == tokenize.STRING:
+          dependency_strings.append(tok_values[j])
+          continue
         else:
-          raise Exception("This setup.py neither employs a simple inline list of string literals in requires=, nor mentions requirements.txt. It will not be interpreted. The requires line reads:\n"+full_lines[i])
-        
-        
-  if dependency_strings is None:
-    raise Exception("No dependency information encountered.")
-  else:
+          raise Exception("Coding error or unexpected setup.py format- Unknown case reached while parsing requires line.")
+
+      have_found_dependencies = True
+      
+    # Else, if if requires=[ pattern is not matched to begin with,
+    #   but we find a mention of a "requirements.txt" file, then
+    #   try pulling dependency information out of "requirements.txt"
+    elif REQUIREMENTS_FILETYPE in full_lines[i]: # check for "requirements.txt" instead
+      if REQUIREMENTS_FILETYPE not in contained_metafilenames:
+        raise Exception("This setup.py includes a requires= line mentioning requirements.txt, but no requirements.txt file was found in the sdist. It will not be interpreted. Error type 3. The requires line reads:\n"+full_lines[i])
+      else:
+        dependency_strings = retrieve_dependencies_from_requirements_txt(tarfilename_full,contained_metafilenames)
+        have_found_dependencies = True
+
+
+
+    # Else we haven't managed to encounter a comprehensible line.
+    else:
+      # To reach this point, we have to have to:
+      #    - be dealing with a line with a "requires" or
+      #        "install_requires" token with token type token.NAME.
+      #    - be dealing with a line that does NOT match requires=[ (etc.)
+      #    - not see mention of "requirements.txt" on this line
+      #
+      # In short, we have not found anything useful in this line.
+      # Try the next interesting line.
+      continue
+
+
+
+  # end of looping through every interesting line (lines with "requires" or "install_requires" tokens)
+
+
+
+  # Now we're done processing. Return information extracted or raise appropriate exceptions.
+  if have_found_dependencies:
     return dependency_strings
+
+  else: # have not found dependencies
+    # Spool the requires lines to report them in the exception.
+    interesting_lines = ""
+    for k in interesting_token_indices:
+      interesting_lines += full_lines[k]
+      interesting_lines += "-------------------------------------------------------\n"
+    raise Exception("No dependency information encountered. This setup.py neither employs a simple inline list of string literals in requires=, nor mentions requirements.txt. It will not be interpreted. The various requires lines found read as follows:\n"+interesting_lines)
+  
+  
+
+  assert(false) # control should never get here.
+
 
     
 # <~> Given an sdist .tar.gz filename and a dict of metafiles contained within it,
