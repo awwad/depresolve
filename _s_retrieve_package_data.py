@@ -363,8 +363,11 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
   # Now we're done processing. Return information extracted or raise appropriate exceptions.
   if have_found_dependencies:
     return dependency_strings
-
-  else: # have not found dependencies
+  elif not interesting_token_indices:
+    # But if we haven't found any instances of "requires" or "install_requires" tokens at all,
+    #   then we can actually assume there are no official dependencies.
+    return dependency_strings
+  else: # have not found dependencies, but saw "requires" or "install_requires" tokens.
     # Spool the requires lines to report them in the exception.
     interesting_lines = ""
     for k in interesting_token_indices:
