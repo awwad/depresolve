@@ -74,7 +74,7 @@ def main():
 
   for tarfilename_full in list_of_sdists_to_inspect:
     
-    # Otherwise, we found an sdist. Load some temp variables to use.
+    # Load some temp variables to use.
     packagename = get_package_name_given_full_filename(tarfilename_full)
     packagename_withversion = get_package_and_version_string_from_full_filename(tarfilename_full)
     
@@ -117,52 +117,44 @@ def main():
     dependency_strings = []
 
 
+    # Extract the metadata file into a file obj in memory,
+    #   for parsing and copying purposes.
+    contained_metafileobj = tarfile.open(tarfilename_full).extractfile(contained_setuppy_filename)
 
-    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
-    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
-    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
-    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
+    # Make a local copy of the metadata file, writing to a file named using the
+    #   tarfile name followed by the metadata filename.
+    # Then, be sure to seek to the start of the file again so that we can still
+    #   parse it afterwards.
+    #outfilename = EXTRACTED_SETUPPYS_DIR + packagename_withversion + "." + contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
+    #open(outfilename,'w').writelines(contained_metafileobj)
+    #contained_metafileobj.seek(0,0)
+
     try:
-      
-      # Extract the metadata file into a file obj in memory,
-      #   for parsing and copying purposes.
-      contained_metafileobj = tarfile.open(tarfilename_full).extractfile(contained_setuppy_filename)
-      
-      # Make a local copy of the metadata file, writing to a file named using the
-      #   tarfile name followed by the metadata filename.
-      # Then, be sure to seek to the start of the file again so that we can still
-      #   parse it afterwards.
-      outfilename = EXTRACTED_SETUPPYS_DIR + packagename_withversion + "." + contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
-      open(outfilename,'w').writelines(contained_metafileobj)
-      contained_metafileobj.seek(0,0)
-      
       # This function will parse the setup.py file (contained_metafileobj) and return dependency
       #   strings. In the event that it needs to read another of the sdist's files, e.g.
-      #   restrictions.txt, it will pull that from the other two arguments.
+      #   requirements.txt, it will pull that from the other two arguments.
       dependency_strings = find_dependencies_in_setuppy_fileobj(contained_metafileobj, tarfilename_full, contained_metafilenames)
-      
-      # Record the dependency information garnered.
-      #   dependencies_by_package_version is a dictionary mapping package versions to their
-      #     discovered dependencies, e.g.:
-      #           {'potato-1.0.0': ['tomato', 'pasta', 'oracle==5.0', 'foobar>=3.4'],
-      #            'pasta-1.0': [],
-      #            'pasta-2.0': [],
-      #            'foobar-3.1': ['salsa']}
-      #
-      dependencies_by_package_version[packagename_withversion] = dependency_strings
-
-      # Report what was discovered, for debugging purposes.
-      print "+SDist",tarfilename_full,"requires:",str(dependency_strings)
-
-    # end of try
     except Exception, err:
-      print "-SDist",tarfilename_full,"encountered exception of type "+repr(err)+". Skipping. Exception text:",str(err)
+      print "-SDist",tarfilename_full,"encountered exception during find_dependencies_in_setuppy_fileobj. Skipping. Exception text:",str(err)
       failed_sdists.append((tarfilename_full, ERROR_PARSING))
       n_failures_to_parse_metadata += 1
+      n_sdists_processed += 1
+      continue
         
-        
-    # Done processing this particular sdist.
+    # Record the dependency information garnered.
+    #   dependencies_by_package_version is a dictionary mapping package versions to their
+    #     discovered dependencies, e.g.:
+    #           {'potato-1.0.0': ['tomato', 'pasta', 'oracle==5.0', 'foobar>=3.4'],
+    #            'pasta-1.0': [],
+    #            'pasta-2.0': [],
+    #            'foobar-3.1': ['salsa']}
+    #
+    dependencies_by_package_version[packagename_withversion] = dependency_strings
+    
+    # Done processing this particular sdist. Report what was discovered for debugging purposes.
     n_sdists_processed += 1
+    print "+SDist",tarfilename_full,"requires:",str(dependency_strings)
+
 
 
     # If we've finished the allotted number of sdists, report results and return.
@@ -353,11 +345,14 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
       name_of_prefilled_variable = tok_values[i+2]
 
       metafileobj.seek(0,0)
-      dependency_strings = find_list_of_string_literals_with_name([name_of_prefilled_variable], metafileobj)
-      assert(dependency_strings is not None)
-
-      have_found_dependencies = True
-
+      found = find_list_of_string_literals_with_name([name_of_prefilled_variable], metafileobj)
+      # found is now None if there were no instances of the named variables
+      #   that also fit a pattern.
+      if found is None:
+        continue
+      else:
+        dependency_strings = found
+        have_found_dependencies = True
 
     # Else we haven't managed to encounter a comprehensible line.
     else:
@@ -387,7 +382,16 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
   if have_found_dependencies or not interesting_token_indices:
     return dependency_strings
 
-  else: # have not found dependencies, but saw "requires" or "install_requires" tokens.
+
+  # Last ditch effort, cheating a bit. If there's a requirements.txt file at all, go with its contents.
+  elif REQUIREMENTS_FILETYPE in contained_metafilenames:
+    print "((( Last ditch effort found requirements.txt file. )))"
+    return retrieve_dependencies_from_requirements_txt(tarfilename_full,contained_metafilenames)
+
+    
+
+  else: # have not found dependencies, have no requirements.txt file, but saw "requires" or "install_requires" tokens.
+
     # Spool the requires lines to report them in the exception.
     interesting_lines = ""
     for k in interesting_token_indices:
@@ -444,6 +448,9 @@ def find_list_of_string_literals_with_name(names_of_desired_variables, fileobj):
   first_interesting_token = None
   values = [] # output
 
+  # Consider this instead of the below:
+  #   [i for i in range(0,len(tok_values)) if tok_values[i] in names_of_desired_variables]
+
   # Now loop over the tokens, in search of the first instance of an
   #   assignment to a variable name we're interested in.
   for i in range(0,len(tok_codes)):
@@ -463,6 +470,13 @@ def find_list_of_string_literals_with_name(names_of_desired_variables, fileobj):
   
   # If unable to find, return None.
   if first_interesting_token is None:
+    # Last ditch effort in case of requirements.txt
+#    for i in range(0,len(tok_codes)):
+#      if tok_values[i] in names_of_desired_variables and \
+#            tok_codes[i] == tokenize.NAME and \
+#            REQUIREMENTS_FILETYPE in full_lines[i]:
+#        retrieve_dependencies_from_requirements_txt()
+
     return None
 
   # Otherwise, assume that we're dealing with an interesting assignment line,
