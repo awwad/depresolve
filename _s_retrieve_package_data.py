@@ -29,7 +29,7 @@ SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch gra
 SETUPPY_FILETYPE = 'setup.py'
 REQUIREMENTS_FILETYPE = "requirements.txt"
 METADATA_FILETYPES = [SETUPPY_FILETYPE,REQUIREMENTS_FILETYPE] # These files, found in the sdists, will be inspected for package metadata. No string in this set should be a substring of any other string in this set, please.
-DEBUG__N_SDISTS_TO_PROCESS = 25000 # debug; max packages to explore during debug
+DEBUG__N_SDISTS_TO_PROCESS = 10000000 # debug; max packages to explore during debug
 #LOG__FAILURES = "_s_retrieve_package_data__failures.log"
 JSON_OUTPUT_FILE_DEPENDENCIES = 'output/_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
 JSON_OUTPUT_FILE_VERSIONS = 'output/_s_out_versions.json' # the list of detected packages will be written here in JSON format.
@@ -164,15 +164,9 @@ def main():
 
 
 
-    # If we've finished the allotted number of sdists, report results and return.
+    # If we've finished the allotted number of sdists, stop looping.
     if n_sdists_processed >= DEBUG__N_SDISTS_TO_PROCESS:
-      report_results(n_metadata_files_found, \
-                       n_sdists_processed, \
-                       n_failures_to_parse_metadata, \
-                       dependencies_by_package_version, \
-                       versions_by_package, \
-                       failed_sdists)
-      return
+      break
     # Else we're not done. Test assertions and continue.
     else:
       test_assertions(n_metadata_files_found, \
@@ -183,6 +177,15 @@ def main():
                         failed_sdists)
       
   # end of loop through list_of_sdists_to_process
+
+  # Report results (also testing assertions) and return.
+  report_results(n_metadata_files_found, \
+                   n_sdists_processed, \
+                   n_failures_to_parse_metadata, \
+                   dependencies_by_package_version, \
+                   versions_by_package, \
+                   failed_sdists)
+  return
 
 
 def report_results(n_metadata_files_found, \
