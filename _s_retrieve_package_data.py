@@ -29,7 +29,6 @@ SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch gra
 SETUPPY_FILETYPE = 'setup.py'
 REQUIREMENTS_FILETYPE = "requirements.txt"
 METADATA_FILETYPES = [SETUPPY_FILETYPE,REQUIREMENTS_FILETYPE] # These files, found in the sdists, will be inspected for package metadata. No string in this set should be a substring of any other string in this set, please.
-DEBUG__N_SDISTS_TO_PROCESS = 5000 # debug; max packages to explore during debug
 #LOG__FAILURES = "_s_retrieve_package_data__failures.log"
 JSON_OUTPUT_FILE_DEPENDENCIES = 'output/_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
 JSON_OUTPUT_FILE_VERSIONS = 'output/_s_out_versions.json' # the list of detected packages will be written here in JSON format.
