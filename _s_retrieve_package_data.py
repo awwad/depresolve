@@ -29,6 +29,7 @@ SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch gra
 SETUPPY_FILETYPE = 'setup.py'
 REQUIREMENTS_FILETYPE = "requirements.txt"
 METADATA_FILETYPES = [SETUPPY_FILETYPE,REQUIREMENTS_FILETYPE] # These files, found in the sdists, will be inspected for package metadata. No string in this set should be a substring of any other string in this set, please.
+DEBUG__N_SDISTS_TO_PROCESS = 1000 # debug; max packages to explore during debug
 #LOG__FAILURES = "_s_retrieve_package_data__failures.log"
 JSON_OUTPUT_FILE_DEPENDENCIES = 'output/_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
 JSON_OUTPUT_FILE_VERSIONS = 'output/_s_out_versions.json' # the list of detected packages will be written here in JSON format.
@@ -59,10 +60,16 @@ def main():
     for arg in sys.argv[1:]:
       list_of_sdists_to_inspect.append(arg)
   else:
+    i = 0
     for dir,subdirs,files in os.walk(BANDERSNATCH_MIRROR_DIR):
       for fname in files:
         if is_sdist(fname):
           list_of_sdists_to_inspect.append(os.path.join(dir,fname))
+          i += 1
+          if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
+            break
+      if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
+        break
 
 
   for tarfilename_full in list_of_sdists_to_inspect:
@@ -86,11 +93,6 @@ def main():
     versions_by_package[packagename].append(packagename_withversion)
       
     
-    # I expect to move the following code into a helper function that will deal with packages one by one.
-    
-    # switching to a new func instead of find_setuppy_file_in_package
-    #contained_metafilename = find_setuppy_file_in_package(tarfilename_full): # this func is a generator
-    
     # Get all metadata files of interest in the sdist, in the form of a dict:
     #   e.g.:
     #     {'setup.py': 'foo/bar/setup.py',
@@ -108,12 +110,18 @@ def main():
     # Otherwise, we found a setup.py file and we continue.
     n_metadata_files_found += 1
       
-    # Note the setup.py filename, the package name, and the package name with version.
+    # Choose the setup.py file from the list of metadata files found.
     contained_setuppy_filename = contained_metafilenames[SETUPPY_FILETYPE] # e.g. 'foo/bar/setup.py'
       
     # Initialize dependency strings list to fill it in the below try block.
     dependency_strings = []
 
+
+
+    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
+    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
+    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
+    ## UNDO THIS COMMENTING OUT AND RE-INDENT!!!!!!
     try:
       
       # Extract the metadata file into a file obj in memory,
@@ -124,15 +132,15 @@ def main():
       #   tarfile name followed by the metadata filename.
       # Then, be sure to seek to the start of the file again so that we can still
       #   parse it afterwards.
-      #outfilename = EXTRACTED_SETUPPYS_DIR + fname + "." + contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
-      #open(outfilename,'w').writelines(contained_metafileobj)
-      #contained_metafileobj.seek(0,0)
-        
+      outfilename = EXTRACTED_SETUPPYS_DIR + packagename_withversion + "." + contained_setuppy_filename[contained_setuppy_filename.rfind('/')+1:]
+      open(outfilename,'w').writelines(contained_metafileobj)
+      contained_metafileobj.seek(0,0)
+      
       # This function will parse the setup.py file (contained_metafileobj) and return dependency
       #   strings. In the event that it needs to read another of the sdist's files, e.g.
       #   restrictions.txt, it will pull that from the other two arguments.
       dependency_strings = find_dependencies_in_setuppy_fileobj(contained_metafileobj, tarfilename_full, contained_metafilenames)
-
+      
       # Record the dependency information garnered.
       #   dependencies_by_package_version is a dictionary mapping package versions to their
       #     discovered dependencies, e.g.:
@@ -148,7 +156,7 @@ def main():
 
     # end of try
     except Exception, err:
-      print "-SDist",tarfilename_full,"encountered exception. Skipping. Exception text:",str(err)
+      print "-SDist",tarfilename_full,"encountered exception of type "+repr(err)+". Skipping. Exception text:",str(err)
       failed_sdists.append((tarfilename_full, ERROR_PARSING))
       n_failures_to_parse_metadata += 1
         
@@ -280,15 +288,14 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
 
     # Otherwise, assume that we're dealing with a requirements specifying line.
 
-    # Now confirm that the pattern is matched.
-    # The pattern we expect is roughly "requires = [ 'packagename'",
+    # If we see the pattern (roughly) "requires = [ 'packagename'",
+    #   parse it.
     elif tok_values[i+1] == "=" and \
           tok_values[i+2] in ["[","("]:# and \
           #tok_codes[i+3] == tokenize.STRING:
       # So we're at requires=[
-      # We assume we found a simple single-line list of required packages
+      # We assume we found a simple list of required packages
       #   specified by individual hard-coded strings.
-      # For now, not dealing with multiple lines.
       j = i+2 # Set to just before the first string literal dependency (due to loop structure below starting with +1 statement)
       n_open_brackets = 0
       n_open_paren = 0
@@ -303,7 +310,7 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
       while n_open_brackets > 0 or n_open_paren > 0:
         assert(n_open_brackets >= 0 and n_open_paren >= 0) # Assert no bad or incomprehensible control structure.
         j += 1
-        if tok_values[j] == ",":
+        if tok_values[j] == "," or tok_codes[j] in [tokenize.NL,tokenize.COMMENT]:
           continue
         elif tok_values[j] == "[":
           n_open_brackets += 1
@@ -317,19 +324,16 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
         elif tok_values[j] == ")":
           n_open_paren -= 1
           continue
-        elif tok_codes[j] == tokenize.NL or tok_codes[j] == tokenize.COMMENT:
-          # tweaking to try to handle multi-line comments (removing exception, adding continue)
-          continue
-          #raise Exception("This setup.py does not employ a simple, single-line, inline list of string literals in a requires= line. Reached newline or comment without brackets and parens being closed. Error type 2. The requires line reads:\n"+full_lines[i])
         elif tok_codes[j] == tokenize.STRING:
-          dependency_strings.append(tok_values[j])
+          dependency = strip_outside_quotes(tok_values[j])
+          dependency_strings.append(dependency)
           continue
         else:
-          raise Exception("Coding error or unexpected setup.py format- Unknown case reached while parsing requires line.")
+          raise Exception("Coding error or unexpected setup.py format- Unknown case reached while parsing requires line. It is likely that the line does not match recognized patterns. Line reads:\n   "+full_lines[j])
 
       have_found_dependencies = True
       
-    # Else, if if requires=[ pattern is not matched to begin with,
+    # Else, if requires=[ pattern is not matched to begin with,
     #   but we find a mention of a "requirements.txt" file, then
     #   try pulling dependency information out of "requirements.txt"
     elif REQUIREMENTS_FILETYPE in full_lines[i]: # check for "requirements.txt" instead
@@ -339,6 +343,20 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
         dependency_strings = retrieve_dependencies_from_requirements_txt(tarfilename_full,contained_metafilenames)
         have_found_dependencies = True
 
+    # Else, if we see the following rough pattern: "requires = some_variable_name",
+    #   then try re-parsing to figure out what's in THAT variable.
+    # (This is the code that handles pre-filled lists of string literals.)
+    elif tok_values[i+1] == "=" and \
+          tok_codes[i+2] == tokenize.NAME and \
+          tok_values[i+3] == ",": # eventually want to be more flexible with this pattern
+      # This is where we re-parse the file and find the value of the variable being assigned to requires=.
+      name_of_prefilled_variable = tok_values[i+2]
+
+      metafileobj.seek(0,0)
+      dependency_strings = find_list_of_string_literals_with_name([name_of_prefilled_variable], metafileobj)
+      assert(dependency_strings is not None)
+
+      have_found_dependencies = True
 
 
     # Else we haven't managed to encounter a comprehensible line.
@@ -360,23 +378,135 @@ def find_dependencies_in_setuppy_fileobj(metafileobj, tarfilename_full, containe
 
 
   # Now we're done processing. Return information extracted or raise appropriate exceptions.
-  if have_found_dependencies:
+
+  # If we found dependency arguments to setup() and didn't have trouble parsing,
+  # Or if there were no dependency arguments at all in the setup.py file,
+  #    ( If we haven't found any instances of "requires" or "install_requires" tokens at all,
+  #      then we can actually assume there are no official dependencies.)
+  # Then we return the dependency information garnered (empty or otherwise).
+  if have_found_dependencies or not interesting_token_indices:
     return dependency_strings
-  elif not interesting_token_indices:
-    # But if we haven't found any instances of "requires" or "install_requires" tokens at all,
-    #   then we can actually assume there are no official dependencies.
-    return dependency_strings
+
   else: # have not found dependencies, but saw "requires" or "install_requires" tokens.
     # Spool the requires lines to report them in the exception.
     interesting_lines = ""
     for k in interesting_token_indices:
       interesting_lines += full_lines[k]
       interesting_lines += "-------------------------------------------------------\n"
-    raise Exception("No dependency information encountered. This setup.py neither employs a simple inline list of string literals in requires=, nor mentions requirements.txt. It will not be interpreted. The various requires lines found read as follows:\n"+interesting_lines)
+    raise Exception("Requirement tokens found, but were not able to be parsed. This setup.py neither employs a simple inline list of string literals in requires=, nor mentions requirements.txt in a line containing a requires token. It will not be interpreted. The various requires lines found read as follows:\n"+interesting_lines)
   
   
 
   assert(false) # control should never get here.
+
+
+# <~> Given a list of variable names and an open file object for a python
+#       source file, returns the value of the first variable with a matching
+#       name found within that source file, if that variable's value is a
+#       list of string literals in that source file.
+#
+#     For example, if given these arguments:
+#       1- ["REQUIREMENTS","REQUIRED"]
+#       2- read-only file object for a python file
+#
+#     where the python source reads, e.g.:
+#
+#       a = 5
+#       c = 'potato'
+#       d = ['soup','pasta','sandwich']
+#       REQUIREMENTS = ['numpy', 'dancer==3.0']
+#       setup(
+#          ...,
+#          install_requires=REQUIREMENTS,
+#          ...
+#       ...
+#
+#     then this function returns the list of strings ['numpy', 'dancer==3.0']
+#
+#
+#     This function currently reproduces some existing functionality from
+#       above in a slightly more general way, but with the difference that
+#       it only seeks the first instance.
+#     If everything works out, this should be made modular and consolidated.
+#
+def find_list_of_string_literals_with_name(names_of_desired_variables, fileobj):#, tok_values, tok_codes, full_lines):
+  
+  # Parse the contents of the python source file into three lists: tok_codes, tok_values, full_lines.
+  tokenizer = tokenize.generate_tokens(fileobj.readline)
+  tok_codes = []
+  tok_values = []
+  full_lines = []
+  for tok_code,tok_value,(srow,scol),(erow,ecol),full_line in tokenizer:
+    tok_codes.append(tok_code)
+    tok_values.append(tok_value)
+    full_lines.append(full_line)
+
+  first_interesting_token = None
+  values = [] # output
+
+  # Now loop over the tokens, in search of the first instance of an
+  #   assignment to a variable name we're interested in.
+  for i in range(0,len(tok_codes)):
+    # We're only interested in tokens where:
+    #    - token value equal to the name of a variable we're looking for
+    #    - token code indicating the token is a name (token.NAME)
+    #    - the next token is an "="
+    # If that's not what we're looking at on this line, we can move on.
+    if tok_values[i] not in names_of_desired_variables or \
+          tok_codes[i] != tokenize.NAME or \
+          tok_values[i+1] != '=' or \
+          tok_values[i+2] not in ["[","("]:
+      continue
+    else:
+      first_interesting_token = i
+      break
+  
+  # If unable to find, return None.
+  if first_interesting_token is None:
+    return None
+
+  # Otherwise, assume that we're dealing with an interesting assignment line,
+  #   matching the pattern (roughly):
+  #     "interesting_variable_name = [ 'packagename'", ...
+  #   so we parse it.
+  i = first_interesting_token
+  i += 2 # Set to just before the first string literal dependency (due to loop structure below starting with +1 statement)
+  n_open_brackets = 0
+  n_open_paren = 0
+  if tok_values[i] == "[":
+    n_open_brackets += 1
+  else:
+    assert(tok_values[i] == "(")
+    n_open_paren += 1
+      
+  # Loop over the tokens following requires=[ (or similar)
+  #   until we're done processing this list.
+  while n_open_brackets > 0 or n_open_paren > 0:
+    assert(n_open_brackets >= 0 and n_open_paren >= 0) # Assert no bad or incomprehensible control structure.
+    i += 1
+    if tok_values[i] == "," or tok_codes[i] in [tokenize.NL,tokenize.COMMENT]:
+      continue
+    elif tok_values[i] == "[":
+      n_open_brackets += 1
+      continue
+    elif tok_values[i] == "(":
+      n_open_paren += 1
+      continue
+    elif tok_values[i] == "]":
+      n_open_brackets -= 1
+      continue
+    elif tok_values[i] == ")":
+      n_open_paren -= 1
+      continue
+    elif tok_codes[i] == tokenize.STRING:
+      thisvalue = strip_outside_quotes(tok_values[i])
+      values.append(thisvalue)
+      continue
+    else:
+      raise Exception("Coding error or unexpected python source file format- Unknown case reached while parsing assignment line.")
+
+
+  return values
 
 
     
@@ -393,31 +523,10 @@ def retrieve_dependencies_from_requirements_txt(tarfilename_full,contained_metaf
     with tarfile.open(tarfilename_full) as tarfileobj:
       return tarfileobj.extractfile(contained_metafilenames[REQUIREMENTS_FILETYPE]).read().splitlines()
 
-#def process_single_line_dependencies(line):
-#  pass
 
 
 
 
-# <~> Rewritten as a non-generator function.
-#    OLD COMMENTS:
-#####     # <~> This is a generator function!
-#####     Given an sdist file, yields info on each metadata file encountered.
-#####     When a metadata file is encountered, yields:
-#####        full internal filename of the metadata file in the tarfile
-#
-#     Looks for a setup.py file (matching SETUPPY_FILETYPE) in the given
-#       sdist file object (a .tar.gz).
-#     I assume that the contained metadata file is in some subdirectory.
-#       It can't just be setup.py, for example, 
-#       but must be e.g. abstract_rendering-0.0.2/setup.py
-#
-def find_setuppy_file_in_package(tarfilename_full):
-  with tarfile.open(tarfilename_full) as tarfileobj:
-    tarfile_contents_fnames = tarfileobj.getnames()
-    for contained_fname in tarfile_contents_fnames:
-      if contained_fname.endswith("/"+SETUPPY_FILETYPE):
-        return contained_fname
 
 # <~> Rewriting find_metadata_files_in_package as a non-generator, to return a dict.
 #     Generally, I expect this to return a dict that looks like this:
@@ -463,6 +572,8 @@ def find_metadata_files_in_package(tarfilename_full):
 
 
 
+
+
 # <~> Given a full filename of an sdist (of the form /srv/.../packagename/packagename-1.0.0.tar.gz),
 #       return package name and version (e.g. packagename-1.0.0)
 def get_package_and_version_string_from_full_filename(fname_full):
@@ -472,11 +583,19 @@ def get_package_and_version_string_from_full_filename(fname_full):
   i_of_targz = fname_full.rfind('.tar.gz')
   return fname_full[i_of_last_slash+1:i_of_targz]
 
+
+
+
+
 # <~> Given a .tar.gz in a bandersnatch mirror, determine the package name.
 #     Bing's code sees fit to assume that the parent directory name is the package name.
 #     I'll go with that assumption.
 def get_package_name_given_full_filename(fname_full):
   return get_parent_dir_name_from_full_path(fname_full)
+
+
+
+
 
 # <~> Given a fully specified filename (i.e. including its path), extract name of parent directory (without full path).
 def get_parent_dir_name_from_full_path(fname_full):
@@ -488,6 +607,10 @@ def get_parent_dir_name_from_full_path(fname_full):
 
   return parent_dir
 
+
+
+
+
 # <~> Returns true if the filename given is deemed that of an sdist file, false otherwise.
 def is_sdist(fname):
   return fname.endswith(SDIST_FILE_EXTENSION)
@@ -495,6 +618,12 @@ def is_sdist(fname):
 
 
 
+# <~> Given a string, assert that its outer characters are a matching set of quotation
+#       marks (single or double, but matching) and strip them.
+def strip_outside_quotes(s):
+  assert s[0] in ['\'', '\"']
+  assert s[-1:] == s[0]
+  return s[1:-1]
 
 
 
