@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: appomatic
+Version: 0.0.6
+Summary: Appomatic is a userfriendly Django environment with automatic plugin (app) management based on pip.
+Home-page: http://github.com/redhog/appomatic
+Author: RedHog (Egil Moeller)
+Author-email: egil.moller@freecode.no
+License: GPL
+Description: UNKNOWN
+Keywords: appomatic django apps pip
+Platform: UNKNOWN

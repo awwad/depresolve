@@ -1,0 +1,9 @@
+MANIFEST.in
+__info__.py
+__init__.py
+setup.py
+appomatic.egg-info/PKG-INFO
+appomatic.egg-info/SOURCES.txt
+appomatic.egg-info/dependency_links.txt
+appomatic.egg-info/requires.txt
+appomatic.egg-info/top_level.txt

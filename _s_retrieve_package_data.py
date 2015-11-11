@@ -29,7 +29,7 @@ SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch gra
 SETUPPY_FILETYPE = 'setup.py'
 REQUIREMENTS_FILETYPE = "requirements.txt"
 METADATA_FILETYPES = [SETUPPY_FILETYPE,REQUIREMENTS_FILETYPE] # These files, found in the sdists, will be inspected for package metadata. No string in this set should be a substring of any other string in this set, please.
-DEBUG__N_SDISTS_TO_PROCESS = 1000 # debug; max packages to explore during debug
+DEBUG__N_SDISTS_TO_PROCESS = 25000 # debug; max packages to explore during debug
 #LOG__FAILURES = "_s_retrieve_package_data__failures.log"
 JSON_OUTPUT_FILE_DEPENDENCIES = 'output/_s_out_dependencies.json' # the dependencies determined will be written here in JSON format.
 JSON_OUTPUT_FILE_VERSIONS = 'output/_s_out_versions.json' # the list of detected packages will be written here in JSON format.
@@ -101,7 +101,7 @@ def main():
 
     # Skip this sdist if there was no setup.py file in it.
     if SETUPPY_FILETYPE not in contained_metafilenames:
-      print "-SDist",tarfilename_full,"lacks a setup.py file. Skipping. Error type 1."
+      print "-SDist",packagename_withversion,"lacks a setup.py file. Skipping. Error type 1."
       n_failures_to_parse_metadata += 1
       n_sdists_processed += 1
       failed_sdists.append((tarfilename_full,ERROR_NO_SETUPPY))
@@ -119,7 +119,14 @@ def main():
 
     # Extract the metadata file into a file obj in memory,
     #   for parsing and copying purposes.
-    contained_metafileobj = tarfile.open(tarfilename_full).extractfile(contained_setuppy_filename)
+    try:
+      contained_metafileobj = tarfile.open(tarfilename_full).extractfile(contained_setuppy_filename)
+    except Exception, err:
+      print "-SDist",packagename_withversion,": unable to expand setup.py file. Skipping. Error type 1.5. Exception text:",str(err)
+      n_failures_to_parse_metadata += 1
+      n_sdists_processed += 1
+      failed_sdists.append((tarfilename_full,ERROR_NO_SETUPPY))
+      continue
 
     # Make a local copy of the metadata file, writing to a file named using the
     #   tarfile name followed by the metadata filename.
@@ -135,7 +142,7 @@ def main():
       #   requirements.txt, it will pull that from the other two arguments.
       dependency_strings = find_dependencies_in_setuppy_fileobj(contained_metafileobj, tarfilename_full, contained_metafilenames)
     except Exception, err:
-      print "-SDist",tarfilename_full,"encountered exception during find_dependencies_in_setuppy_fileobj. Skipping. Exception text:",str(err)
+      print "-SDist",packagename_withversion,"encountered exception during find_dependencies_in_setuppy_fileobj. Skipping. Exception text:",str(err)
       failed_sdists.append((tarfilename_full, ERROR_PARSING))
       n_failures_to_parse_metadata += 1
       n_sdists_processed += 1
@@ -153,7 +160,7 @@ def main():
     
     # Done processing this particular sdist. Report what was discovered for debugging purposes.
     n_sdists_processed += 1
-    print "+SDist",tarfilename_full,"requires:",str(dependency_strings)
+    print "+SDist",packagename_withversion,"requires:",str(dependency_strings)
 
 
 

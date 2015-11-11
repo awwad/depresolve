@@ -1,0 +1,2 @@
+appomaticcore
+appomatic_appadmin

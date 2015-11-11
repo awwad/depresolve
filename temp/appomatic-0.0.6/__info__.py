@@ -1,0 +1,9 @@
+version = "0.0.6"
+author = "RedHog (Egil Moeller)"
+author_email = "egil.moller@freecode.no"
+license = "GPL"
+url = "http://github.com/redhog/appomatic"
+name = "appomatic"
+description = "Appomatic is a userfriendly Django environment with automatic plugin (app) management based on pip."
+keywords = "appomatic django apps pip"
+install_requires = ['appomaticcore', 'appomatic_appadmin']
