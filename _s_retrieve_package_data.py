@@ -37,8 +37,10 @@ JSON_OUTPUT_FILE_ERRORS = 'output/_s_out_errors.json' # the list of errors will 
 EXTRACTED_SETUPPYS_DIR = 'extracted_setuppys/'
 
 #     Error constants
-ERROR_NO_SETUPPY = 1
-ERROR_PARSING = 2 # should be broken out into individual error types, but the information is in the lower level function....
+ERROR_CANNOT_OPEN_SDIST = 10
+ERROR_NO_SETUPPY = 20
+ERROR_CANNOT_EXPAND_SETUPPY = 30
+ERROR_PARSING = 40 # should be broken out into individual error types, but the information is in the lower level function....
 
 
 # <~> Rewriting main()
@@ -91,17 +93,26 @@ def main():
       versions_by_package[packagename] = []
     # Then add this discovered version (e.g. potato-1.1) to the list for its package (e.g. potato)
     versions_by_package[packagename].append(packagename_withversion)
-      
+
     
     # Get all metadata files of interest in the sdist, in the form of a dict:
     #   e.g.:
     #     {'setup.py': 'foo/bar/setup.py',
     #      'restrictions.txt': 'foo/bar/baz/restrictions.txt'
-    contained_metafilenames = find_metadata_files_in_package(tarfilename_full)
+    contained_metafilenames = []
+    try:
+      contained_metafilenames = find_metadata_files_in_package(tarfilename_full)
+    except Exception, err:
+      print "-SDist",packagename_withversion,": unable to view contents of target sdist file. Skipping. Error number",str(ERROR_CANNOT_OPEN_SDIST)+". Exception text:",str(\
+err)
+      n_failures_to_parse_metadata += 1
+      n_sdists_processed += 1
+      failed_sdists.append((tarfilename_full,ERROR_CANNOT_OPEN_SDIST))
+      continue
 
     # Skip this sdist if there was no setup.py file in it.
     if SETUPPY_FILETYPE not in contained_metafilenames:
-      print "-SDist",packagename_withversion,"lacks a setup.py file. Skipping. Error type 1."
+      print "-SDist",packagename_withversion,"lacks a setup.py file. Skipping. Error number",str(ERROR_NO_SETUPPY)+"."
       n_failures_to_parse_metadata += 1
       n_sdists_processed += 1
       failed_sdists.append((tarfilename_full,ERROR_NO_SETUPPY))
@@ -122,10 +133,10 @@ def main():
     try:
       contained_metafileobj = tarfile.open(tarfilename_full).extractfile(contained_setuppy_filename)
     except Exception, err:
-      print "-SDist",packagename_withversion,": unable to expand setup.py file. Skipping. Error type 1.5. Exception text:",str(err)
+      print "-SDist",packagename_withversion,": unable to expand setup.py file. Skipping. Error number",str(ERROR_CANNOT_EXPAND_SETUPPY)+". Exception text:",str(err)
       n_failures_to_parse_metadata += 1
       n_sdists_processed += 1
-      failed_sdists.append((tarfilename_full,ERROR_NO_SETUPPY))
+      failed_sdists.append((tarfilename_full,ERROR_CANNOT_EXPAND_SETUPPY))
       continue
 
     # Make a local copy of the metadata file, writing to a file named using the
@@ -142,7 +153,7 @@ def main():
       #   requirements.txt, it will pull that from the other two arguments.
       dependency_strings = find_dependencies_in_setuppy_fileobj(contained_metafileobj, tarfilename_full, contained_metafilenames)
     except Exception, err:
-      print "-SDist",packagename_withversion,"encountered exception during find_dependencies_in_setuppy_fileobj. Skipping. Exception text:",str(err)
+      print "-SDist",packagename_withversion,"encountered exception during find_dependencies_in_setuppy_fileobj. Skipping. Error number",str(ERROR_PARSING)+". Exception text:",str(err)
       failed_sdists.append((tarfilename_full, ERROR_PARSING))
       n_failures_to_parse_metadata += 1
       n_sdists_processed += 1
