@@ -6,6 +6,14 @@
 _s_retrieve_package_data.py_backup_201510281352
 
 *.py~
+*.sh~
+*~
 
 extracted_setuppys/*
 *.pyc
+temp_distros/
+venv/
+temp/
+temp/*
+
+pprinted_deps.txt
