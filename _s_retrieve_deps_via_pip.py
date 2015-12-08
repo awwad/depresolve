@@ -1,14 +1,19 @@
-# <~> Retrieve dependencies via pip.
+# <~> Retrieve dependencies via pip version 8.0.0.dev0.seb
 
 import pip
 import os
+import json
 
-#pip.main(['install', '-d', '/Users/s/w/git/pypi-depresolve/temp_distros', '-i', 'file:///srv/pypi/web/simple', 'python-twitter'])
-
+#pip install -d /Users/s/w/git/pypi-depresolve/temp_distros -i file:///srv/pypi/web/simple --find-dep-conflicts $p
+#pip.main(['install', '-d', '/Users/s/w/git/pypi-depresolve/temp_distros', '-i', 'file:///srv/pypi/web/simple', '--find-dep-conflicts', python-twitter'])
 
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
-DEBUG__N_SDISTS_TO_PROCESS = 55 # debug; max packages to explore during debug
+DEBUG__N_SDISTS_TO_PROCESS = 10000 # debug; max packages to explore during debug
+TEMPDIR_FOR_DOWNLOADED_DISTROS = '/Users/s/w/git/pypi-depresolve/temp_distros'
+LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
+_S_DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/_s_deps_conflicts_from_pip.json"
+#WRITE_EVERY_X = 5
 
 def main():
   list_of_sdists_to_inspect = []
@@ -25,6 +30,13 @@ def main():
       break
 
 
+  # Fetch info on already known conflicts so that we can skip packages below. (Important for python 2 and python 3 runs.)
+  conflicts_db_type1 = None
+  with open(_S_DEPENDENCY_CONFLICTS_DB_FILENAME,"r") as fobj:
+    conflicts_db_type1 = json.load(fobj)
+  
+
+  n_inspected = 0
   for tarfilename_full in list_of_sdists_to_inspect:
 
     # Load some temp variables to use.
@@ -46,19 +58,49 @@ def main():
     ## Then add this discovered version (e.g. potato-1.1) to the list for its package (e.g. potato)
     #versions_by_package[packagename].append(packagename_withversion)
 
-    # If we're supposed to be using pip instead of doing all the parsing ourselves,
-    #   then (assuming it's my pip fork version 8.0.0.dev0seb), run pip with the
+    # Assuming it's my pip fork version 8.0.0.dev0seb), run pip with the
     #   appropriate arguments.
     formatted_requirement = packagename + "==" + deduced_version_string
-    exitcode = pip.main(['install', '-d', '/Users/s/w/git/pypi-depresolve/temp_distros', '--find-dep-conflicts', '-i', 'file:///srv/pypi/web/simple', formatted_requirement])
+
+    # Some dist filenames have "_" where the package name has "-".
+    # To prevent work from being reproduced, we'll account for these.
+    packagename_underscores_to_dashes = packagename.replace('_','-')
+
+    # Check to see if we already have conflict info for this package. If so, don't run for it.
+    distkey = packagename+"("+deduced_version_string+")" # This is the format for dists in the conflict db.
+    distkey_underscores_to_dashes = packagename_underscores_to_dashes+"("+deduced_version_string+")"
+    if distkey in conflicts_db_type1 or distkey_underscores_to_dashes in conflicts_db_type1:
+      print("<~>    SKIP -- Already have "+distkey+" in db of type 1 conflicts. Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+      n_inspected += 1
+
+      #if n_inspected % WRITE_EVERY_X == 0:   #Writing less often to speed this process up.
+      #  write_globals_to_db()
+      continue
+    #else:
+    #  import ipdb
+    #  ipdb.set_trace()
+
+    exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, '--disable-pip-version-check', '--find-dep-conflicts', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+
     if exitcode == 2:
-      print("<~> X  SDist",packagename_withversion,": pip found A DEPENDENCY CONFLICT.")
+      print("<~> X  SDist",packagename_withversion,": pip errored out (code="+str(exitcode)+"). Possible DEPENDENCY CONFLICT - see db and logs. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+    elif exitcode == 0:
+      print("<~> .  SDist",packagename_withversion,": pip completed successfully. No dependency conflicts observed. (Now at "+str(n_inspected)+"out of "+str(len(list_of_sdists_to_inspect))+")")
     else:
-      print("<~> .  SDist",packagename_withversion,": pip found no dependency conflicts.")
-    continue
+      print("<~> .  SDist",packagename_withversion,": pip errored out (code="+str(exitcode)+"), but it seems to have been unrelated to any dep conflict.... (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+    n_inspected += 1
+    #if (n_inspected % WRITE_EVERY_X) == 0:   #Writing less often to speed this process up.
+    #  write_globals_to_db()
+
+  # end of for each tarfile/sdist
 
 
+  #ipdb.set_trace()
+  #print("Manually write now!")
 
+  #Writing less often to speed this process up. So writing at end as well. 
+  #_s_write_dep_conflicts_global()
+  #_s_write_dependencies_global()
 
 
 # <~> Given a full filename of an sdist (of the form /srv/.../packagename/packagename-1.0.0.tar.gz),
@@ -74,7 +116,8 @@ def get_package_and_version_string_from_full_filename(fname_full):
 
 # <~> Given a .tar.gz in a bandersnatch mirror, determine the package name.
 #     Bing's code sees fit to assume that the parent directory name is the package name.
-#     I'll go with that assumption.
+#     I'll go with that assumption. (It breaks sometimes with dash/undrescore switching,
+#       but we fix that manually.)
 def get_package_name_given_full_filename(fname_full):
   return get_parent_dir_name_from_full_path(fname_full)
 
@@ -97,8 +140,7 @@ def is_sdist(fname):
   return fname.endswith(SDIST_FILE_EXTENSION)
 
 
-
-
-
 if __name__ == "__main__":
   main()
+
+
