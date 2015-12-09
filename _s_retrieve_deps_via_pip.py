@@ -1,5 +1,6 @@
 # <~> Retrieve dependencies via pip version 8.0.0.dev0.seb
 
+import sys # for arguments and exceptions
 import pip
 import os
 import json
@@ -9,25 +10,36 @@ import json
 
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
-DEBUG__N_SDISTS_TO_PROCESS = 10000 # debug; max packages to explore during debug
 TEMPDIR_FOR_DOWNLOADED_DISTROS = '/Users/s/w/git/pypi-depresolve/temp_distros'
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
 _S_DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/_s_deps_conflicts_from_pip.json"
 #WRITE_EVERY_X = 5
 
 def main():
+  DEBUG__N_SDISTS_TO_PROCESS = 1 # debug; max packages to explore during debug
+  print("_s_retrieve_deps_via_pip - Version 0.1.0")
   list_of_sdists_to_inspect = []
 
-  i = 0
-  for dir,subdirs,files in os.walk(BANDERSNATCH_MIRROR_DIR):
-    for fname in files:
-      if is_sdist(fname):
-        list_of_sdists_to_inspect.append(os.path.join(dir,fname))
-        i += 1
-        if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
-          break
-    if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
-      break
+  # Argument processing. If we have arguments coming in, treat those as the sdists to inspect.
+  if len(sys.argv) > 1:
+    for arg in sys.argv[1:]:
+      if arg.startswith("--n="):
+        DEBUG__N_SDISTS_TO_PROCESS = int(arg[4:])
+      else:
+        list_of_sdists_to_inspect.append(arg)
+
+  # If we weren't given sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_DIR
+  if not list_of_sdists_to_inspect:
+    i = 0
+    for dir,subdirs,files in os.walk(BANDERSNATCH_MIRROR_DIR):
+      for fname in files:
+        if is_sdist(fname):
+          list_of_sdists_to_inspect.append(os.path.join(dir,fname))
+          i += 1
+          if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
+            break
+      if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
+        break
 
 
   # Fetch info on already known conflicts so that we can skip packages below. (Important for python 2 and python 3 runs.)
@@ -85,7 +97,7 @@ def main():
     if exitcode == 2:
       print("<~> X  SDist",packagename_withversion,": pip errored out (code="+str(exitcode)+"). Possible DEPENDENCY CONFLICT - see db and logs. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
     elif exitcode == 0:
-      print("<~> .  SDist",packagename_withversion,": pip completed successfully. No dependency conflicts observed. (Now at "+str(n_inspected)+"out of "+str(len(list_of_sdists_to_inspect))+")")
+      print("<~> .  SDist",packagename_withversion,": pip completed successfully. No dependency conflicts observed. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
     else:
       print("<~> .  SDist",packagename_withversion,": pip errored out (code="+str(exitcode)+"), but it seems to have been unrelated to any dep conflict.... (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
     n_inspected += 1
