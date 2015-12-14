@@ -15,7 +15,7 @@ BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
 TEMPDIR_FOR_DOWNLOADED_DISTROS = '/Users/s/w/git/pypi-depresolve/temp_distros'
-DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/_s_deps_conflicts_from_pip.json"
+DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_db.json"
 BLACKLIST_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/blacklist_db.json"
 
 def main():
@@ -289,6 +289,28 @@ def normalize_version_string(version):
     version = version.replace('beta','b')
   if 'alpha' in version: # beta should always be b instead.
     version = version.replace('alpha','a')
+
+  # Yeah, yeah.
+  if '.00' in version:
+    version = version.replace('.00','.0')
+  if '.01' in version:
+    version = version.replace('.01','.1')
+  if '.02' in version:
+    version = version.replace('.02','.2')
+  if '.03' in version:
+    version = version.replace('.03','.3')
+  if '.04' in version:
+    version = version.replace('.04','.4')
+  if '.05' in version:
+    version = version.replace('.05','.5')
+  if '.06' in version:
+    version = version.replace('.06','.6')
+  if '.07' in version:
+    version = version.replace('.07','.7')
+  if '.08' in version:
+    version = version.replace('.08','.8')
+  if '.09' in version:
+    version = version.replace('.09','.9')
 
 
   return version
