@@ -56,6 +56,7 @@ def main():
   
 
   n_inspected = 0
+  n_added_to_blacklist = 0
   for tarfilename_full in list_of_sdists_to_inspect:
 
     # Deduce package names and versions from sdist filename.
@@ -136,23 +137,38 @@ def main():
       print("<~> .  SDist",packagename_withversion,": pip errored out (code="+str(exitcode)+"), but it seems to have been unrelated to any dep conflict.... (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
       # Store in the list of failing packages along with the python version we're running. (sys.version_info.major yields int 2 or 3)
       #   Contents are to eventually be a list of the major versions in which it fails.
-      if distkey not in blacklist_db:
-        blacklist_db[distkey] = [sys.version_info.major]
-        print("  Added entry to blacklist for",distkey)
-      elif sys.version_info.major not in blacklist_db[distkey]:
-        blacklist_db[distkey].append(sys.version_info.major)
-        print("  Added additional entry to blacklist for",distkey)
-      # else it's already in there for this version.
-        
-    n_inspected += 1
+      # We should never get here if the dist is already in the blacklist for this version of python, but let's keep going even if so.
+      if distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
+        print("  WARNING! This should not happen!",distkey,"was already in the blacklist for python",str(sys.version_info.major)+", thus it should not have been run!")
+      else: # Either the dist is not in the blacklist or it's not in the blacklist for this version of python. (Sensible)
+        if distkey not in blacklist_db: # 
+          blacklist_db[distkey] = [sys.version_info.major]
+          print("  Added entry to blacklist for",distkey)
+        else:
+          assert(sys.version_info.major not in blacklist_db[distkey])
+          blacklist_db[distkey].append(sys.version_info.major)
+          print("  Added additional entry to blacklist for",distkey)
 
+        n_added_to_blacklist += 1
+        # Occasionally write the blacklist to file so we don't lose tons of blacklist info if the script
+        #   has to be killed.
+        if n_added_to_blacklist % 10 == 0:
+          write_blacklist_to_file(blacklist_db)
+          
+    # end of exit code processing
+    n_inspected += 1
 
   # end of for each tarfile/sdist
 
-  # Write the collected blacklist back to file.
+  # We're done with all packages. Write the collected blacklist back to file.
+  write_blacklist_to_file(blacklist_db)
+
+
+# <~> Dump the blacklist json info to file.
+def write_blacklist_to_file(blacklist_db):
   with open(BLACKLIST_DB_FILENAME,'w') as fobj:
     json.dump(blacklist_db,fobj)
-
+  
 
 # Given a full filename of an sdist (of the form /srv/.../packagename/packagename-1.0.0.tar.gz),
 #       return package name and version (e.g. packagename-1.0.0)
