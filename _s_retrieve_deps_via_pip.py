@@ -15,12 +15,20 @@ BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
 TEMPDIR_FOR_DOWNLOADED_DISTROS = '/Users/s/w/git/pypi-depresolve/temp_distros'
-DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_db.json"
+DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_db.json" # db for model 1 conflicts
+DEPENDENCY_CONFLICTS2_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_2_db.json" # db for model 2 conflicts
 BLACKLIST_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/blacklist_db.json"
+DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check'
 
+# Args:
+#   --n=N    set N as the max packages to explore during debug
+#   --cm2    run using conflict model 2 instead of conflict model 1
+#   any other args are interpreted as sdist filenames (.tar.gz format) to run pip on and check conflicts on in pip code
 def main():
-  DEBUG__N_SDISTS_TO_PROCESS = 1 # debug; max packages to explore during debug
-  print("_s_retrieve_deps_via_pip - Version 0.1.0")
+  DEBUG__N_SDISTS_TO_PROCESS = 1 # debug; max packages to explore during debug - overriden by --n=N argument.
+  CONFLICT_MODEL = 1
+  
+  print("_s_retrieve_deps_via_pip - Version 0.2")
   list_of_sdists_to_inspect = []
 
   # Argument processing. If we have arguments coming in, treat those as the sdists to inspect.
@@ -28,6 +36,8 @@ def main():
     for arg in sys.argv[1:]:
       if arg.startswith("--n="):
         DEBUG__N_SDISTS_TO_PROCESS = int(arg[4:])
+      elif arg == "--cm2":
+        CONFLICT_MODEL = 2
       else:
         list_of_sdists_to_inspect.append(arg)
 
@@ -46,8 +56,13 @@ def main():
 
 
   # Fetch info on already known conflicts so that we can skip packages below. (Important for python 2 and python 3 runs.)
-  conflicts_db_type1 = load_json_db(DEPENDENCY_CONFLICTS_DB_FILENAME)
-  keys_in_conflicts_db_type1_lower = set(k.lower() for k in conflicts_db_type1)
+  conflicts_db = None
+  if CONFLICT_MODEL == 1:
+    conflicts_db = load_json_db(DEPENDENCY_CONFLICTS_DB_FILENAME)
+  else:
+    assert(CONFLICT_MODEL == 2)
+    conflicts_db = load_json_db(DEPENDENCY_CONFLICTS2_DB_FILENAME)
+  keys_in_conflicts_db_lower = set(k.lower() for k in conflicts_db)
 
   # Ditto blacklist db. These are runs that resulted in errors or runs that were manually added
   #   because, for example, they hang seemingly forever or take an inordinate length of time.
@@ -109,9 +124,9 @@ def main():
     
     # Check to see if we already have conflict info for this package. If so, don't run for it.
     # Include a check for a 
-    if distkey in keys_in_conflicts_db_type1_lower:
+    if distkey in keys_in_conflicts_db_lower:
       n_inspected += 1
-      print("<~>    SKIP -- Already have "+distkey+" in db of type 1 conflicts. Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+      print("<~>    SKIP -- Already have "+distkey+" in db of type",str(CONFLICT_MODEL),"conflicts. Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
       continue
     # Else if the dist is listed in the blacklist along with this python major version (2 or 3), skip.
     elif distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
@@ -126,7 +141,12 @@ def main():
     # Assuming it's my pip fork version 8.0.0.dev0seb), run pip with the
     #   appropriate arguments.
     formatted_requirement = packagename + "==" + deduced_version_string
-    exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, '--disable-pip-version-check', '--find-dep-conflicts', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+    exitcode = None
+    if CONFLICT_MODEL == 1:
+      exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+    else:
+      assert(CONFLICT_MODEL == 2)
+      exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts2', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
 
     # Process the output of the pip command.
     if exitcode == 2:
