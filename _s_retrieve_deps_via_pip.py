@@ -27,7 +27,8 @@ DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check'
 def main():
   DEBUG__N_SDISTS_TO_PROCESS = 1 # debug; max packages to explore during debug - overriden by --n=N argument.
   CONFLICT_MODEL = 1
-  
+  NO_SKIP = False
+
   print("_s_retrieve_deps_via_pip - Version 0.2")
   list_of_sdists_to_inspect = []
 
@@ -38,6 +39,8 @@ def main():
         DEBUG__N_SDISTS_TO_PROCESS = int(arg[4:])
       elif arg == "--cm2":
         CONFLICT_MODEL = 2
+      elif arg == "--noskip":
+        NO_SKIP = True
       else:
         list_of_sdists_to_inspect.append(arg)
 
@@ -124,17 +127,19 @@ def main():
     
     # Check to see if we already have conflict info for this package. If so, don't run for it.
     # Include a check for a 
-    if distkey in keys_in_conflicts_db_lower:
-      n_inspected += 1
-      print("<~>    SKIP -- Already have "+distkey+" in db of type",str(CONFLICT_MODEL),"conflicts. Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
-      continue
-    # Else if the dist is listed in the blacklist along with this python major version (2 or 3), skip.
-    elif distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
-      n_inspected += 1
-      print("<~>    SKIP -- Blacklist includes "+distkey+". Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
-      continue
 
-    print(packagename_withversion,"not found in conflicts or blacklist dbs. Searched for '"+distkey+"'. Sending to pip.")
+    if not NO_SKIP:
+      if distkey in keys_in_conflicts_db_lower:
+        n_inspected += 1
+        print("<~>    SKIP -- Already have "+distkey+" in db of type",str(CONFLICT_MODEL),"conflicts. Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+        continue
+      # Else if the dist is listed in the blacklist along with this python major version (2 or 3), skip.
+      elif distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
+        n_inspected += 1
+        print("<~>    SKIP -- Blacklist includes "+distkey+". Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+        continue
+
+      print(packagename_withversion,"not found in conflicts or blacklist dbs. Searched for '"+distkey+"'. Sending to pip.\n")
 
     # Else, process the dist.
 
