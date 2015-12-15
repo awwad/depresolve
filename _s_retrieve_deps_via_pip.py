@@ -17,6 +17,7 @@ LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
 TEMPDIR_FOR_DOWNLOADED_DISTROS = '/Users/s/w/git/pypi-depresolve/temp_distros'
 DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_db.json" # db for model 1 conflicts
 DEPENDENCY_CONFLICTS2_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_2_db.json" # db for model 2 conflicts
+DEPENDENCY_CONFLICTS3_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_3_db.json" # db for model 3 conflicts
 BLACKLIST_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/blacklist_db.json"
 DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check'
 
@@ -37,8 +38,12 @@ def main():
     for arg in sys.argv[1:]:
       if arg.startswith("--n="):
         DEBUG__N_SDISTS_TO_PROCESS = int(arg[4:])
+      elif arg == "--cm1":
+        CONFLICT_MODEL = 1
       elif arg == "--cm2":
         CONFLICT_MODEL = 2
+      elif arg == "--cm3":
+        CONFLICT_MODEL = 3
       elif arg == "--noskip":
         NO_SKIP = True
       else:
@@ -62,9 +67,12 @@ def main():
   conflicts_db = None
   if CONFLICT_MODEL == 1:
     conflicts_db = load_json_db(DEPENDENCY_CONFLICTS_DB_FILENAME)
-  else:
-    assert(CONFLICT_MODEL == 2)
+  elif CONFLICT_MODEL == 2:
     conflicts_db = load_json_db(DEPENDENCY_CONFLICTS2_DB_FILENAME)
+  else:
+    assert(CONFLICT_MODEL == 3)
+    conflicts_db = load_json_db(DEPENDENCY_CONFLICTS3_DB_FILENAME)
+
   keys_in_conflicts_db_lower = set(k.lower() for k in conflicts_db)
 
   # Ditto blacklist db. These are runs that resulted in errors or runs that were manually added
@@ -147,11 +155,15 @@ def main():
     #   appropriate arguments.
     formatted_requirement = packagename + "==" + deduced_version_string
     exitcode = None
-    if CONFLICT_MODEL == 1:
-      exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
-    else:
-      assert(CONFLICT_MODEL == 2)
-      exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts2', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+    assert(CONFLICT_MODEL in [1, 2, 3])
+    exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', str(CONFLICT_MODEL), '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+    #if CONFLICT_MODEL == 1:
+    #  exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', '1', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+    #elif CONFLICT_MODEL == 2:
+    #  exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts2', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+    #else:
+    #  assert(CONFLICT_MODEL == 3)
+    #  exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts3', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
 
     # Process the output of the pip command.
     if exitcode == 2:
