@@ -5,7 +5,7 @@ import sys # for arguments and exceptions
 import pip
 import os
 import json
-import ipdb
+#import ipdb
 from distutils.version import StrictVersion, LooseVersion # for use in version parsing
 
 #pip install -d /Users/s/w/git/pypi-depresolve/temp_distros -i file:///srv/pypi/web/simple --find-dep-conflicts $p

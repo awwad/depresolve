@@ -1,3 +1,8 @@
+# PLEASE NOTE THAT I AM NOT CURRENTLY USING THIS.
+# It is intended to fetch dependency information from PyPI packages manually, by analyzing setup.py, restrictions.txt, etc.
+# It is replaced by an altered version of pip and the script _s_retrieve_deps_via_pip.py
+# What follows is old.
+
 import os       # for reading files
 import sys      # for handling exceptions
 import tarfile  # for exploring contents of .tar.gz source distributions
