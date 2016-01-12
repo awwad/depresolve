@@ -3,7 +3,7 @@ PyPI package dependency resolution project
 
 The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip.
 
-As written, it employs a modified pip fork I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
+_s_retrieve_deps_via_pip.py employs a modified pip fork I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
 
 Currently, it employs (and expects) a local bandersnatch'd mirror of PyPI.
 
@@ -41,3 +41,7 @@ Instructions for use (tentative - this is mid-development)
 13. python _s_retrieve_deps_via_pip.py --n=1 --cm2 --noskip      # (to run this for 1 package, the first 1 in the mirror alphabetically, employing conflict model 2, and not skipping if the package has already been analyzed)
 14. 
   
+
+
+Comments on _s_retrieve_package_data.py: 
+This script handles manual parsing of setup.py files, without employing pip, and simply extracts dependencies. It is no longer in use and is replaced by _s_retrieve_deps_via_pip.py. Sorry about the names.
