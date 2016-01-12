@@ -20,6 +20,7 @@ Via modified pip code, this project runs the initial (pre-install) portion of th
 
 
 Instructions for use (tentative - this is mid-development)
+
 1.  git clone https://github.com/awwad/pip.git
 2.  cd pip
 3.  git checkout develop
