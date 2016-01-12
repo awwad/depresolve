@@ -1,5 +1,6 @@
 # <~>
-# Retrieve dependencies via pip version 8.0.0.dev0.seb
+# Employs custom version of pip (awwad/pip:develop) to harvest dependencies and find dependency conflicts for packages in PyPI.
+# See README.md!
 
 import sys # for arguments and exceptions
 import pip
@@ -11,15 +12,20 @@ from distutils.version import StrictVersion, LooseVersion # for use in version p
 #pip install -d /Users/s/w/git/pypi-depresolve/temp_distros -i file:///srv/pypi/web/simple --find-dep-conflicts $p
 #pip.main(['install', '-d', '/Users/s/w/git/pypi-depresolve/temp_distros', '-i', 'file:///srv/pypi/web/simple', '--find-dep-conflicts', python-twitter'])
 
+# Local resources
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
-SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
-TEMPDIR_FOR_DOWNLOADED_DISTROS = '/Users/s/w/git/pypi-depresolve/temp_distros'
-DEPENDENCY_CONFLICTS_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_db.json" # db for model 1 conflicts
-DEPENDENCY_CONFLICTS2_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_2_db.json" # db for model 2 conflicts
-DEPENDENCY_CONFLICTS3_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/conflicts_3_db.json" # db for model 3 conflicts
-BLACKLIST_DB_FILENAME = "/Users/s/w/git/pypi-depresolve/blacklist_db.json"
+WORKING_DIRECTORY = os.getcwd() #'/Users/s/w/git/pypi-depresolve' in my setup
+DEPENDENCY_CONFLICTS_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"conflicts_1_db.json") # db for model 1 conflicts
+DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"conflicts_2_db.json") # db for model 2 conflicts
+DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"conflicts_3_db.json") # db for model 3 conflicts
+BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"blacklist_db.json")
+TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY,'temp_distros') # May not want this in same place as working directory. Would be terrible to duplicate. One such sdist cadche per system! Gets big.
+
+# Other Assumptions
+SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
 DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check'
+
 
 # Args:
 #   --n=N    set N as the max packages to explore during debug
