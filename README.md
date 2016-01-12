@@ -30,5 +30,11 @@ Instructions for use (tentative - this is mid-development)
 7.  source v3/bin/activate
 8.  cd pip
 9.  pip install -U .
-10. .......
+10. cd ..
+11. .......
+11. <add steps for initially establishing dbs or further revise code to handle for user>
+12. .......
+13. cd pypi-depresolve
+13. python _s_retrieve_deps_via_pip.py --n=1 --cm2 --noskip      # (to run this for 1 package, the first 1 in the mirror alphabetically, employing conflict model 2, and not skipping if the package has already been analyzed)
+14. 
   
