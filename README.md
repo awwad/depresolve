@@ -20,14 +20,14 @@ Via modified pip code, this project runs the initial (pre-install) portion of th
 
 
 Instructions for use (tentative - this is mid-development)
-  git clone https://github.com/awwad/pip.git
-  cd pip
-  git checkout develop
-  cd ..
-  git clone https://github.com/awwad/pypi-depresolve.git
-  virtualenv -p python3 --no-site-packages v3
-  source v3/bin/activate
-  cd pip
-  pip install -U .
-  
+1.  git clone https://github.com/awwad/pip.git
+2.  cd pip
+3.  git checkout develop
+4.  cd ..
+5.  git clone https://github.com/awwad/pypi-depresolve.git
+6.  virtualenv -p python3 --no-site-packages v3
+7.  source v3/bin/activate
+8.  cd pip
+9.  pip install -U .
+10. .......
   
