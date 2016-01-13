@@ -41,13 +41,18 @@ for dirname in LIST_OF_OUTPUT_FILE_DIRS:
 #   --noskip Don't skip packages in the blacklist or packages for which information on whether or not a conflict occurs is already stored.
 #
 #   any other args are interpreted as sdist filenames (.tar.gz format) to run pip on and check conflicts on in pip code
-#   (e.g. python analyze_deps_via_pip.py --cm2 /srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz)
+#   Example calls:
+#         Run on a single specified package, motorengine 0.7.4, stored locally, using conflict model 2.
+#              python analyze_deps_via_pip.py --cm2 /srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz
+#         Run on the first 10 packages in the local pypi mirror (assumed /srv/pypi) alphabetically, using conflict model 1.
+#              python analyze_deps_via_pip.py --cm1 --n=10
+#
 def main():
   DEBUG__N_SDISTS_TO_PROCESS = 1 # debug; max packages to explore during debug - overriden by --n=N argument.
   CONFLICT_MODEL = 2
   NO_SKIP = False
 
-  print("analyze_deps_via_pip - Version 0.2")
+  print("analyze_deps_via_pip - Version 0.2.1")
   list_of_sdists_to_inspect = []
 
   # Argument processing. If we have arguments coming in, treat those as the sdists to inspect.
