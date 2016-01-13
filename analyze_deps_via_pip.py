@@ -23,7 +23,7 @@ BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "blacklist_db.json")
 DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "dependencies_db.json")
 TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY, 'temp_distros') # May not want this in same place as working directory. Would be terrible to duplicate. One such sdist cadche per system! Gets big.
 # If temp / output files are added, please ensure that the directories they're in are also added to this list:
-LIST_OF_OUTPUT_FILE_DIRS = [TEMPDIR_FOR_DOWNLOADED_DISTROS, os.path.dirname(BLACKLIST_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS3_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS2_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS1_DB_FILENAME), os.path.dirname(DEPENEDENCIES_DB_FILENAME)]
+LIST_OF_OUTPUT_FILE_DIRS = [TEMPDIR_FOR_DOWNLOADED_DISTROS, os.path.dirname(BLACKLIST_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS3_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS2_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS1_DB_FILENAME), os.path.dirname(DEPENDENCIES_DB_FILENAME)]
 
 # Other Assumptions
 SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
