@@ -37,12 +37,17 @@ for dirname in LIST_OF_OUTPUT_FILE_DIRS:
     print("Directory check: " + dirname + " does not exist. Making it.")
 
 # Argument handling:
-#   --n=N    set N as the max packages to explore during debug
-#   --cm2    run using conflict model 2 instead of conflict model 1
+#   --n=N    set N as the max packages to explore during debug  (e.g. --n=1  or  --n=10000. Default is all packages specified, else all packages in local pypi mirror at /srv/pypi)
+#   --cm1    run using conflict model 1 (see README)
+#   --cm2    run using conflict model 2 (default)
+#   --cm3    run using conflict model 3
+#   --noskip Don't skip packages in the blacklist or packages for which information on whether or not a conflict occurs is already stored.
+#
 #   any other args are interpreted as sdist filenames (.tar.gz format) to run pip on and check conflicts on in pip code
+#   (e.g. python analyze_deps_via_pip.py --cm2 /srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz)
 def main():
   DEBUG__N_SDISTS_TO_PROCESS = 1 # debug; max packages to explore during debug - overriden by --n=N argument.
-  CONFLICT_MODEL = 1
+  CONFLICT_MODEL = 2
   NO_SKIP = False
 
   print("analyze_deps_via_pip - Version 0.2")
@@ -66,15 +71,18 @@ def main():
 
   # If we weren't given sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_DIR
   if not list_of_sdists_to_inspect:
+    # Ensure that the local PyPI mirror directory exists first.
+    if not os.path.exists(BANDERSNATCH_MIRROR_DIR)):
+      raise Exception('<~> Exception. Expecting a bandersnatched mirror of PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not exist.')
     i = 0
     for dir, subdirs, files in os.walk(BANDERSNATCH_MIRROR_DIR):
       for fname in files:
         if is_sdist(fname):
           list_of_sdists_to_inspect.append(os.path.join(dir, fname))
           i += 1
-          if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
+          if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time. tidy later.
             break
-      if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
+      if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time. tidy later.
         break
 
 
@@ -187,14 +195,14 @@ def main():
       # Store in the list of failing packages along with the python version we're running. (sys.version_info.major yields int 2 or 3)
       #   Contents are to eventually be a list of the major versions in which it fails.
       # We should never get here if the dist is already in the blacklist for this version of python, but let's keep going even if so.
-      if distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
-        print("  WARNING! This should not happen!", distkey, "was already in the blacklist for python",str(sys.version_info.major) + ", thus it should not have been run!")
+      if distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey] and not NO_SKIP:
+        print("  WARNING! This should not happen!", distkey, "was already in the blacklist for python",str(sys.version_info.major) + ", thus it should not have been run unless we have --noskip on (which it is not)!")
       else: # Either the dist is not in the blacklist or it's not in the blacklist for this version of python. (Sensible)
         if distkey not in blacklist_db: # 
           blacklist_db[distkey] = [sys.version_info.major]
           print("  Added entry to blacklist for", distkey)
         else:
-          assert(sys.version_info.major not in blacklist_db[distkey])
+          assert(NO_SKIP or sys.version_info.major not in blacklist_db[distkey])
           blacklist_db[distkey].append(sys.version_info.major)
           print("  Added additional entry to blacklist for", distkey)
 
@@ -339,7 +347,7 @@ def normalize_version_string(version):
   if 'alpha' in version: # beta should always be b instead.
     version = version.replace('alpha', 'a')
 
-  # Yeah, yeah.
+  # This is awkward, but it covers a sizeable number of cases.
   if '.00' in version:
     version = version.replace('.00', '.0')
   if '.01' in version:
