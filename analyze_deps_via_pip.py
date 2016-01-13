@@ -16,18 +16,27 @@ from distutils.version import StrictVersion, LooseVersion # for use in version p
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
 WORKING_DIRECTORY = os.getcwd() #'/Users/s/w/git/pypi-depresolve' in my setup
-DEPENDENCY_CONFLICTS_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"conflicts_1_db.json") # db for model 1 conflicts
-DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"conflicts_2_db.json") # db for model 2 conflicts
-DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"conflicts_3_db.json") # db for model 3 conflicts
-BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY,"blacklist_db.json")
-TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY,'temp_distros') # May not want this in same place as working directory. Would be terrible to duplicate. One such sdist cadche per system! Gets big.
+DEPENDENCY_CONFLICTS1_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "conflicts_1_db.json") # db for model 1 conflicts
+DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "conflicts_2_db.json") # db for model 2 conflicts
+DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "conflicts_3_db.json") # db for model 3 conflicts
+BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "blacklist_db.json")
+DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "dependencies_db.json")
+TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY, 'temp_distros') # May not want this in same place as working directory. Would be terrible to duplicate. One such sdist cadche per system! Gets big.
+# If temp / output files are added, please ensure that the directories they're in are also added to this list:
+LIST_OF_OUTPUT_FILE_DIRS = [TEMPDIR_FOR_DOWNLOADED_DISTROS, os.path.dirname(BLACKLIST_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS3_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS2_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS1_DB_FILENAME), os.path.dirname(DEPENEDENCIES_DB_FILENAME)]
 
 # Other Assumptions
 SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
 DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check'
 
+# Ensure that appropriate directories for working files / output files exist.
+assert(os.path.exists(WORKING_DIRECTORY))
+for dirname in LIST_OF_OUTPUT_FILE_DIRS:
+  if not os.path.exists(dirname):
+    os.makedirs(dirname)
+    print("Directory check: " + dirname + " does not exist. Making it.")
 
-# Args:
+# Argument handling:
 #   --n=N    set N as the max packages to explore during debug
 #   --cm2    run using conflict model 2 instead of conflict model 1
 #   any other args are interpreted as sdist filenames (.tar.gz format) to run pip on and check conflicts on in pip code
@@ -36,7 +45,7 @@ def main():
   CONFLICT_MODEL = 1
   NO_SKIP = False
 
-  print("_s_retrieve_deps_via_pip - Version 0.2")
+  print("analyze_deps_via_pip - Version 0.2")
   list_of_sdists_to_inspect = []
 
   # Argument processing. If we have arguments coming in, treat those as the sdists to inspect.
@@ -58,10 +67,10 @@ def main():
   # If we weren't given sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_DIR
   if not list_of_sdists_to_inspect:
     i = 0
-    for dir,subdirs,files in os.walk(BANDERSNATCH_MIRROR_DIR):
+    for dir, subdirs, files in os.walk(BANDERSNATCH_MIRROR_DIR):
       for fname in files:
         if is_sdist(fname):
-          list_of_sdists_to_inspect.append(os.path.join(dir,fname))
+          list_of_sdists_to_inspect.append(os.path.join(dir, fname))
           i += 1
           if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time
             break
@@ -70,14 +79,17 @@ def main():
 
 
   # Fetch info on already known conflicts so that we can skip packages below. (Important for python 2 and python 3 runs.)
-  conflicts_db = None
+  conflicts_db_fname = None
   if CONFLICT_MODEL == 1:
-    conflicts_db = load_json_db(DEPENDENCY_CONFLICTS_DB_FILENAME)
+    conflicts_db_fname = DEPENDENCY_CONFLICTS1_DB_FILENAME
   elif CONFLICT_MODEL == 2:
-    conflicts_db = load_json_db(DEPENDENCY_CONFLICTS2_DB_FILENAME)
+    conflicts_db_fname = DEPENDENCY_CONFLICTS2_DB_FILENAME
   else:
     assert(CONFLICT_MODEL == 3)
-    conflicts_db = load_json_db(DEPENDENCY_CONFLICTS3_DB_FILENAME)
+    conflicts_db_fname = DEPENDENCY_CONFLICTS3_DB_FILENAME
+
+  conflicts_db = load_json_db(conflicts_db_fname)
+
 
   keys_in_conflicts_db_lower = set(k.lower() for k in conflicts_db)
 
@@ -94,7 +106,7 @@ def main():
     # Deduce package names and versions from sdist filename.
     packagename = get_package_name_given_full_filename(tarfilename_full)
     packagename_withversion = get_package_and_version_string_from_full_filename(tarfilename_full)
-    deduced_version_string = packagename_withversion[len(packagename)+1:]
+    deduced_version_string = packagename_withversion[len(packagename) + 1:]
 
     # Perform a variety of fixes to match pip's normalized package and version names,
     #   which are what my code inside pip spit out to the dbs.
@@ -135,8 +147,8 @@ def main():
     deduced_version_string = normalize_version_string(deduced_version_string)
 
 
-    distkey = packagename+"("+deduced_version_string+")" # This is the format for dists in the conflict db.
-    distkey = distkey.lower().replace('_','-')
+    distkey = packagename + "(" + deduced_version_string + ")" # This is the format for dists in the conflict db.
+    distkey = distkey.lower().replace('_', '-')
 
     
     # Check to see if we already have conflict info for this package. If so, don't run for it.
@@ -145,15 +157,15 @@ def main():
     if not NO_SKIP:
       if distkey in keys_in_conflicts_db_lower:
         n_inspected += 1
-        print("<~>    SKIP -- Already have "+distkey+" in db of type",str(CONFLICT_MODEL),"conflicts. Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+        print("<~>    SKIP -- Already have " + distkey + " in db of type", str(CONFLICT_MODEL),"conflicts. Skipping. (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
         continue
       # Else if the dist is listed in the blacklist along with this python major version (2 or 3), skip.
       elif distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
         n_inspected += 1
-        print("<~>    SKIP -- Blacklist includes "+distkey+". Skipping. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+        print("<~>    SKIP -- Blacklist includes " + distkey + ". Skipping. (Now at " + str(n_inspected) + " out of "+str(len(list_of_sdists_to_inspect)) + ")")
         continue
 
-      print(packagename_withversion,"not found in conflicts or blacklist dbs. Searched for '"+distkey+"'. Sending to pip.\n")
+      print(packagename_withversion,"not found in conflicts or blacklist dbs. Searched for '" + distkey + "'. Sending to pip.\n")
 
     # Else, process the dist.
 
@@ -162,35 +174,29 @@ def main():
     formatted_requirement = packagename + "==" + deduced_version_string
     exitcode = None
     assert(CONFLICT_MODEL in [1, 2, 3])
-    exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', str(CONFLICT_MODEL), '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
-    #if CONFLICT_MODEL == 1:
-    #  exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', '1', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
-    #elif CONFLICT_MODEL == 2:
-    #  exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts2', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
-    #else:
-    #  assert(CONFLICT_MODEL == 3)
-    #  exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts3', '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+    exitcode = pip.main(['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', str(CONFLICT_MODEL), '--conflicts-db-file', conflicts_db_fname, '--dependencies-db-file', DEPENDENCIES_DB_FILENAME, '-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING, formatted_requirement])
+
 
     # Process the output of the pip command.
     if exitcode == 2:
-      print("<~> X  SDist",packagename_withversion,": pip errored out (code="+str(exitcode)+"). Possible DEPENDENCY CONFLICT - see db and logs. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+      print("<~> X  SDist", packagename_withversion, ": pip errored out (code=" + str(exitcode) + "). Possible DEPENDENCY CONFLICT - see db and logs. (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
     elif exitcode == 0:
-      print("<~> .  SDist",packagename_withversion,": pip completed successfully. No dependency conflicts observed. (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+      print("<~> .  SDist", packagename_withversion, ": pip completed successfully. No dependency conflicts observed. (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
     else:
-      print("<~> .  SDist",packagename_withversion,": pip errored out (code="+str(exitcode)+"), but it seems to have been unrelated to any dep conflict.... (Now at "+str(n_inspected)+" out of "+str(len(list_of_sdists_to_inspect))+")")
+      print("<~> .  SDist", packagename_withversion, ": pip errored out (code=" + str(exitcode) + "), but it seems to have been unrelated to any dep conflict.... (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
       # Store in the list of failing packages along with the python version we're running. (sys.version_info.major yields int 2 or 3)
       #   Contents are to eventually be a list of the major versions in which it fails.
       # We should never get here if the dist is already in the blacklist for this version of python, but let's keep going even if so.
       if distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
-        print("  WARNING! This should not happen!",distkey,"was already in the blacklist for python",str(sys.version_info.major)+", thus it should not have been run!")
+        print("  WARNING! This should not happen!", distkey, "was already in the blacklist for python",str(sys.version_info.major) + ", thus it should not have been run!")
       else: # Either the dist is not in the blacklist or it's not in the blacklist for this version of python. (Sensible)
         if distkey not in blacklist_db: # 
           blacklist_db[distkey] = [sys.version_info.major]
-          print("  Added entry to blacklist for",distkey)
+          print("  Added entry to blacklist for", distkey)
         else:
           assert(sys.version_info.major not in blacklist_db[distkey])
           blacklist_db[distkey].append(sys.version_info.major)
-          print("  Added additional entry to blacklist for",distkey)
+          print("  Added additional entry to blacklist for", distkey)
 
         n_added_to_blacklist += 1
         # Occasionally write the blacklist to file so we don't lose tons of blacklist info if the script
@@ -209,8 +215,8 @@ def main():
 
 # <~> Dump the blacklist json info to file.
 def write_blacklist_to_file(blacklist_db):
-  with open(BLACKLIST_DB_FILENAME,'w') as fobj:
-    json.dump(blacklist_db,fobj)
+  with open(BLACKLIST_DB_FILENAME, 'w') as fobj:
+    json.dump(blacklist_db, fobj)
   
 
 # Given a full filename of an sdist (of the form /srv/.../packagename/packagename-1.0.0.tar.gz),
@@ -221,7 +227,7 @@ def get_package_and_version_string_from_full_filename(fname_full):
   i_of_last_slash = fname_full.rfind('/')
   #     get position of .tar.gz in full filename
   i_of_targz = fname_full.rfind('.tar.gz')
-  return fname_full[i_of_last_slash+1:i_of_targz].lower()
+  return fname_full[i_of_last_slash + 1 : i_of_targz].lower()
 
 
 
@@ -240,8 +246,8 @@ def get_parent_dir_name_from_full_path(fname_full):
   #     get position of last / in full filename
   i_of_last_slash = fname_full.rfind('/')
   #     get position of 2nd to last / in full filename
-  i_of_second_to_last_slash = fname_full[:i_of_last_slash].rfind('/')
-  parent_dir = fname_full[i_of_second_to_last_slash+1:i_of_last_slash]
+  i_of_second_to_last_slash = fname_full[: i_of_last_slash].rfind('/')
+  parent_dir = fname_full[i_of_second_to_last_slash + 1 : i_of_last_slash]
 
   return parent_dir
 
@@ -329,31 +335,31 @@ def normalize_version_string(version):
   # But then we won't mess with a version string (e.g. with commit hash in it) ending with 'a351b8a' by incorrectly adding a 0 to it.
   # Compromises....
   if 'beta' in version: # beta should always be b instead.
-    version = version.replace('beta','b')
+    version = version.replace('beta', 'b')
   if 'alpha' in version: # beta should always be b instead.
-    version = version.replace('alpha','a')
+    version = version.replace('alpha', 'a')
 
   # Yeah, yeah.
   if '.00' in version:
-    version = version.replace('.00','.0')
+    version = version.replace('.00', '.0')
   if '.01' in version:
-    version = version.replace('.01','.1')
+    version = version.replace('.01', '.1')
   if '.02' in version:
-    version = version.replace('.02','.2')
+    version = version.replace('.02', '.2')
   if '.03' in version:
-    version = version.replace('.03','.3')
+    version = version.replace('.03', '.3')
   if '.04' in version:
-    version = version.replace('.04','.4')
+    version = version.replace('.04', '.4')
   if '.05' in version:
-    version = version.replace('.05','.5')
+    version = version.replace('.05', '.5')
   if '.06' in version:
-    version = version.replace('.06','.6')
+    version = version.replace('.06', '.6')
   if '.07' in version:
-    version = version.replace('.07','.7')
+    version = version.replace('.07', '.7')
   if '.08' in version:
-    version = version.replace('.08','.8')
+    version = version.replace('.08', '.8')
   if '.09' in version:
-    version = version.replace('.09','.9')
+    version = version.replace('.09', '.9')
 
 
   return version
