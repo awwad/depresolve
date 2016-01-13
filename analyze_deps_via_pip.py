@@ -41,6 +41,7 @@ for dirname in LIST_OF_OUTPUT_FILE_DIRS:
 #   --noskip Don't skip packages in the blacklist or packages for which information on whether or not a conflict occurs is already stored.
 #
 #   any other args are interpreted as sdist filenames (.tar.gz format) to run pip on and check conflicts on in pip code
+#
 #   Example calls:
 #         Run on a single specified package, motorengine 0.7.4, stored locally, using conflict model 2.
 #              python analyze_deps_via_pip.py --cm2 /srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz
@@ -74,7 +75,7 @@ def main():
   # If we weren't given sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_DIR
   if not list_of_sdists_to_inspect:
     # Ensure that the local PyPI mirror directory exists first.
-    if not os.path.exists(BANDERSNATCH_MIRROR_DIR)):
+    if not os.path.exists(BANDERSNATCH_MIRROR_DIR):
       raise Exception('<~> Exception. Expecting a bandersnatched mirror of PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not exist.')
     i = 0
     for dir, subdirs, files in os.walk(BANDERSNATCH_MIRROR_DIR):
