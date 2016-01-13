@@ -9,9 +9,6 @@ import json
 #import ipdb
 from distutils.version import StrictVersion, LooseVersion # for use in version parsing
 
-#pip install -d /Users/s/w/git/pypi-depresolve/temp_distros -i file:///srv/pypi/web/simple --find-dep-conflicts $p
-#pip.main(['install', '-d', '/Users/s/w/git/pypi-depresolve/temp_distros', '-i', 'file:///srv/pypi/web/simple', '--find-dep-conflicts', python-twitter'])
-
 # Local resources
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
@@ -21,13 +18,13 @@ DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "conflicts_2
 DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "conflicts_3_db.json") # db for model 3 conflicts
 BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "blacklist_db.json")
 DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY, "dependencies_db.json")
-TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY, 'temp_distros') # May not want this in same place as working directory. Would be terrible to duplicate. One such sdist cadche per system! Gets big.
+TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY, 'temp_distros') # May not want this in same place as working directory. Would be terrible to duplicate. One such sdist cache per system! Gets big.
 # If temp / output files are added, please ensure that the directories they're in are also added to this list:
 LIST_OF_OUTPUT_FILE_DIRS = [TEMPDIR_FOR_DOWNLOADED_DISTROS, os.path.dirname(BLACKLIST_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS3_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS2_DB_FILENAME), os.path.dirname(DEPENDENCY_CONFLICTS1_DB_FILENAME), os.path.dirname(DEPENDENCIES_DB_FILENAME)]
 
 # Other Assumptions
 SDIST_FILE_EXTENSION = '.tar.gz' # assume the archived packages bandersnatch grabs end in this
-DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check'
+DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check' # argument to pass to pip to tell it not to prod users about our strange pip version (lest they follow that instruction and install a standard pip version)
 
 # Ensure that appropriate directories for working files / output files exist.
 assert(os.path.exists(WORKING_DIRECTORY))
@@ -241,7 +238,7 @@ def get_package_and_version_string_from_full_filename(fname_full):
 
 # Given a .tar.gz in a bandersnatch mirror, determine the package name.
 #     Bing's code sees fit to assume that the parent directory name is the package name.
-#     I'll go with that assumption. (It breaks sometimes with dash/undrescore switching,
+#     I'll go with that assumption. (It breaks sometimes with dash/underscore switching,
 #       but we fix that manually.)
 # Updating to use lower()
 def get_package_name_given_full_filename(fname_full):
