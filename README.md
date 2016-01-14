@@ -5,7 +5,7 @@
 
 **While there are MULTIPLE MODES OF EXECUTION, the tool's most useful function on its own is that (in model 3, by default) it answers this question:**
 
-***If I try to install package X via pip in a clean environment configured as it is (Python version, OS, etc.), will pip install a set of packages with all dependencies correctly met?***
+***If I try to install package X via pip in a clean environment configured as it is (Python version, OS, etc.), will pip install a set of packages with all dependencies correctly met?*** (In other words, will pip run headfirst into a dependency conflict and fail to resolve it?)
 
 
 ###Requirements:
