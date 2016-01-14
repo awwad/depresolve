@@ -3,25 +3,25 @@
 
 **The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip. This tool - analyze_deps_via_pip - is means to do that.**
 
-**While there are MULTIPLE MODES OF EXECUTION, the tool's most useful function on its own is that (in model 3, by default) it answers this question:**
+**While there are MULTIPLE MODES OF EXECUTION, the tool's most useful function on its own is that (by default) it answers this question:**
 
 ***If I try to install package X via pip in a clean environment configured as it is (Python version, OS, etc.), will pip install a set of packages with all dependencies correctly met?*** (In other words, will pip run headfirst into a dependency conflict and fail to resolve it?)
 
 
 ###Requirements:
-analyze_deps_via_pip.py employs a modified pip fork I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
+analyze_deps_via_pip.py employs awwad/pip, a modified fork of pypa/pip I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
 
 By default, it pulls packages straight from PyPI, but can be run using a local .tar.gz sdist, or even from a local bandersnatch'd PyPI mirror. See instructions below.
 
 ###Overview:
-(TODO: Link first to overview of package conflicts in general. Link to overview of resolvable/unresolvable package conflicts distinction.)
+I assume that the reader is familiar with package conflicts and the resolvable/unresolvable distinction. (TODO: Can add links to docs that will cover these if we intend this for general consumption.)
 
 Via modified pip code, this project runs the initial (pre-install) portion of the pip install process for a list of packages. As it does so, it also:
   - Harvests dependency info:
     - Harvests all dependency information that pip extracts from the packages (and packages the packages depend on, and packages *those* packages depend on, etc) and stores it in a dependencies_db.json file stored in the directory from which analyze_deps_via_pip.py is called. (This process is cumulative for additional runs and tries not to duplicate work.)
   - Detects conflits:
-    - Detects dependency conflicts via three planned models/definitions of a dependency conflict, and stores (and reads from) information on these in a set of conflicts_<...>_db.json files stored in the directory from which analyze_deps_via_pip.py is called. Avoids work duplication by not repeating for a given package (name and version) if conflict info for that package already exists.
-      - In each conflict model, we say that a conflict exists for package R if in the tree, rooted at R, of install candidates selected by pip given an instruction to install package R, some package C is depended on by packages A and B, and...:
+    - Detects dependency conflicts via three models/definitions of a dependency conflict, and stores (and reads from) information on these in a set of conflicts_<...>_db.json files stored in the directory from which analyze_deps_via_pip.py is called. Avoids work duplication by not repeating for a given package (name and version) if conflict info for that package already exists.
+      - Dependency Conflict definitions: In each conflict model, we say that a conflict exists for package R if in the tree, rooted at R, of install candidates selected by pip given an instruction to install package R, some package C is depended on by packages A and B, and...:
         - Model 1: ... and the dependency specification (requirement strings) of packages A and B for package C are not identical (e.g. A depends on C==3.0 and B depends on C>=1, regardless of the available versions). *This encompasses all dependency conflicts, both resolvable and unresolvable.*
         - Model 2: ... and the dependency specification (requirement strings) of packages A and B are such that pip's first choice package (based on its internal prioritization -- TODO: add link to that code here) to resolve those two dependencies would not be the same package. (e.g. A depends on C==3.0 and B depends on C>=1, and the most recent version is > 3.0.) *This encompasses all unresolvable and some resolvable dependency conflicts.*
         - Model 3: ... and pip selects a final set of install candidates that would not fulfil all of those candiates (and the initial) requirement specifications. (e.g. A depends on C==3.0 and B depends on C<=2.5) *This encompasses all unresolvable and some resolvable dependency conflicts. It is, in summary, specifically where pip fails to provide for the user's request.* MODEL 3 IS DONE BUT IN TESTING
