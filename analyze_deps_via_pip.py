@@ -34,29 +34,43 @@ for dirname in LIST_OF_OUTPUT_FILE_DIRS:
     print("Directory check: " + dirname + " does not exist. Making it.")
 
 # Argument handling:
-#   --n=N    set N as the max packages to explore during debug  (e.g. --n=1  or  --n=10000. Default is all packages specified, else all packages in local pypi mirror at /srv/pypi)
+#  GENERAL ARGS:
 #   --cm1    run using conflict model 1 (see README)
 #   --cm2    run using conflict model 2 (default)
 #   --cm3    run using conflict model 3
 #   --noskip Don't skip packages in the blacklist or packages for which information on whether or not a conflict occurs is already stored.
 #
-#   any other args are interpreted as sdist filenames (.tar.gz format) to run pip on and check conflicts on in pip code
+#  LOCAL OPERATION:  For use when operating with local sdist files (e.g. with a bandersnatched local PyPI mirror)
+#   --n=N    set N as the max packages to explore during debug
+#             (e.g. --n=1  or  --n=10000.)
+#             Default if this arg is not specified is all packages specified, else all packages in local pypi mirror at /srv/pypi)
+#             (I believe this may work for non-local operation, but it is not necessary, so not bothering.)
 #
-#   Example calls:
+#   --local=FNAME  add a local .tar.gz sdist to the list of packages to inspect for dependency conflicts
+#                  e.g. '--local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz'
+#
+#  REMOTE (NORMAL) OPERATION:
+#    any other args are interpreted as what I will refer to as 'distkeys':
+#      packagename(packageversion)
+#      e.g.  <<<--------------------
+#
+#   Example calls: CORRECT THESE FOR NEW ARGUMENT STYLES
 #         Run on a single specified package, motorengine 0.7.4, stored locally, using conflict model 2.
 #              python analyze_deps_via_pip.py --cm2 /srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz
 #         Run on the first 10 packages in the local pypi mirror (assumed /srv/pypi) alphabetically, using conflict model 1.
 #              python analyze_deps_via_pip.py --cm1 --n=10
 #
 def main():
-  DEBUG__N_SDISTS_TO_PROCESS = 1 # debug; max packages to explore during debug - overriden by --n=N argument.
+  DEBUG__N_SDISTS_TO_PROCESS = 0 # debug; max packages to explore during debug - overriden by --n=N argument.
   CONFLICT_MODEL = 2
   NO_SKIP = False
+  USE_BANDERSNATCH_MIRROR = False
 
-  print("analyze_deps_via_pip - Version 0.2.1")
-  list_of_sdists_to_inspect = []
+  print("analyze_deps_via_pip - Version 0.3")
+  list_of_sdists_to_inspect = [] # potentially filled with local sdist filenames, from arguments
+  list_of_remotes_to_inspect = [] # potentially filled with remote packages to check, from arguments
 
-  # Argument processing. If we have arguments coming in, treat those as the sdists to inspect.
+  # Argument processing. If we have arguments coming in, treat those as the packages to inspect.
   if len(sys.argv) > 1:
     for arg in sys.argv[1:]:
       if arg.startswith("--n="):
@@ -69,11 +83,14 @@ def main():
         CONFLICT_MODEL = 3
       elif arg == "--noskip":
         NO_SKIP = True
+      elif arg.startswith("--local="):
+        list_of_sdists_to_inspect.append(arg[8:]) # e.g. '--local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz'
+        USE_BANDERSNATCH_MIRROR = True
       else:
-        list_of_sdists_to_inspect.append(arg)
+        list_of_remotes_to_inspect.append(arg) # e.g. 'motorengine(0.7.4)' 
 
   # If we weren't given sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_DIR
-  if not list_of_sdists_to_inspect:
+  if not list_of_sdists_to_inspect and not list_of_remotes_to_inspect:
     # Ensure that the local PyPI mirror directory exists first.
     if not os.path.exists(BANDERSNATCH_MIRROR_DIR):
       raise Exception('<~> Exception. Expecting a bandersnatched mirror of PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not exist.')
@@ -88,8 +105,7 @@ def main():
       if i >= DEBUG__N_SDISTS_TO_PROCESS: # awkward control structure, but saving debug run time. tidy later.
         break
 
-
-  # Fetch info on already known conflicts so that we can skip packages below. (Important for python 2 and python 3 runs.)
+  # Fetch info on already known conflicts so that we can skip packages below.
   conflicts_db_fname = None
   if CONFLICT_MODEL == 1:
     conflicts_db_fname = DEPENDENCY_CONFLICTS1_DB_FILENAME
@@ -112,6 +128,9 @@ def main():
 
   n_inspected = 0
   n_added_to_blacklist = 0
+
+  # Generate a list of distkeys (e.g. 'django(1.8.3)') to inspect, from the lists of sdists and "remotes".
+  distkeys_to_inspect = []
   for tarfilename_full in list_of_sdists_to_inspect:
 
     # Deduce package names and versions from sdist filename.
@@ -121,49 +140,23 @@ def main():
 
     # Perform a variety of fixes to match pip's normalized package and version names,
     #   which are what my code inside pip spit out to the dbs.
-    # So that our lookups work properly (and also to prevent continual reproduction
-    #   of work), we'll account for these.
-    # There are a few normalizations that pip appears to do.
-    # The data being logged by my code within pip is being fed package names and versions
-    #   normalized by some pip code, so we need to match our checks here to that
-    #   normalization (which is unfortunately not entirely contained in safe_name or
-    #   safe_version).
-    #   pip can be expected to do:
-    #   - underscores replaced by dashes
-    #   - version string normalization via distutils.version.StrictVersion,
-    #       which seems to match the information available to my code inside
-    #       pip that's detecting the errors.
-    #   Additionally, I'm going to work case-insensitive, and without assuming
-    #     that existing data is all lowercase.
-    # Some dist filenames have "_" where the package name has "-".
-    # Versioning is slightly stricter inside pip. distutils.version.StrictVersion
-    #   covers some of this normalization, but unfortunately not all of it. /:
-    
-    # Nevermind on the below: StrictVersion breaks other things, too. See daily notes (1.0.0 -> 1.0, unlike in pip)
-    #try:
-    #  # Example: AnyFilter-0.01 is treated as AnyFilter-0.1 in the pip code.
-    #  # StrictVersion handles this category of correction for us.
-    #  deduced_version_string = str(StrictVersion(deduced_version_string))
-    #except ValueError:
-    #  # If StrictVersion doesn't accept the string (e.g. if there's "dev" or "beta" in it, etc.), well,
-    #  #   all we can do is some hackery for some cases in order to match what I see inside pip for now.
-    #  # Maybe I can find the rest of the normalization somewhere, but it has already consumed time.
-    #  # About 1% of my sample set has versions ending in "dev" that are then treated as "dev0" by pip.
-    #  if deduced_version_string.endswith('dev)'): # Example: acted.projects(0.10.dev) is treated as acted.projects(0.10.dev0)
-    #    deduced_version_string += "0"
-    #  elif '-beta' in deduced_version_string: # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
-    #    deduced_version_string = deduced_version_string.replace('-beta','b')
-    
-
     deduced_version_string = normalize_version_string(deduced_version_string)
-
-
     distkey = packagename + "(" + deduced_version_string + ")" # This is the format for dists in the conflict db.
     distkey = distkey.lower().replace('_', '-')
 
+    distkeys_to_inspect.append(distkey)
+
+  for distkey in list_of_remotes_to_inspect:
+    assert '(' in distkey and distkey.endswith(')'), "Invalid input."
+    distkey = distkey.lower().replace('_', '-') # avoid casing issues and incorrect underscores
+    distkeys_to_inspect.append(distkey)
+    
+
+
+  # Now take all of the distkeys ( e.g. 'python-twitter(0.2.1)' ) indicated and run on them.
+  for distkey in distkeys_to_inspect:
     
     # Check to see if we already have conflict info for this package. If so, don't run for it.
-    # Include a check for a 
 
     if not NO_SKIP:
       if distkey in keys_in_conflicts_db_lower:
@@ -296,6 +289,40 @@ def load_json_db(filename):
 #from pip._vendor.pkg_resources import safe_name, safe_version #These don't quite do what I need, alas. Pip is doing more than just this. Ugh.
 #distutils.version.StrictVersion might match what I'm getting from within pip....
 # Nope. It helps in one case (1.01 -> 1.1), but hurts in many others.
+    # Perform a variety of fixes to match pip's normalized package and version names,
+    #   which are what my code inside pip spit out to the dbs.
+    # So that our lookups work properly (and also to prevent continual reproduction
+    #   of work), we'll account for these.
+    # There are a few normalizations that pip appears to do.
+    # The data being logged by my code within pip is being fed package names and versions
+    #   normalized by some pip code, so we need to match our checks here to that
+    #   normalization (which is unfortunately not entirely contained in safe_name or
+    #   safe_version).
+    #   pip can be expected to do:
+    #   - underscores replaced by dashes
+    #   - version string normalization via distutils.version.StrictVersion,
+    #       which seems to match the information available to my code inside
+    #       pip that's detecting the errors.
+    #   Additionally, I'm going to work case-insensitive, and without assuming
+    #     that existing data is all lowercase.
+    # Some dist filenames have "_" where the package name has "-".
+    # Versioning is slightly stricter inside pip. distutils.version.StrictVersion
+    #   covers some of this normalization, but unfortunately not all of it. /:
+    
+    # Nevermind on the below: StrictVersion breaks other things, too. See daily notes (1.0.0 -> 1.0, unlike in pip)
+    #try:
+    #  # Example: AnyFilter-0.01 is treated as AnyFilter-0.1 in the pip code.
+    #  # StrictVersion handles this category of correction for us.
+    #  deduced_version_string = str(StrictVersion(deduced_version_string))
+    #except ValueError:
+    #  # If StrictVersion doesn't accept the string (e.g. if there's "dev" or "beta" in it, etc.), well,
+    #  #   all we can do is some hackery for some cases in order to match what I see inside pip for now.
+    #  # Maybe I can find the rest of the normalization somewhere, but it has already consumed time.
+    #  # About 1% of my sample set has versions ending in "dev" that are then treated as "dev0" by pip.
+    #  if deduced_version_string.endswith('dev)'): # Example: acted.projects(0.10.dev) is treated as acted.projects(0.10.dev0)
+    #    deduced_version_string += "0"
+    #  elif '-beta' in deduced_version_string: # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
+    #    deduced_version_string = deduced_version_string.replace('-beta','b')
 def normalize_version_string(version):
   
   # Example: about(0.1.0-alpha.1) is reported as about(0.1.0a1) Dash removed, alpha to a, period after removed.    
