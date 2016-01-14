@@ -97,7 +97,7 @@ for dirname in LIST_OF_OUTPUT_FILE_DIRS:
 #
 def main():
   DEBUG__N_SDISTS_TO_PROCESS = 0 # debug; max packages to explore during debug - overriden by --n=N argument.
-  CONFLICT_MODEL = 2
+  CONFLICT_MODEL = 3
   NO_SKIP = False
   USE_BANDERSNATCH_MIRROR = False
 
