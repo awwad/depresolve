@@ -1,12 +1,19 @@
 # pypi-depresolve
-PyPI package dependency resolution project
+##PyPI package dependency resolution project
 
-The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip.
+**The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip. This tool - analyze_deps_via_pip - is means to do that.**
 
+**While there are MULTIPLE MODES OF EXECUTION, the tool's most useful function on its own is that (in model 3, by default) it answers this question:**
+
+***If I try to install package X via pip in a clean environment configured as it is (Python version, OS, etc.), will pip install a set of packages with all dependencies correctly met?***
+
+
+###Requirements:
 analyze_deps_via_pip.py employs a modified pip fork I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
 
 By default, it pulls packages straight from PyPI, but can be run using a local .tar.gz sdist, or even from a local bandersnatch'd PyPI mirror. See instructions below.
 
+###Overview:
 (TODO: Link first to overview of package conflicts in general. Link to overview of resolvable/unresolvable package conflicts distinction.)
 
 Via modified pip code, this project runs the initial (pre-install) portion of the pip install process for a list of packages. As it does so, it also:
@@ -23,7 +30,8 @@ Via modified pip code, this project runs the initial (pre-install) portion of th
 
 Note that all skipping based on blacklisting or data on the existence / lack of a conflict for a given package (package name & version) can be avoided by use of argument --noskip.
 
-Instructions for use:
+
+###Instructions for use:
 
 1.  git clone https://github.com/awwad/pip.git
 2.  cd pip
@@ -102,6 +110,8 @@ Argument handling:
          >  python analyze_deps_via_pip.py --cm1 --local --n=10
 ```  
 
+
+###Old content:
 
 Comments on manual_package_dependency_extraction.py: 
 This script handles manual parsing of setup.py files, without employing pip, and simply extracts dependencies. It is no longer in use and is replaced by analyze_deps_via_pip.py.
