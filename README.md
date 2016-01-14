@@ -35,7 +35,7 @@ Instructions for use:
 8.  cd pip
 9.  pip install -e .     # (For your convenience, this installs in editable mode. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs )
 10. cd ../pypi-depresolve
-13. python analyze_deps_via_pip.py --n=1 --cm2 --noskip      # (to run this for 1 package, the first 1 in the mirror alphabetically, employing conflict model 2, and not skipping if the package has already been analyzed)
+13. python analyze_deps_via_pip.py "motorengine(0.7.4)" --noskip      # (to run this on version 0.7.4 of package motorengine, from remote PyPI, not skipping if the package has already been analyzed, using conflict model 3. This example has a model 3 conflict, so you should see an error explaining that.)
 
 Detailed info on calling the script:
 
