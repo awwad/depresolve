@@ -5,7 +5,7 @@ The purpose of this project is to investigate the problem of package dependency 
 
 analyze_deps_via_pip.py employs a modified pip fork I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
 
-Currently, it employs (and expects) a local bandersnatch'd mirror of PyPI at '/srv/pypi/'.
+By default, it pulls packages straight from PyPI, but can be run using a local .tar.gz sdist, or even from a local bandersnatch'd PyPI mirror. See instructions below.
 
 (TODO: Link first to overview of package conflicts in general. Link to overview of resolvable/unresolvable package conflicts distinction.)
 
