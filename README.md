@@ -36,6 +36,69 @@ Instructions for use:
 9.  pip install -e .     # (For your convenience, this installs in editable mode. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs )
 10. cd ../pypi-depresolve
 13. python analyze_deps_via_pip.py --n=1 --cm2 --noskip      # (to run this for 1 package, the first 1 in the mirror alphabetically, employing conflict model 2, and not skipping if the package has already been analyzed)
+
+Detailed info on calling the script:
+
+Argument handling:
+ DEPENDENCY CONFLICT MODELS (see README)
+  --cm1    run using conflict model 1 (all resolvable and unresolvable conflicts; see README)
+  --cm2    run using conflict model 2 (all unresolvable and some resolvable conflicts; see README)
+  --cm3    run using conflict model 3 (default; basically "would pip get this right?"; see README)
+
+ GENERAL ARGUMENTS:
+  --noskip Don't skip packages in the blacklist or packages for which information on
+           whether or not a conflict occurs is already stored.
+
+ REMOTE OPERATION:   (DEFAULT!)
+   ANY ARGS NOT MATCHING the other patterns are interpreted as what I will refer to as 'distkeys':
+     packagename(packageversion)
+     e.g.:   "django(1.8)"
+     Using one of these means we're downloading from PyPI, per pip's defaults.
+     Your shell will presumably want these arguments passed in quotes because of the parentheses.
+
+
+ LOCAL OPERATION: For use when operating with local sdist files (e.g. with a bandersnatched local PyPI mirror)
+  --local=FNAME  specifies a local .tar.gz sdist to inspect for dependency conflicts with pip
+                 for dependency conflicts
+                 e.g. '--local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz'
+                 You can specify as many of these as you like with separate --local=<file> arguments.
+                 Local and remote execution are mutually exclusive.
+  --local  Using this without "=<file.tar.gz>" means we should alphabetically scan from the local PyPI mirror.
+           This is mutually exclusive with the --local=<fname> usage above. If files are specified, we only
+           check the files specified.
+
+  --n=N    For use only with --local (not remotes, not --local=<file>).
+           Sets N as the max packages to inspect when pulling alphabetically from local PyPI mirror.
+           e.g. --n=1  or  --n=10000
+           Default for --local runs, if this arg is not specified, is all packages in the entire local PyPI
+           mirror at /srv/pypi)
+           (TODO: Must confirm that using this arg won't impact remote operation, just for cleanliness.)
+
+
+
+  EXAMPLE CALLS:
+
+     ~~ Run on a single package (in this case, arnold version 0.3.0) pulled from remote PyPI,
+        using conflict model 3 (default):
+
+         >  python analyze_deps_via_pip.py "arnold(0.3.0)"
+
+
+     ~~ Run on a few packages from PyPI, using conflict model 2, and without skipping even if
+        conflict info on those packages is already available, or if they're in the blacklist for
+        having hit unexpected errors in previous runs:
+
+         >  python analyze_deps_via_pip.py "motorengine(0.7.4)" "django(1.6.3)" --cm2 --noskip
+
+
+     ~~ Run on a single specified package, motorengine 0.7.4, stored locally, using conflict model 2:
+
+         >  python analyze_deps_via_pip.py --cm2 --local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz
+
+     ~~ Run on the first 10 packages in the local pypi mirror (assumed /srv/pypi) alphabetically,
+         using conflict model 1.
+
+         >  python analyze_deps_via_pip.py --cm1 --local --n=10
   
 
 
