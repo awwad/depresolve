@@ -39,6 +39,7 @@ Instructions for use:
 
 Detailed info on calling the script:
 
+```
 Argument handling:
  DEPENDENCY CONFLICT MODELS (see README)
   --cm1    run using conflict model 1 (all resolvable and unresolvable conflicts; see README)
@@ -99,7 +100,7 @@ Argument handling:
          using conflict model 1.
 
          >  python analyze_deps_via_pip.py --cm1 --local --n=10
-  
+```  
 
 
 Comments on manual_package_dependency_extraction.py: 
