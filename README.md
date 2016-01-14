@@ -14,7 +14,11 @@ analyze_deps_via_pip.py employs awwad/pip, a modified fork of pypa/pip I'm taggi
 By default, it pulls packages straight from PyPI, but can be run using a local .tar.gz sdist, or even from a local bandersnatch'd PyPI mirror. See instructions below.
 
 ###Overview:
-I assume that the reader is familiar with package conflicts and the resolvable/unresolvable distinction. (TODO: Can add links to docs that will cover these if we intend this for general consumption.)
+I assume that the reader is familiar with package conflicts and the resolvable/unresolvable distinction. (TODO: Can add links to docs that will cover these if we intend this for general consumption.) Pip has long had issues with dependency resolution. See for example:
+* [Pip doesn't spot conflicting versions](https://github.com/pypa/pip/issues/775#issuecomment-12748095)
+* [Pip needs a dependency resolver](https://github.com/pypa/pip/issues/988)
+* [pip install -r does not respect package dependencies](https://github.com/pypa/pip/issues/3183)
+
 
 Via modified pip code, this project runs the initial (pre-install) portion of the pip install process for a list of packages. As it does so, it also:
   - Harvests dependency info:
