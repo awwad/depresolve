@@ -206,7 +206,7 @@ def main():
     if not NO_SKIP:
       if distkey in keys_in_conflicts_db_lower:
         n_inspected += 1
-        print("<~>    SKIP -- Already have " + distkey + " in db of type", str(CONFLICT_MODEL),"conflicts. Skipping. (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+        print("<~>    SKIP -- Already have " + distkey + " in db of type " + str(CONFLICT_MODEL) + " conflicts. Skipping. (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
         continue
       # Else if the dist is listed in the blacklist along with this python major version (2 or 3), skip.
       elif distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
@@ -214,7 +214,7 @@ def main():
         print("<~>    SKIP -- Blacklist includes " + distkey + ". Skipping. (Now at " + str(n_inspected) + " out of "+str(len(list_of_sdists_to_inspect)) + ")")
         continue
 
-      print(distkey,"not found in conflicts or blacklist dbs. Sending to pip.\n")
+      print(distkey + " not found in conflicts or blacklist dbs. Sending to pip.\n")
 
     # Else, process the dist.
 
@@ -239,24 +239,24 @@ def main():
 
     # Process the output of the pip command.
     if exitcode == 2:
-      print("<~> X  SDist", distkey, ": pip errored out (code=" + str(exitcode) + "). Possible DEPENDENCY CONFLICT. Result recorded in conflicts_<...>_db.json and in conflicts_db.log. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      print("<~> X  SDist " + distkey + " : pip errored out (code=" + str(exitcode) + "). Possible DEPENDENCY CONFLICT. Result recorded in conflicts_<...>_db.json and in conflicts_db.log. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
     elif exitcode == 0:
-      print("<~> .  SDist", distkey, ": pip completed successfully. No dependency conflicts observed. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      print("<~> .  SDist " + distkey + " : pip completed successfully. No dependency conflicts observed. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
     else:
-      print("<~> .  SDist", distkey, ": pip errored out (code=" + str(exitcode) + "), but it seems to have been unrelated to any dep conflict.... (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      print("<~> .  SDist " + distkey + ": pip errored out (code=" + str(exitcode) + "), but it seems to have been unrelated to any dep conflict.... (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
       # Store in the list of failing packages along with the python version we're running. (sys.version_info.major yields int 2 or 3)
       #   Contents are to eventually be a list of the major versions in which it fails.
       # We should never get here if the dist is already in the blacklist for this version of python, but let's keep going even if so.
       if distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey] and not NO_SKIP:
-        print("  WARNING! This should not happen!", distkey, "was already in the blacklist for python",str(sys.version_info.major) + ", thus it should not have been run unless we have --noskip on (which it is not)!")
+        print("  WARNING! This should not happen! " + distkey + " was already in the blacklist for python " + str(sys.version_info.major) + ", thus it should not have been run unless we have --noskip on (which it is not)!")
       else: # Either the dist is not in the blacklist or it's not in the blacklist for this version of python. (Sensible)
         if distkey not in blacklist_db: # 
           blacklist_db[distkey] = [sys.version_info.major]
-          print("  Added entry to blacklist for", distkey)
+          print("  Added entry to blacklist for " + distkey)
         else:
           assert(NO_SKIP or sys.version_info.major not in blacklist_db[distkey])
           blacklist_db[distkey].append(sys.version_info.major)
-          print("  Added additional entry to blacklist for", distkey)
+          print("  Added additional entry to blacklist for " + distkey)
 
         n_added_to_blacklist += 1
         # Occasionally write the blacklist to file so we don't lose tons of blacklist info if the script
@@ -326,14 +326,14 @@ def load_json_db(filename):
   db = None
   fobj = None
   try:
-    fobj = open(filename,"r")
+    fobj = open(filename, "r")
     db = json.load(fobj)
   except IOError:
-    print("  Directed to load", filename, ", but UNABLE TO OPEN file. Loading an empty dict.")
+    print("  Directed to load " + filename + " but UNABLE TO OPEN file. Loading an empty dict.")
     db = dict()
   except (ValueError):
     fobj.close()
-    print("  Directed to load", filename, ", but UNABLE TO PARSE JSON DATA from that file. Will load an empty dict.")
+    print("  Directed to load " + filename + " but UNABLE TO PARSE JSON DATA from that file. Will load an empty dict.")
     input("  PRESS ENTER TO CONTINUE, CONTROL-C TO KILL AND AVOID POTENTIALLY OVERWRITING SALVAGEABLE DATA.")
     db = dict() # If it was invalid or the file didn't exist, load empty.
   return db
@@ -385,36 +385,36 @@ def normalize_version_string(version):
   
   # 'dev' should always be preceded by a '.', not a '-'
   if '-dev' in version:
-    version = version.replace('-dev','.dev')
+    version = version.replace('-dev', '.dev')
   elif '.dev' in version:
     pass
   elif 'dev' in version:
-    version = version.replace('dev','.dev')
+    version = version.replace('dev', '.dev')
 
   # 'dev' should not be followed by a '-'.
   if 'dev-' in version:  # Example: abl.util-0.1.5dev-20111031 is treated as abl.util(0.1.5.dev20111031), the dash removed and a '.' before dev.
-    version = version.replace('dev-','dev')
+    version = version.replace('dev-', 'dev')
 
 
     # Remove preceding - or . from beta or alpha.
   if '-beta' in version:  # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
-    version = version.replace('-beta','beta')
+    version = version.replace('-beta', 'beta')
   if '.beta' in version:  # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
-    version = version.replace('.beta','beta')
+    version = version.replace('.beta', 'beta')
   if '-alpha' in version: # Example: about(0.1.0-alpha.1) is reported as about(0.1.0a1) Dash removed, alpha to a, period after removed.
-    version = version.replace('-alpha','alpha')
+    version = version.replace('-alpha', 'alpha')
   if '.alpha' in version: # Example: 'adpy(0.12.alpha0)' is treated as 'adpy(0.12a0)'
-    version = version.replace('.alpha','alpha')
+    version = version.replace('.alpha', 'alpha')
 
   # Remove . or ' following alpha or beta. Example: about(0.1.0-alpha.1) is treated as about(0.1.0a1) by pip.
   if 'alpha.' in version:
-    version = version.replace('alpha.','alpha')
+    version = version.replace('alpha.', 'alpha')
   if 'alpha-' in version:
-    version = version.replace('alpha-','alpha')
+    version = version.replace('alpha-', 'alpha')
   if 'beta.' in version:
-    version = version.replace('beta.','beta')
+    version = version.replace('beta.', 'beta')
   if 'alpha-' in version:
-    version = version.replace('beta-','beta')
+    version = version.replace('beta-', 'beta')
 
 
   if version.endswith('dev') or version.endswith('beta') or version.endswith('alpha'): # beta or alpha should always be followed by a number. pip defaults to 0 in this case.
