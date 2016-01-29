@@ -226,7 +226,7 @@ def main():
     assert(CONFLICT_MODEL in [1, 2, 3])
 
     # Construct the argument list.
-    pip_arglist = ['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', str(CONFLICT_MODEL), '--conflicts-db-file', conflicts_db_fname, '--dependencies-db-file', DEPENDENCIES_DB_FILENAME]
+    pip_arglist = ['install', '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS, DISABLE_PIP_VERSION_CHECK, '--find-dep-conflicts', str(CONFLICT_MODEL), '--conflicts-db-file', conflicts_db_fname, '--dependencies-db-file', DEPENDENCIES_DB_FILENAME, '--quiet']
     
     if USE_BANDERSNATCH_MIRROR:
       pip_arglist.extend(['-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING])
