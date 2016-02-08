@@ -219,8 +219,8 @@ def main():
     # Else, process the dist.
 
     packagename = distkey[ : distkey.find('(') ]
-    version_string = distkey[ distkey.find('(') + 1 : distkey.find(')')]
-    assert(distkey.find(')') == len(distkey) - 1)
+    version_string = distkey[ distkey.find('(') + 1 : distkey.rfind(')')]
+    assert(distkey.rfind(')') == len(distkey) - 1)
     formatted_requirement = packagename + "==" + version_string
     exitcode = None
     assert(CONFLICT_MODEL in [1, 2, 3])
