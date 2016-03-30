@@ -1,4 +1,3 @@
-# <~>
 # Employs custom version of pip (awwad/pip:develop) to harvest dependencies and find dependency conflicts for packages in PyPI.
 # See README.md!
 
@@ -133,7 +132,7 @@ def main():
   if USE_BANDERSNATCH_MIRROR and not list_of_sdists_to_inspect:
     # Ensure that the local PyPI mirror directory exists first.
     if not os.path.exists(BANDERSNATCH_MIRROR_DIR):
-      raise Exception('<~> Exception. Expecting a bandersnatched mirror of PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not exist.')
+      raise Exception('--- Exception. Expecting a bandersnatched mirror of PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not exist.')
     i = 0
     for dir, subdirs, files in os.walk(BANDERSNATCH_MIRROR_DIR):
       for fname in files:
@@ -206,12 +205,12 @@ def main():
     if not NO_SKIP:
       if distkey in keys_in_conflicts_db_lower:
         n_inspected += 1
-        print("<~>    SKIP -- Already have " + distkey + " in db of type " + str(CONFLICT_MODEL) + " conflicts. Skipping. (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+        print("---    SKIP -- Already have " + distkey + " in db of type " + str(CONFLICT_MODEL) + " conflicts. Skipping. (Now at " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
         continue
       # Else if the dist is listed in the blacklist along with this python major version (2 or 3), skip.
       elif distkey in blacklist_db and sys.version_info.major in blacklist_db[distkey]:
         n_inspected += 1
-        print("<~>    SKIP -- Blacklist includes " + distkey + ". Skipping. (Now at " + str(n_inspected) + " out of "+str(len(list_of_sdists_to_inspect)) + ")")
+        print("---    SKIP -- Blacklist includes " + distkey + ". Skipping. (Now at " + str(n_inspected) + " out of "+str(len(list_of_sdists_to_inspect)) + ")")
         continue
 
       print(distkey + " not found in conflicts or blacklist dbs. Sending to pip.\n")
@@ -239,11 +238,11 @@ def main():
 
     # Process the output of the pip command.
     if exitcode == 2:
-      print("<~> X  SDist " + distkey + " : pip errored out (code=" + str(exitcode) + "). Possible DEPENDENCY CONFLICT. Result recorded in conflicts_<...>_db.json and in conflicts_db.log. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      print("--- X  SDist " + distkey + " : pip errored out (code=" + str(exitcode) + "). Possible DEPENDENCY CONFLICT. Result recorded in conflicts_<...>_db.json and in conflicts_db.log. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
     elif exitcode == 0:
-      print("<~> .  SDist " + distkey + " : pip completed successfully. No dependency conflicts observed. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      print("--- .  SDist " + distkey + " : pip completed successfully. No dependency conflicts observed. (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
     else:
-      print("<~> .  SDist " + distkey + ": pip errored out (code=" + str(exitcode) + "), but it seems to have been unrelated to any dep conflict.... (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      print("--- .  SDist " + distkey + ": pip errored out (code=" + str(exitcode) + "), but it seems to have been unrelated to any dep conflict.... (Finished with " + str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
       # Store in the list of failing packages along with the python version we're running. (sys.version_info.major yields int 2 or 3)
       #   Contents are to eventually be a list of the major versions in which it fails.
       # We should never get here if the dist is already in the blacklist for this version of python, but let's keep going even if so.
@@ -273,7 +272,7 @@ def main():
   write_blacklist_to_file(blacklist_db)
 
 
-# <~> Dump the blacklist json info to file.
+# Dump the blacklist json info to file.
 def write_blacklist_to_file(blacklist_db):
   with open(BLACKLIST_DB_FILENAME, 'w') as fobj:
     json.dump(blacklist_db, fobj)
