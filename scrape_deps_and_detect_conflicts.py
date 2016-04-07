@@ -100,7 +100,7 @@ for dirname in LIST_OF_OUTPUT_FILE_DIRS:
 #    ~~ Run on a single package (in this case, arnold version 0.3.0) pulled
 #       from remote PyPI, using conflict model 3 (default):
 #
-#       >  python analyze_deps_via_pip.py "arnold(0.3.0)"
+#       >  python scrape_deps_and_detect_conflicts.py "arnold(0.3.0)"
 #
 #
 #    ~~ Run on a few packages from PyPI, using conflict model 2, and without
@@ -108,18 +108,18 @@ for dirname in LIST_OF_OUTPUT_FILE_DIRS:
 #       available, or if they're in the blacklist for having hit unexpected
 #       errors in previous runs:
 #
-#       >  python analyze_deps_via_pip.py "motorengine(0.7.4)" "django(1.6.3)" --cm2 --noskip
+#       >  python scrape_deps_and_detect_conflicts.py "motorengine(0.7.4)" "django(1.6.3)" --cm2 --noskip
 #
 #
 #    ~~ Run on a single specified package, motorengine 0.7.4, stored locally,
 #       using conflict model 2:
 #           
-#       >  python analyze_deps_via_pip.py --cm2 --local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz
+#       >  python scrape_deps_and_detect_conflicts.py --cm2 --local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz
 #
 #    ~~ Run on the first 10 packages in the local pypi mirror
 #       (assumed /srv/pypi) alphabetically, using conflict model 1.
 #
-#       >  python analyze_deps_via_pip.py --cm1 --local --n=10
+#       >  python scrape_deps_and_detect_conflicts.py --cm1 --local --n=10
 #
 def main():
   DEBUG__N_SDISTS_TO_PROCESS = 0 # debug; max packages to explore during debug - overriden by --n=N argument.
@@ -127,7 +127,7 @@ def main():
   NO_SKIP = False
   USE_BANDERSNATCH_MIRROR = False
 
-  print("analyze_deps_via_pip - Version 0.3")
+  print("scrape_deps_and_detect_conflicts - Version 0.3")
   list_of_sdists_to_inspect = [] # potentially filled with local sdist filenames, from arguments
   list_of_remotes_to_inspect = [] # potentially filled with remote packages to check, from arguments
 
