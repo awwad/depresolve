@@ -97,7 +97,7 @@ def fully_satisfy_strawman1(distkey, edeps, versions_by_package):
 
 
 def fully_satisfy_strawman2(distkey, edeps, versions_by_package):
-  
+  pass
 
 
 
