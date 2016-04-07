@@ -53,7 +53,6 @@ def convert_json_dep_to_elaborated_sql():
 
 
 
-
 def fully_satisfy_strawman1(distkey, edeps, versions_by_package):
   """
   An exercise. Recurse and list all dists required to satisfy a dependency.
@@ -96,37 +95,22 @@ def fully_satisfy_strawman1(distkey, edeps, versions_by_package):
   return satisfying_candidate_set
 
 
-def satisfy_dependencies(distkey, dist_deps, versions_by_package, \
-    using_tuples=False):
+
+def fully_satisfy_strawman2(distkey, edeps, versions_by_package):
+  
+
+
+
+
+def sort_versions(versions):
   """
-  Takes the list of a single dist's dependencies and tries to find set of
-  dists that satisfies all those dependencies.
+  Sort a list of versions such that they are ordered by most recent to least
+  recent, with some prioritization based on which is best to install.
 
-  For now, I'll assume dist_deps is a list of 2-tuples like:
-    (satisfying_package_name, specifier_string), e.g.:
-    ('B', '>=5.0,<9')
-
-  Example:
-    this_dist == 'X(1)'
-    dist_deps == [ ('B', ''), ('C', '') ]
-
+  STUB FUNCTION. To be written properly.
+  Currently sorts reverse alphabetically, which is *clearly* wrong.
   """
-  if using_tuples:
-    assert False, "Haven't written conversion here yet."
-    #dist_deps = #some copied conversion of dist_deps
-
-  print("Trying to solve for " + distkey + "'s dependencies:")
-  print(dist_deps)
-
-  satisfying_versions = dict()
-
-  for dep in dist_deps:
-    satisfying_packname = dep[0]
-    specstring = dep[1]
-
-    satisfying_versions[satisfying_packname] = \
-        select_satisfying_versions(satisfying_packname, specstring, versions_by_package)
-
+  return sorted(versions, reverse=True)
 
 
 
@@ -137,8 +121,11 @@ def satisfy_dependencies(distkey, dist_deps, versions_by_package, \
 
 # ........
 # Re-architecting from a different angle......
+# What if we try to work directly from the specifier strings, instead of
+# elaborating dependencies.
 #
 
+# Alternative design scribbles
 def still_resolvable_so_far(constraints, versions_by_package):
   """
 
@@ -181,6 +168,41 @@ def still_resolvable_so_far(constraints, versions_by_package):
       return False
 
 
+# def satisfy_dependencies(distkey, dist_deps, versions_by_package, \
+#     using_tuples=False):
+#   """
+#   Takes the list of a single dist's dependencies and tries to find set of
+#   dists that satisfies all those dependencies.
+
+#   For now, I'll assume dist_deps is a list of 2-tuples like:
+#     (satisfying_package_name, specifier_string), e.g.:
+#     ('B', '>=5.0,<9')
+
+#   Example:
+#     this_dist == 'X(1)'
+#     dist_deps == [ ('B', ''), ('C', '') ]
+
+#   """
+#   if using_tuples:
+#     assert False, "Haven't written conversion here yet."
+#     #dist_deps = #some copied conversion of dist_deps
+
+#   print("Trying to solve for " + distkey + "'s dependencies:")
+#   print(dist_deps)
+
+#   satisfying_versions = dict()
+
+#   for dep in dist_deps:
+#     satisfying_packname = dep[0]
+#     specstring = dep[1]
+
+#     satisfying_versions[satisfying_packname] = \
+#         select_satisfying_versions(satisfying_packname, specstring, versions_by_package)
+
+
+
+
+
 
 def select_satisfying_versions(
     satisfying_packname,
@@ -210,15 +232,6 @@ def select_satisfying_versions(
   return satisfying_versions
 
 
-def sort_versions(versions):
-  """
-  Sort a list of versions such that they are ordered by most recent to least
-  recent, with some prioritization based on which is best to install.
-
-  STUB FUNCTION. To be written properly.
-  Currently sorts reverse alphabetically, which is *clearly* wrong.
-  """
-  return sorted(versions, reverse=True)
 
 
 
