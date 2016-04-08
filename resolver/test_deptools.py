@@ -30,7 +30,7 @@ DEPS_MODEL2 = {
         ['pymongo', [['==', '2.5']]],
         ['tornado', []],
         ['motor', []],
-        ['six', []],  # <------ here next
+        ['six', []],
         ['easydict', []]
     ],
     'pymongo(2.5)': [],
@@ -44,7 +44,6 @@ DEPS_MODEL2 = {
     ],
     'greenlet(0.4.9)': [],
     'pymongo(2.8)': [],
-    #'pymongo(2.8.0)': [], # THIS ONE ISN'T REAL BUT WE BREAK WITHOUT IT - I don't do fancy version string parsing yet to recognize this as 2.8. TODO: Test on this later!
     'six(1.9.0)': [],
     'easydict(1.6)': []
 }
@@ -156,7 +155,9 @@ DEPS_MODERATE = {
     'humanfriendly(1.5)': [],
 }
 
-
+DEPS_SERIOUS = deptools.load_raw_deps_from_json('dependencies_db.json')
+EDEPS_SERIOUS = json.load(open('/Users/s/w/pypi-depresolve/resolver/'
+      'elaborated_dependencies.db', 'r'))
 
 
 
@@ -322,10 +323,11 @@ def test_resolver():
   # (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
   #     deptools.elaborate_dependencies(deps, versions_by_package)
 
-  edeps = json.load(open('/Users/s/w/pypi-depresolve/resolver/elaborated_dependencies.db','r'))
+  edeps = EDEPS_SERIOUS
 
   satisfying_set = \
-      ry.fully_satisfy_strawman2('motorengine(0.7.4)', edeps, versions_by_package)
+      ry.fully_satisfy_strawman2('motorengine(0.7.4)', edeps,
+          versions_by_package)
 
   expected_result = [
       'backports-abc(0.4)',
@@ -345,12 +347,11 @@ def test_resolver():
 
 
   # TEST 6: Let's get serious (:
-  con3_json = json.load(open('conflicts_3_db.json','r'))
-  dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
+  #con3_json = json.load(open('conflicts_3_db.json','r'))
+  #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
   solutions = dict()
-  i = 0
 
-  artificial_set = [
+  artificial_set = [ # These come from the type 3 conflict results. (:
       'metasort(0.3.6)', 'gerritbot(0.2.0)',
       'exoline(0.2.3)', 'pillowtop(0.1.3)', 'os-collect-config(0.1.8)',
       'openstack-doc-tools(0.21.1)', 'openstack-doc-tools(0.7.1)',
@@ -358,9 +359,6 @@ def test_resolver():
 
 
   for distkey in artificial_set:
-    if i > 10:
-      break
-    i += 1
     try:
       solutions[distkey] = \
           ry.fully_satisfy_strawman2(distkey, edeps, versions_by_package)
@@ -369,8 +367,72 @@ def test_resolver():
       solutions[distkey] = -1
       print("Unresolvable: " + distkey)
 
+  print("test_resolver(): Text 6 completed, at least. (:")
 
-  json.dump(solutions, open('con3_solutions_via_strawman2.json', 'w'))
+  # json.dump(solutions, open('con3_solutions_via_strawman2.json', 'w'))
+
+
+
+  # TEST 7: Test fully_satisfy_strawman3 (during development)
+  deps = DEPS_SERIOUS
+  edeps = EDEPS_SERIOUS
+  versions_by_package = deptools.generate_dict_versions_by_package(deps)
+
+  satisfying_set = \
+      ry.fully_satisfy_strawman3('metasort(0.3.6)', edeps, versions_by_package)
+
+  expected_result = [
+      'biopython(1.66)', 'metasort(0.3.6)',
+      'onecodex(0.0.9)', 'requests(2.5.3)',
+      'requests-toolbelt(0.6.0)']
+
+  assert expected_result == sorted(satisfying_set), \
+      "Expected the strawman3 solution to metasort(0.3.6)'s dependencies " \
+      " to be " + str(expected_result) + ", sorted, but got instead: " + \
+      str(sorted(satisfying_set))
+  
+  print("test_resolver(): Test 7 OK. (:")
+
+
+  # "TEST" 8: Try test 6 with strawman3 instead to compare.
+  #con3_json = json.load(open('conflicts_3_db.json','r'))
+  #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
+  solutions = dict()
+
+  artificial_set = [ # These come from the type 3 conflict results. (:
+      'metasort(0.3.6)', 'gerritbot(0.2.0)',
+      'exoline(0.2.3)', 'pillowtop(0.1.3)', 'os-collect-config(0.1.8)',
+      'openstack-doc-tools(0.21.1)', 'openstack-doc-tools(0.7.1)',
+      'python-magnetodbclient(1.0.1)']
+
+
+  for distkey in artificial_set:
+    try:
+      solutions[distkey] = \
+          ry.fully_satisfy_strawman3(distkey, edeps, versions_by_package)
+      print("Resolved: " + distkey)
+    except resolver.UnresolvableConflictError:
+      solutions[distkey] = -1
+      print("Unresolvable: " + distkey)
+
+  n_unresolvable = len(
+      [distkey for distkey in solutions if solution[distkey] == -1])
+
+  fobj = open('con3_solutions_via_strawman3.json', 'w')
+  json.dump(solutions, fobj)
+  fobj.close()
+
+  assert 2 == n_unresolvable, "Expect 2 unresolvable conflicts. Got " + \
+      n_unresolvable + " instead. ):"
+
+  fobj = open('con3_solutions_via_strawman3.json', 'w')
+  json.dump(solutions, fobj)
+  fobj.close()
+
+  print("test_resolver(): Test 8 OK (: (: (:")
+
+
+
 
 
 if __name__ == '__main__':

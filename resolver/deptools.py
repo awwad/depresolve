@@ -132,7 +132,8 @@ def populate_sql_with_full_dependency_info(
       # We don't need the SpecifierSet, element 3 (4th) of the tuple right now.
 
       log.info("  satisfying_packagename:" + satisfying_packagename)
-      log.info("  list_of_satisfying_versions: " + str(list_of_satisfying_versions))
+      log.info("  list_of_satisfying_versions: " +
+          str(list_of_satisfying_versions))
       log.info("  specstring: " + specstring)
 
       # First, let's add the dependency specifier to that table.
@@ -558,7 +559,8 @@ def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
   """
   return [distkey + ": " + [spectuples_to_specstring(dep[1]) for \
       dep in deps[distkey] if dep[0] == satisfying_pack][0] for \
-      distkey in [get_distkey(depender_pack, version) for version in versions_by_package[depender_pack]]]
+      distkey in [get_distkey(depender_pack, version) for \
+      version in versions_by_package[depender_pack]]]
 
 
 
