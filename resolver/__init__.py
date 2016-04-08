@@ -1,5 +1,13 @@
-from resolver.resolvability import *
-#from resolver.resolver_sqli import *
 
 import logging
-logging.basicConfig(filename='resolver.log',level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO) # filename='resolver.log'
+
+class NoSatisfyingVersionError(Exception):
+  pass
+
+class ConflictingVersionError(Exception):
+  pass
+
+class UnresolvableConflictError(Exception):
+  pass
+

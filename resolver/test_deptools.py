@@ -8,10 +8,12 @@
 
 """
 
+import resolver # __init__ for errors
 import json
 import os
 
-import deptools
+import resolver.deptools as deptools
+import resolver.resolvability as ry
 
 DEPS_SIMPLE = {
     'X(1)': [  ['B', []], ['C', []]],
@@ -21,6 +23,30 @@ DEPS_SIMPLE = {
     'A(2)': [],
     'A(3)': [],
     'A(4)': [],
+}
+
+DEPS_MODEL2 = {
+    'motorengine(0.7.4)': [
+        ['pymongo', [['==', '2.5']]],
+        ['tornado', []],
+        ['motor', []],
+        ['six', []],  # <------ here next
+        ['easydict', []]
+    ],
+    'pymongo(2.5)': [],
+    'tornado(4.3)': [
+        ['backports-abc', [['>=', '0.4']]]
+    ],
+    'backports-abc(0.4)': [],
+    'motor(0.5)': [
+        ['greenlet', [['>=', '0.4.0']]],
+        ['pymongo', [['==', '2.8.0']]]
+    ],
+    'greenlet(0.4.9)': [],
+    'pymongo(2.8)': [],
+    #'pymongo(2.8.0)': [], # THIS ONE ISN'T REAL BUT WE BREAK WITHOUT IT - I don't do fancy version string parsing yet to recognize this as 2.8. TODO: Test on this later!
+    'six(1.9.0)': [],
+    'easydict(1.6)': []
 }
 
 DEPS_MODERATE = {
@@ -216,8 +242,6 @@ def test_deptools():
 
 def test_resolver():
 
-  import resolvability as ry
-
   # TEST 1: Test satisfy_immediate_dependencies
   deps = DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
@@ -241,7 +265,8 @@ def test_resolver():
 
 
 
-  # TEST 2: Test strawman_fully_satisfy (during development)
+
+  # TEST 2: Test fully_satisfy_strawman1 (during development)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
       deptools.elaborate_dependencies(deps, versions_by_package)
 
@@ -258,6 +283,94 @@ def test_resolver():
 
 
 
+  # TEST 3: Detection of model 2 conflicts.
+  deps = DEPS_MODEL2
+  versions_by_package = deptools.generate_dict_versions_by_package(deps)
+  (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+      deptools.elaborate_dependencies(deps, versions_by_package)
+  assert ry.detect_model_2_conflict_from_distkey(
+      'motorengine(0.7.4)', edeps, versions_by_package
+  ), "Did not detect model 2 conflict for motorengine(0.7.4). ): "
+  print("test_resolver(): Test 3 OK.")
+
+
+
+
+  # TEST 4: Test fully_satisfy_strawman2 (during development)
+  deps = DEPS_SIMPLE
+  versions_by_package = deptools.generate_dict_versions_by_package(deps)
+  (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+      deptools.elaborate_dependencies(deps, versions_by_package)
+
+  satisfying_set = \
+      ry.fully_satisfy_strawman2('X(1)', edeps, versions_by_package)
+
+  expected_result = ['A(3)', 'B(1)', 'C(1)', 'X(1)']
+  assert expected_result == sorted(satisfying_set), \
+      "Expected the strawman solution to X(1)'s dependencies to be " + \
+      str(expected_result) + ", sorted, but got instead: " + \
+      str(sorted(satisfying_set))
+  print("test_resolver(): Test 4 OK.")
+
+
+
+
+  # TEST 5: Test fully_satisfy_strawman2 (during development)
+  #         on a slightly more complex case.
+  deps = DEPS_MODEL2
+  versions_by_package = deptools.generate_dict_versions_by_package(deps)
+  # (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+  #     deptools.elaborate_dependencies(deps, versions_by_package)
+
+  edeps = json.load(open('/Users/s/w/pypi-depresolve/resolver/elaborated_dependencies.db','r'))
+
+  satisfying_set = \
+      ry.fully_satisfy_strawman2('motorengine(0.7.4)', edeps, versions_by_package)
+
+  expected_result = [
+      'backports-abc(0.4)',
+      'easydict(1.6)',
+      'greenlet(0.4.9)',
+      'motor(0.1.2)',
+      'motorengine(0.7.4)',
+      'pymongo(2.5)',
+      'six(1.9.0)',
+      'tornado(4.3)']
+  assert expected_result == sorted(satisfying_set), \
+      "Expected the strawman solution to motorengine(0.7.4)'s dependencies " \
+      " to be " + str(expected_result) + ", sorted, but got instead: " + \
+      str(sorted(satisfying_set))
+  print("test_resolver(): Test 5 OK.")
+
+
+
+  # TEST 6: Let's get serious (:
+  con3_json = json.load(open('conflicts_3_db.json','r'))
+  dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
+  solutions = dict()
+  i = 0
+
+  artificial_set = [
+      'metasort(0.3.6)', 'gerritbot(0.2.0)',
+      'exoline(0.2.3)', 'pillowtop(0.1.3)', 'os-collect-config(0.1.8)',
+      'openstack-doc-tools(0.21.1)', 'openstack-doc-tools(0.7.1)',
+      'python-magnetodbclient(1.0.1)']
+
+
+  for distkey in artificial_set:
+    if i > 10:
+      break
+    i += 1
+    try:
+      solutions[distkey] = \
+          ry.fully_satisfy_strawman2(distkey, edeps, versions_by_package)
+      print("Resolved: " + distkey)
+    except resolver.UnresolvableConflictError:
+      solutions[distkey] = -1
+      print("Unresolvable: " + distkey)
+
+
+  json.dump(solutions, open('con3_solutions_via_strawman2.json', 'w'))
 
 
 if __name__ == '__main__':

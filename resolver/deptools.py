@@ -60,13 +60,14 @@ Example usage:
 
 """
 
+import resolver # __init__ for errors
 import os      # for path joins
 import json    # the dependency db we'll read is in a json
 import logging
 logging.basicConfig(filename='resolver.log',level=logging.DEBUG)
 import pip._vendor.packaging.specifiers # for SpecifierSet for version parsing
 
-import resolver_sqli as sqli # the resolver's sqlite module
+import resolver.resolver_sqli as sqli # the resolver's sqlite module
 
 
 # Local resources for the resolver package.
@@ -525,6 +526,39 @@ def spectuples_to_specstring(list_of_spectuples):
   return specstring
 
 
+
+# Toy
+def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
+    versions_by_package):
+  """
+  Just a toy function for debugging, not likely to be of use in the module
+  itself.
+  Given a depender package name and a satisfying package name, map each version
+  of the depender to the specifier string distinguishing acceptable versions of
+  the satisfying package.
+  
+  e.g.:
+  get_dependencies_of_all_X_on_Y('motor', 'pymongo', deps, versions_by_package)
+    returns:
+      ['motor(0.5b0): ==2.8.0',
+       'motor(0.5): ==2.8.0',
+       'motor(0.4.1): ==2.8.0',
+       'motor(0.4): ==2.8.0',
+       'motor(0.3.4): ==2.7.1',
+       'motor(0.3.3): ==2.7.1',
+       'motor(0.3.2): ==2.7.1',
+       'motor(0.3.1): ==2.7.1',
+       'motor(0.3): ==2.7.1',
+       'motor(0.2.1): ==2.7',
+       'motor(0.2): ==2.7',
+       'motor(0.1.2): ==2.5.0',
+       'motor(0.1.1): ==2.5.0',
+       'motor(0.1): >=2.4.2',
+       'motor(0.0-): >=2.4.2']
+  """
+  return [distkey + ": " + [spectuples_to_specstring(dep[1]) for \
+      dep in deps[distkey] if dep[0] == satisfying_pack][0] for \
+      distkey in [get_distkey(depender_pack, version) for version in versions_by_package[depender_pack]]]
 
 
 

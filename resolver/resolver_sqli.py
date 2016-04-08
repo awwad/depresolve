@@ -2,9 +2,8 @@
 
 # I am not thread-safe. :D
 
+import resolver # __init__ for logging
 import sqlite3 # dependency db as sqlite db is the future of this :P
-
-import logging
 
 SQL_CONNECTION = None
 SQL_CURSOR = None
@@ -86,7 +85,7 @@ def add_to_table(
 
   TODO: Rewrite slightly to use **kwargs for arbitrary column names.
   """
-  logger = logging.getLogger('add_to_table')
+  logger = resolver.logging.getLogger('add_to_table')
   _ensure_connected_to_sqlite()
 
   global SQL_CURSOR
