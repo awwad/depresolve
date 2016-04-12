@@ -24,6 +24,40 @@ DEPS_SIMPLE = {
     'A(3)': [],
     'A(4)': [],
 }
+DEPS_SIMPLE_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'A(3)'])
+
+
+# If B is handled before C, we must backtrack to solve this
+# dependency conflict, as B2 will be chosen.
+DEPS_SIMPLE2 = {
+    'X(1)': [  ['B', []], ['C', []]],
+    'B(2)': [],
+    'B(1)': [],
+    'C(1)': [  ['B', [['<=', '1']]]  ],
+}
+DEPS_SIMPLE2_SOLUTION = sorted(['X(1)', 'B(2)', 'C(1)'])
+
+
+DEPS_SIMPLE3 = {
+    'X(1)': [  ['B', []], ['C', []]],
+    'B(2)': [],
+    'B(1)': [],
+    'C(1)': [  ['D', []]  ],
+    'D(1)': [  ['B', [['==', '1']]]  ]
+}
+DEPS_SIMPLE3_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'D(1)'])
+
+DEPS_SIMPLE4 = {
+    'X(1)': [  ['B', []], ['C', []]],
+    'B(1)': [  ['E', []]  ],
+    'C(1)': [  ['D', []]  ],
+    'D(1)': [  ['E', [['==', '1']]]  ],
+    'E(1)': [],
+    'E(2)': []
+}
+DEPS_SIMPLE4_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'D(1)', 'E(1)'])
+
+
 
 DEPS_MODEL2 = {
     'motorengine(0.7.4)': [
@@ -164,9 +198,24 @@ VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
 def main():
   """
   """
-  test_deptools()
+  #test_deptools()
 
-  test_resolver()
+  #test_resolver()
+
+  # We expect the current version of backtracking_satisfy to fail on the 2nd
+  # through 4th calls.
+
+  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE_SOLUTION, 'X(1)', 
+    DEPS_SIMPLE)
+
+  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE2_SOLUTION, 'X(1)', 
+    DEPS_SIMPLE2, expected_exception=resolver.UnresolvableConflictError)
+
+  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE3_SOLUTION, 'X(1)', 
+    DEPS_SIMPLE3, expected_exception=resolver.UnresolvableConflictError)
+
+  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE4_SOLUTION, 'X(1)', 
+    DEPS_SIMPLE4, expected_exception=resolver.UnresolvableConflictError)
 
   print("Tests successful. (:")
 
@@ -241,7 +290,7 @@ def test_deptools():
 
 
 
-def test_resolver():
+def test_resolver_suite():
   res_test1()
   # res_test2()
   # res_test3()
@@ -514,6 +563,63 @@ def res_test9():
       str(n_unresolvable) + ' instead. ):'
 
   print("test_resolver(): Test 9 OK. (:")
+
+
+
+
+def test_resolver(resolver_func, expected_result, distkey, deps,
+    versions_by_package=None, edeps=None, expected_exception=None):
+  """
+  Returns True if the given resolver produces the expected result on the given
+  data, else False.
+
+  Also writes the dependency graph to resolver/output/test_resolver_*.
+
+  Raises UnresolvableConflictError (reraise) if unable to resolve and we were
+  not told to expect UnresolvableConflictError. (Same goes for any other
+  exceptions)
+
+  """
+
+  if versions_by_package is None:
+    versions_by_package = deptools.generate_dict_versions_by_package(deps)
+
+  if edeps is None:
+    (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+      deptools.elaborate_dependencies(deps, versions_by_package)
+
+  solution = None
+
+  try:
+    (solution, _junk_, dotstrings) = \
+        resolver_func(distkey, edeps, versions_by_package)
+
+  except Exception as e:
+    if expected_exception is None or type(e) is not expected_exception:
+      print('Unexpectedly unable to resolve ' + distkey)
+      raise
+      #return False
+    else:
+      # We expected this error.
+      print('As expected, unable to resolve ' + distkey)
+      print('  Exception caught: ' + e.args[0])
+      return True
+
+  else:
+    print('Resolved ' + distkey + '. Solution: ' + str(solution))
+    fobj = open('resolver/output/test_resolver_' + resolver_func.__name__ +
+        '_' + distkey + '.dot', 'w')
+    fobj.write('digraph G {\n' + dotstrings + '}\n')
+    fobj.close()
+
+    if sorted(solution) == sorted(expected_result):
+      print('Solution is as expected.')
+      return True
+    else:
+      print('Solution does not match! Expected:')
+      print('    Expected: ' + sorted(expected_result))
+      print('    Produced: ' + sorted(solution))
+      return False
 
 
 
