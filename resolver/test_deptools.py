@@ -158,7 +158,7 @@ DEPS_MODERATE = {
 DEPS_SERIOUS = deptools.load_raw_deps_from_json('dependencies_db.json')
 EDEPS_SERIOUS = json.load(open('/Users/s/w/pypi-depresolve/resolver/'
       'elaborated_dependencies.db', 'r'))
-
+VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
 
 
 def main():
@@ -242,7 +242,18 @@ def test_deptools():
 
 
 def test_resolver():
+  res_test1()
+  # res_test2()
+  # res_test3()
+  # res_test4()
+  # res_test5()
+  # res_test6()
+  res_test7()
+  res_test8()
+  print("test_resolver(): All resolvability tests OK. (:")
 
+
+def res_test1():
   # TEST 1: Test satisfy_immediate_dependencies
   deps = DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
@@ -266,120 +277,127 @@ def test_resolver():
 
 
 
+# def res_test2():
+#   deps = DEPS_SIMPLE
+#   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
-  # TEST 2: Test fully_satisfy_strawman1 (during development)
-  (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-      deptools.elaborate_dependencies(deps, versions_by_package)
+#   # TEST 2: Test fully_satisfy_strawman1 (during development)
+#   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+#       deptools.elaborate_dependencies(deps, versions_by_package)
 
-  satisfying_set = \
-      ry.fully_satisfy_strawman1('X(1)', edeps, versions_by_package)
+#   satisfying_set = \
+#       ry.fully_satisfy_strawman1('X(1)', edeps, versions_by_package)
 
-  expected_result = ['A(3)', 'A(3)', 'B(1)', 'C(1)']
-  assert expected_result == sorted(satisfying_set), \
-      "Expected the strawman solution to X(1)'s dependencies to be " + \
-      str(expected_result) + ", sorted, but got instead: " + \
-      str(sorted(satisfying_set))
-  print("test_resolver(): Test 2 OK.")
-
-
-
-
-  # TEST 3: Detection of model 2 conflicts.
-  deps = DEPS_MODEL2
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
-  (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-      deptools.elaborate_dependencies(deps, versions_by_package)
-  assert ry.detect_model_2_conflict_from_distkey(
-      'motorengine(0.7.4)', edeps, versions_by_package
-  ), "Did not detect model 2 conflict for motorengine(0.7.4). ): "
-  print("test_resolver(): Test 3 OK.")
+#   expected_result = ['A(3)', 'A(3)', 'B(1)', 'C(1)']
+#   assert expected_result == sorted(satisfying_set), \
+#       "Expected the strawman solution to X(1)'s dependencies to be " + \
+#       str(expected_result) + ", sorted, but got instead: " + \
+#       str(sorted(satisfying_set))
+#   print("test_resolver(): Test 2 OK.")
 
 
 
-
-  # TEST 4: Test fully_satisfy_strawman2 (during development)
-  deps = DEPS_SIMPLE
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
-  (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-      deptools.elaborate_dependencies(deps, versions_by_package)
-
-  satisfying_set = \
-      ry.fully_satisfy_strawman2('X(1)', edeps, versions_by_package)
-
-  expected_result = ['A(3)', 'B(1)', 'C(1)', 'X(1)']
-  assert expected_result == sorted(satisfying_set), \
-      "Expected the strawman solution to X(1)'s dependencies to be " + \
-      str(expected_result) + ", sorted, but got instead: " + \
-      str(sorted(satisfying_set))
-  print("test_resolver(): Test 4 OK.")
+# def res_test3():
+#   # TEST 3: Detection of model 2 conflicts.
+#   deps = DEPS_MODEL2
+#   versions_by_package = deptools.generate_dict_versions_by_package(deps)
+#   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+#       deptools.elaborate_dependencies(deps, versions_by_package)
+#   assert ry.detect_model_2_conflict_from_distkey(
+#       'motorengine(0.7.4)', edeps, versions_by_package
+#   ), "Did not detect model 2 conflict for motorengine(0.7.4). ): "
+#   print("test_resolver(): Test 3 OK.")
 
 
 
+# def res_test4():
+#   # TEST 4: Test fully_satisfy_strawman2 (during development)
+#   deps = DEPS_SIMPLE
+#   versions_by_package = deptools.generate_dict_versions_by_package(deps)
+#   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+#       deptools.elaborate_dependencies(deps, versions_by_package)
 
-  # TEST 5: Test fully_satisfy_strawman2 (during development)
-  #         on a slightly more complex case.
-  deps = DEPS_MODEL2
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
-  # (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-  #     deptools.elaborate_dependencies(deps, versions_by_package)
+#   satisfying_set = \
+#       ry.fully_satisfy_strawman2('X(1)', edeps, versions_by_package)
 
-  edeps = EDEPS_SERIOUS
-
-  satisfying_set = \
-      ry.fully_satisfy_strawman2('motorengine(0.7.4)', edeps,
-          versions_by_package)
-
-  expected_result = [
-      'backports-abc(0.4)',
-      'easydict(1.6)',
-      'greenlet(0.4.9)',
-      'motor(0.1.2)',
-      'motorengine(0.7.4)',
-      'pymongo(2.5)',
-      'six(1.9.0)',
-      'tornado(4.3)']
-  assert expected_result == sorted(satisfying_set), \
-      "Expected the strawman solution to motorengine(0.7.4)'s dependencies " \
-      " to be " + str(expected_result) + ", sorted, but got instead: " + \
-      str(sorted(satisfying_set))
-  print("test_resolver(): Test 5 OK.")
+#   expected_result = ['A(3)', 'B(1)', 'C(1)', 'X(1)']
+#   assert expected_result == sorted(satisfying_set), \
+#       "Expected the strawman solution to X(1)'s dependencies to be " + \
+#       str(expected_result) + ", sorted, but got instead: " + \
+#       str(sorted(satisfying_set))
+#   print("test_resolver(): Test 4 OK.")
 
 
 
-  # TEST 6: Let's get serious (:
-  #con3_json = json.load(open('conflicts_3_db.json','r'))
-  #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
-  solutions = dict()
+# def res_test5():
+#   # TEST 5: Test fully_satisfy_strawman2 (during development)
+#   #         on a slightly more complex case.
+#   deps = DEPS_MODEL2
+#   versions_by_package = deptools.generate_dict_versions_by_package(deps)
+#   # (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
+#   #     deptools.elaborate_dependencies(deps, versions_by_package)
 
-  artificial_set = [ # These come from the type 3 conflict results. (:
-      'metasort(0.3.6)', 'gerritbot(0.2.0)',
-      'exoline(0.2.3)', 'pillowtop(0.1.3)', 'os-collect-config(0.1.8)',
-      'openstack-doc-tools(0.21.1)', 'openstack-doc-tools(0.7.1)',
-      'python-magnetodbclient(1.0.1)']
+#   edeps = EDEPS_SERIOUS
+
+#   satisfying_set = \
+#       ry.fully_satisfy_strawman2('motorengine(0.7.4)', edeps,
+#           versions_by_package)
+
+#   expected_result = [
+#       'backports-abc(0.4)',
+#       'easydict(1.6)',
+#       'greenlet(0.4.9)',
+#       'motor(0.1.2)',
+#       'motorengine(0.7.4)',
+#       'pymongo(2.5)',
+#       'six(1.9.0)',
+#       'tornado(4.3)']
+#   assert expected_result == sorted(satisfying_set), \
+#       "Expected the strawman solution to motorengine(0.7.4)'s dependencies " \
+#       " to be " + str(expected_result) + ", sorted, but got instead: " + \
+#       str(sorted(satisfying_set))
+#   print("test_resolver(): Test 5 OK.")
 
 
-  for distkey in artificial_set:
-    try:
-      solutions[distkey] = \
-          ry.fully_satisfy_strawman2(distkey, edeps, versions_by_package)
-      print("Resolved: " + distkey)
-    except resolver.UnresolvableConflictError:
-      solutions[distkey] = -1
-      print("Unresolvable: " + distkey)
+# def res_test6():
+#   # TEST 6: Let's get serious (:
+#   #con3_json = json.load(open('conflicts_3_db.json','r'))
+#   #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
+#   deps = DEPS_SERIOUS
+#   edeps = EDEPS_SERIOUS
+#   versions_by_package = deptools.generate_dict_versions_by_package(deps)
+#   solutions = dict()
 
-  print("test_resolver(): Text 6 completed, at least. (:")
+#   artificial_set = [ # These come from the type 3 conflict results. (:
+#       'metasort(0.3.6)', 'gerritbot(0.2.0)',
+#       'exoline(0.2.3)', 'pillowtop(0.1.3)', 'os-collect-config(0.1.8)',
+#       'openstack-doc-tools(0.21.1)', 'openstack-doc-tools(0.7.1)',
+#       'python-magnetodbclient(1.0.1)']
 
-  # json.dump(solutions, open('con3_solutions_via_strawman2.json', 'w'))
+
+#   for distkey in artificial_set:
+#     try:
+#       solutions[distkey] = \
+#           ry.fully_satisfy_strawman2(distkey, edeps, versions_by_package)
+#       print("Resolved: " + distkey)
+#     except resolver.UnresolvableConflictError:
+#       solutions[distkey] = -1
+#       print("Unresolvable: " + distkey)
+
+#   print("test_resolver(): Text 6 completed, at least. (:")
+
+#   # json.dump(solutions, open('con3_solutions_via_strawman2.json', 'w'))
 
 
+def res_test7():
 
-  # TEST 7: Test fully_satisfy_strawman3 (during development)
+  # TEST 7: Test fully_satisfy_backtracking (during development)
   deps = DEPS_SERIOUS
   edeps = EDEPS_SERIOUS
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
-  satisfying_set = \
-      ry.fully_satisfy_strawman3('metasort(0.3.6)', edeps, versions_by_package)
+  (satisfying_set, _junk_, dotstrings) = \
+      ry.backtracking_satisfy('metasort(0.3.6)', edeps, versions_by_package)
 
   expected_result = [
       'biopython(1.66)', 'metasort(0.3.6)',
@@ -394,42 +412,109 @@ def test_resolver():
   print("test_resolver(): Test 7 OK. (:")
 
 
-  # "TEST" 8: Try test 6 with strawman3 instead to compare.
+
+
+def res_test8():
+  deps = DEPS_SERIOUS
+  edeps = EDEPS_SERIOUS
+  versions_by_package = VERSIONS_BY_PACKAGE
+
+  # "TEST" 8: Try test 6 with fully_satisfy_backtracking instead to compare.
+  # Expect these conflicts to resolve.
   #con3_json = json.load(open('conflicts_3_db.json','r'))
   #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
   solutions = dict()
+  dotstrings = dict()
 
   artificial_set = [ # These come from the type 3 conflict results. (:
-      'metasort(0.3.6)', 'gerritbot(0.2.0)',
-      'exoline(0.2.3)', 'pillowtop(0.1.3)', 'os-collect-config(0.1.8)',
-      'openstack-doc-tools(0.21.1)', 'openstack-doc-tools(0.7.1)',
+      'metasort(0.3.6)',
+      'pillowtop(0.1.3)',
+      'os-collect-config(0.1.8)',
+      'openstack-doc-tools(0.7.1)',
       'python-magnetodbclient(1.0.1)']
 
 
   for distkey in artificial_set:
     try:
-      solutions[distkey] = \
-          ry.fully_satisfy_strawman3(distkey, edeps, versions_by_package)
-      print("Resolved: " + distkey)
+      (solutions[distkey], _junk_, dotstrings[distkey]) = \
+          ry.backtracking_satisfy(distkey, edeps, versions_by_package)
+      print('Resolved: ' + distkey)
     except resolver.UnresolvableConflictError:
       solutions[distkey] = -1
-      print("Unresolvable: " + distkey)
+      dotstrings[distkey] = ''
+      print('Unresolvable: ' + distkey)
 
   n_unresolvable = len(
-      [distkey for distkey in solutions if solution[distkey] == -1])
+      [distkey for distkey in solutions if solutions[distkey] == -1])
 
-  fobj = open('con3_solutions_via_strawman3.json', 'w')
+  fobj = open('resolver/output/test8_solutions_via_strawman3.json', 'w')
   json.dump(solutions, fobj)
   fobj.close()
 
-  assert 2 == n_unresolvable, "Expect 2 unresolvable conflicts. Got " + \
-      n_unresolvable + " instead. ):"
+  # Write the dot graphs.
+  for distkey in artificial_set:
+    fobj = open('resolver/output/test8_dotgraph_' + distkey + '.dot', 'w')
+    fobj.write('digraph G {\n')
+    fobj.write(dotstrings[distkey])
+    fobj.write('}\n')
+    fobj.close()
 
-  fobj = open('con3_solutions_via_strawman3.json', 'w')
+
+  assert 0 == n_unresolvable, 'Expect 0 unresolvable conflicts. Got ' + \
+      str(n_unresolvable) + ' instead. ):'
+
+  fobj = open('resolver/output/test8_solutions_via_backtracking.json', 'w')
   json.dump(solutions, fobj)
   fobj.close()
 
   print("test_resolver(): Test 8 OK (: (: (:")
+
+
+
+def res_test9():
+  # "TEST" 9: Try to resolve a conflict we know to be unresolvable.
+  deps = DEPS_SERIOUS
+  edeps = EDEPS_SERIOUS
+  versions_by_package = VERSIONS_BY_PACKAGE
+  solutions = dict()
+  dotstrings = dict()
+
+  artificial_set = [ # These come from the type 3 conflict results. (:
+      'gerritbot(0.2.0)',
+      'exoline(0.2.3)',
+      'openstack-doc-tools(0.21.1)']
+
+  for distkey in artificial_set:
+    try:
+      (solutions[distkey], _junk_, dotstrings[distkey]) = \
+          ry.backtracking_satisfy(distkey, edeps, versions_by_package)
+      print('Resolved: ' + distkey)
+    except resolver.UnresolvableConflictError:
+      solutions[distkey] = -1
+      dotstrings[distkey] = ''
+      print('Unresolvable: ' + distkey)
+
+  n_unresolvable = len(
+      [distkey for distkey in solutions if solutions[distkey] == -1])
+
+  fobj = open('resolver/output/test9_solutions_via_backtracking.json', 'w')
+  json.dump(solutions, fobj)
+  fobj.close()
+
+  # Write the dot graphs.
+  for distkey in artificial_set:
+    fobj = open('resolver/output/test9_dotgraph_' + distkey + '.dot', 'w')
+    fobj.write('digraph G {\n')
+    fobj.write(dotstrings[distkey])
+    fobj.write('}\n')
+    fobj.close()
+
+
+  assert 0 == n_unresolvable, 'Expect 3 unresolvable conflicts. Got ' + \
+      str(n_unresolvable) + ' instead. ):'
+
+  print("test_resolver(): Test 9 OK. (:")
+
 
 
 

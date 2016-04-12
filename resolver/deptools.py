@@ -573,15 +573,19 @@ def get_pack_and_version(distkey):
 
   Reverse: get_distkey()
   """
+  packagename = get_packname(distkey)
+  version = get_version(distkey)
+  return (packagename, version)
+
+def get_packname(distkey):
   # The package name ends with the first open parenthesis.
-  packagename = distkey[:distkey.find('(')]
+  return distkey[:distkey.find('(')]
+
+def get_version(distkey):
   # Note that the version string may contain parentheses. /:
   # So it's just every character after the first '(' until the last
   # character, which must be ')'.
-  version = distkey[distkey.find('(') + 1 : -1]
-  return (packagename, version)
-
-
+  return distkey[distkey.find('(') + 1 : -1]
 
 
 def get_distkey(package_name, version_string):
