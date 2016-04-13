@@ -32,6 +32,9 @@ from depsolver import * # external
 
 
 
+#########################################################
+########### Basic Conversion Functions ##################
+#########################################################
 
 def convert_version_from_depsolver(semantic_version):
   """
@@ -39,8 +42,6 @@ def convert_version_from_depsolver(semantic_version):
   version format I'm using (string of loose form '1.56.3a').
   """
   assert False, "Still writing."
-
-
 
 
 
@@ -53,6 +54,8 @@ def convert_version_into_depsolver(version_string):
   For now, I assume my versions are all single-unit (e.g. '3', not '3.0')
   """
   return version_string + '.0.0' # cheesy assumption for now
+
+
 
 def convert_distkey_for_depsolver(distkey, as_req=False):
   """
@@ -74,8 +77,7 @@ def convert_distkey_for_depsolver(distkey, as_req=False):
 
 
 
-
-def convert_single_dist_deps_to_packageinfo_for_depsolver(distkey, deps):
+def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
   """
   Given deps for a single distkey (e.g. DEPS_SIMPLE[X(1)] above), converts to
   a depsolver compatible format, depsolver.PackageInfo (e.g.
@@ -139,7 +141,7 @@ def convert_packs_to_packageinfo_for_depsolver(deps):
 
   for distkey in deps:
     packageinfos.append(
-        convert_single_dist_deps_to_packageinfo_for_depsolver(distkey, deps))
+        convert_dist_to_packageinfo_for_depsolver(distkey, deps))
 
   return packageinfos
 
