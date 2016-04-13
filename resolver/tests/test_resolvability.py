@@ -6,7 +6,8 @@
   Some unit tests for resolver.resolvability and resolver.depsolver_integrate.
   (Can restructure to be more standard later.)
 
-  Note that data for the tests is at the end.
+  Note that some (very large) extra data for these particular tests is at the
+  end of the file.
 
 """
 import json
@@ -15,7 +16,6 @@ import resolver
 import resolver.deptools as deptools
 
 import resolver.resolvability as ry # backtracking solver
-import resolver.depsolver_integrate as depsolver_integrate # SAT solver
 
 from resolver.tests.testdata import *
 
@@ -97,7 +97,7 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
 
   else:
     print('Resolved ' + distkey + '. Solution: ' + str(solution))
-    fobj = open('resolver/output/test_resolver_' + resolver_func.__name__ +
+    fobj = open('data/resolver/test_resolver_' + resolver_func.__name__ +
         '_' + distkey + '.dot', 'w')
     fobj.write('digraph G {\n' + dotstrings + '}\n')
     fobj.close()
@@ -110,16 +110,6 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
       print('    Expected: ' + sorted(expected_result))
       print('    Produced: ' + sorted(solution))
       return False
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -248,7 +238,7 @@ def res_test5():
 
 def res_test6():
   # TEST 6: Let's get serious (:
-  #con3_json = json.load(open('conflicts_3_db.json','r'))
+  #con3_json = json.load(open('data/conflicts_3_db.json','r'))
   #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
   deps = DEPS_SERIOUS
   edeps = EDEPS_SERIOUS
@@ -273,7 +263,7 @@ def res_test6():
 
   print("test_resolver(): Text 6 completed, at least. (:")
 
-  # json.dump(solutions, open('con3_solutions_via_strawman2.json', 'w'))
+  # json.dump(solutions, open('data/resolver/con3_solutions_via_strawman2.json', 'w'))
 
 
 def res_test7():
@@ -308,7 +298,7 @@ def res_test8():
 
   # "TEST" 8: Try test 6 with fully_satisfy_backtracking instead to compare.
   # Expect these conflicts to resolve.
-  #con3_json = json.load(open('conflicts_3_db.json','r'))
+  #con3_json = json.load(open('data/conflicts_3_db.json','r'))
   #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
   solutions = dict()
   dotstrings = dict()
@@ -334,13 +324,13 @@ def res_test8():
   n_unresolvable = len(
       [distkey for distkey in solutions if solutions[distkey] == -1])
 
-  fobj = open('resolver/output/test8_solutions_via_strawman3.json', 'w')
+  fobj = open('data/resolver/test8_solutions_via_strawman3.json', 'w')
   json.dump(solutions, fobj)
   fobj.close()
 
   # Write the dot graphs.
   for distkey in artificial_set:
-    fobj = open('resolver/output/test8_dotgraph_' + distkey + '.dot', 'w')
+    fobj = open('data/resolver/test8_dotgraph_' + distkey + '.dot', 'w')
     fobj.write('digraph G {\n')
     fobj.write(dotstrings[distkey])
     fobj.write('}\n')
@@ -350,7 +340,7 @@ def res_test8():
   assert 0 == n_unresolvable, 'Expect 0 unresolvable conflicts. Got ' + \
       str(n_unresolvable) + ' instead. ):'
 
-  fobj = open('resolver/output/test8_solutions_via_backtracking.json', 'w')
+  fobj = open('data/resolver/test8_solutions_via_backtracking.json', 'w')
   json.dump(solutions, fobj)
   fobj.close()
 
@@ -384,13 +374,13 @@ def res_test9():
   n_unresolvable = len(
       [distkey for distkey in solutions if solutions[distkey] == -1])
 
-  fobj = open('resolver/output/test9_solutions_via_backtracking.json', 'w')
+  fobj = open('data/resolver/test9_solutions_via_backtracking.json', 'w')
   json.dump(solutions, fobj)
   fobj.close()
 
   # Write the dot graphs.
   for distkey in artificial_set:
-    fobj = open('resolver/output/test9_dotgraph_' + distkey + '.dot', 'w')
+    fobj = open('data/resolver/test9_dotgraph_' + distkey + '.dot', 'w')
     fobj.write('digraph G {\n')
     fobj.write(dotstrings[distkey])
     fobj.write('}\n')
@@ -408,10 +398,9 @@ def res_test9():
 
 
 
+# Auxiliary test data (very large)
 
-
-
-
-
-
+DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies_db.json')
+EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
+VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
 

@@ -10,17 +10,17 @@ import json
 # Local resources
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
-WORKING_DIRECTORY = os.getcwd() #'/Users/s/w/git/pypi-depresolve' in my setup
-DEPENDENCY_CONFLICTS1_DB_FILENAME = os.path.join(WORKING_DIRECTORY,
-  "conflicts_1_db.json") # db for model 1 conflicts
-DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY,
-  "conflicts_2_db.json") # db for model 2 conflicts
-DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY,
-  "conflicts_3_db.json") # db for model 3 conflicts
-BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY,
-    "blacklist_db.json")
-DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY,
-    "dependencies_db.json")
+WORKING_DIRECTORY = os.path.join(os.getcwd()) #'/Users/s/w/git/pypi-depresolve' in my setup
+DEPENDENCY_CONFLICTS1_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+    'conflicts_1.json') # db for model 1 conflicts
+DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+    'conflicts_2.json') # db for model 2 conflicts
+DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+    'conflicts_3.json') # db for model 3 conflicts
+BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data', 
+    'blacklist.json')
+DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+    'dependencies.json')
 TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY,
   'temp_distros')
 # May not want this in same place as working directory. Would be terrible to
@@ -294,7 +294,7 @@ def main():
     if exitcode == 2:
       print("--- X  SDist " + distkey + " : pip errored out (code=" +
         str(exitcode) + "). Possible DEPENDENCY CONFLICT. Result recorded in "
-        "conflicts_<...>_db.json and in conflicts_db.log. (Finished with " +
+        "conflicts_<...>.json. (Finished with " +
         str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) +
         ")")
     elif exitcode == 0:

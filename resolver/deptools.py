@@ -71,16 +71,11 @@ import resolver.resolver_sqli as sqli # the resolver's sqlite module
 
 
 # Local resources for the resolver package.
-WORKING_DIRECTORY = os.getcwd() #'/Users/s/w/git/pypi-depresolve' in my setup
-DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY, '..',
-    "dependencies_db.json")
-#DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY,
-#    "conflicts_3_db.json") # db for model 3 conflicts
-#DEPENDENCIES_DB_ELABORATED_FILENAME = os.path.join(WORKING_DIRECTORY,
-#    "dependencies_db_elaborated.json")
-#DEPENDENCIES_DB_MISSING_FILENAME = os.path.join(WORKING_DIRECTORY,
-#    "dependencies_db_missing.json")
+DEPENDENCIES_DB_FILENAME = 'data/dependencies_db.json'
+
 PACKAGE_VERSIONS_UNKNOWN = ['----ERROR--UNAVAILABLE-VERSION-INFORMATION----']
+
+
 
 def load_raw_deps_from_sql():
   """"""

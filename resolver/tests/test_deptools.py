@@ -6,8 +6,6 @@
   Some unit tests for the dep tools and resolvability assesser.
   (Can restructure to be more standard later.)
 
-  Note that data for the tests is at the end.
-
 """
 
 import json

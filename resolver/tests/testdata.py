@@ -3,10 +3,14 @@
   testdata.py
 
 <Purpose>
-  Contains all the test data for the various test modules.
+  Contains the basic test data for the various test modules.
+  Some specialized data requiring external modules is in the individual test
+  modules.
 
 """
 
+import resolver
+import resolver.deptools as deptools
 
 DEPS_SIMPLE = {
     'X(1)': [  ['B', []], ['C', []]],
@@ -18,21 +22,6 @@ DEPS_SIMPLE = {
     'A(4)': [],
 }
 DEPS_SIMPLE_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'A(3)'])
-
-DEPS_SIMPLE_DEPSOLVER_SOLUTION = \
-    'Installing A (3.0.0)\n' + \
-    'Installing C (1.0.0)\n' + \
-    'Installing B (1.0.0)\n' + \
-    'Installing X (1.0.0)\n'
-
-DEPS_SIMPLE_PACKAGEINFOS = [
-    depsolver_integrate.PackageInfo.from_string('X-1.0.0; depends (B, C)'),
-    depsolver_integrate.PackageInfo.from_string('B-1.0.0; depends (A >= 2.0.0, A < 4.0.0)'),
-    depsolver_integrate.PackageInfo.from_string('C-1.0.0; depends (A == 3.0.0)'),
-    depsolver_integrate.PackageInfo.from_string('A-1.0.0'),
-    depsolver_integrate.PackageInfo.from_string('A-2.0.0'),
-    depsolver_integrate.PackageInfo.from_string('A-3.0.0'),
-    depsolver_integrate.PackageInfo.from_string('A-4.0.0')]
 
 
 # If B is handled before C, we must backtrack to solve this
@@ -140,9 +129,4 @@ DEPS_MODERATE = {
     'humanfriendly(1.43.1)': [],
     'humanfriendly(1.5)': [],
 }
-
-DEPS_SERIOUS = deptools.load_raw_deps_from_json('dependencies_db.json')
-EDEPS_SERIOUS = json.load(open('/Users/s/w/pypi-depresolve/resolver/'
-      'elaborated_dependencies.db', 'r'))
-VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
 
