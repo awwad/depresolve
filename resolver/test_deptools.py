@@ -13,7 +13,8 @@ import json
 import os
 
 import resolver.deptools as deptools
-import resolver.resolvability as ry
+import resolver.resolvability as ry # backtracking solver
+import resolver.depsolver_integrate as depsolver_integrate # SAT solver
 
 DEPS_SIMPLE = {
     'X(1)': [  ['B', []], ['C', []]],
@@ -25,6 +26,21 @@ DEPS_SIMPLE = {
     'A(4)': [],
 }
 DEPS_SIMPLE_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'A(3)'])
+
+DEPS_SIMPLE_DEPSOLVER_SOLUTION = \
+    'Installing A (3.0.0)\n' + \
+    'Installing C (1.0.0)\n' + \
+    'Installing B (1.0.0)\n' + \
+    'Installing X (1.0.0)\n'
+
+DEPS_SIMPLE_PACKAGEINFOS = [
+    depsolver_integrate.PackageInfo.from_string('X-1.0.0; depends (B, C)'),
+    depsolver_integrate.PackageInfo.from_string('B-1.0.0; depends (A >= 2.0.0, A < 4.0.0)'),
+    depsolver_integrate.PackageInfo.from_string('C-1.0.0; depends (A == 3.0.0)'),
+    depsolver_integrate.PackageInfo.from_string('A-1.0.0'),
+    depsolver_integrate.PackageInfo.from_string('A-2.0.0'),
+    depsolver_integrate.PackageInfo.from_string('A-3.0.0'),
+    depsolver_integrate.PackageInfo.from_string('A-4.0.0')]
 
 
 # If B is handled before C, we must backtrack to solve this
@@ -146,20 +162,21 @@ def main():
 
   #test_resolver()
 
-  # We expect the current version of backtracking_satisfy to fail on the 2nd
+  # We expected the current version of backtracking_satisfy to fail on the 2nd
   # through 4th calls.
+  # Hopefully, it can now work properly.
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE_SOLUTION, 'X(1)', 
     DEPS_SIMPLE)
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE2_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE2, expected_exception=resolver.UnresolvableConflictError)
+    DEPS_SIMPLE2)#, expected_exception=resolver.UnresolvableConflictError)
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE3_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE3, expected_exception=resolver.UnresolvableConflictError)
+    DEPS_SIMPLE3)#, expected_exception=resolver.UnresolvableConflictError)
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE4_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE4, expected_exception=resolver.UnresolvableConflictError)
+    DEPS_SIMPLE4)#, expected_exception=resolver.UnresolvableConflictError)
 
   print("Tests successful. (:")
 
@@ -512,7 +529,8 @@ def res_test9():
 
 
 def test_resolver(resolver_func, expected_result, distkey, deps,
-    versions_by_package=None, edeps=None, expected_exception=None):
+    versions_by_package=None, edeps=None, expected_exception=None,
+    use_raw_deps=False):
   """
   Returns True if the given resolver produces the expected result on the given
   data, else False.
@@ -523,12 +541,19 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
   not told to expect UnresolvableConflictError. (Same goes for any other
   exceptions)
 
+  If instructed to use raw dependencies (instead of elaborated dependencies),
+  will pass deps directly to the named function instead of first elaborating
+  the dependencies.
+
   """
 
   if versions_by_package is None:
     versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
-  if edeps is None:
+  if use_raw_deps:
+    edeps = deps
+
+  elif edeps is None:
     (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
       deptools.elaborate_dependencies(deps, versions_by_package)
 
@@ -564,6 +589,33 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
       print('    Expected: ' + sorted(expected_result))
       print('    Produced: ' + sorted(solution))
       return False
+
+
+
+
+
+
+
+
+
+#   TEST DEPSOLVER_INTEGRATE
+def test_depsolver_conversion():
+  """
+  Tests convert_deps_to_packageinfo_for_depsolver
+  """
+  expected_depsolver_deps = sorted(DEPS_SIMPLE_PACKAGEINFOS)
+  depsolver_deps = \
+      depsolver_integrate.convert_packs_to_packageinfo_for_depsolver(
+      DEPS_SIMPLE)
+
+  print(depsolver_deps)
+
+  assert set(expected_depsolver_deps) == set(depsolver_deps), \
+      'Conversion failed:\n  Expected: ' + str(expected_depsolver_deps) + \
+      '\n  Got:      ' + str(depsolver_deps)
+
+  print("test_depsolver_conversion(): Test passed! :D")
+
 
 
 
