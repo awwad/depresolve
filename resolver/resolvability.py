@@ -3,7 +3,8 @@
   Resolvability
 
 <Purpose>
-  Provides tools determining the resolvability of dependency conflicts.
+  Provides tools determining the resolvability of dependency conflicts, and
+  attempts to provide a backtracking resolver for such conflicts.
 
   For definitions of resolvability, please see the pypi-depresolve project's
   readme, and what it links to.
@@ -21,8 +22,7 @@ import resolver.deptools as deptools
 import pip._vendor.packaging.specifiers
 
 def main():
-  convert_json_dep_to_elaborated_sql()
-
+  pass
 
 def convert_json_dep_to_elaborated_sql():
   deps = deptools.load_raw_deps_from_json()

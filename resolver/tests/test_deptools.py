@@ -33,9 +33,9 @@ def test_deptools():
       "Set changed: should be len 41 but is len " + str(len(DEPS_MODERATE)) + \
       " - reconfigure tests"
 
-  json.dump(DEPS_MODERATE, open('test_deps_set.json', 'w'))
+  json.dump(DEPS_MODERATE, open('data/test_deps_set.json', 'w'))
 
-  deps = deptools.load_raw_deps_from_json('test_deps_set.json')
+  deps = deptools.load_raw_deps_from_json('data/test_deps_set.json')
 
   assert DEPS_MODERATE == deps, \
       "JSON write and load via load_raw_deps_from_json is breaking!"
@@ -79,12 +79,12 @@ def test_deptools():
 
 
   # Clear any pre-existing test database.
-  deptools.sqli.initialize(db_fname='test_dependencies.db')
+  deptools.sqli.initialize(db_fname='data/test_dependencies.db')
   deptools.sqli.delete_all_tables()
 
   deptools.populate_sql_with_full_dependency_info(
       edeps, versions_by_package, packs_wout_avail_version_info, 
-      dists_w_missing_dependencies, db_fname='test_dependencies.db')
+      dists_w_missing_dependencies, db_fname='data/test_dependencies.db')
 
   print("test_deptools(): Tests OK.")
 
