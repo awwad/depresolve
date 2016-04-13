@@ -20,6 +20,10 @@
   Apologies for the unexpected namespace clash / difficult-to-distinguish
   names. Please don't mix this up with resolver or deptools. ):
 
+  NOTE THAT THIS module requires external packages depsolver and six!
+  depsolver can be obtained here: https://github.com/enthought/depsolver
+
+
 """
 
 import resolver
@@ -122,7 +126,7 @@ def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
 
     ds_packageinfostr += '; depends (' + my_ds_deps + ')'
 
-  return depsolver.PackageInfo.from_string(ds_packageinfostr)
+  return PackageInfo.from_string(ds_packageinfostr)
 
 
 
@@ -169,27 +173,27 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None):
   """
   # Create a depsolver "Repository" object containing a PackageInfo object for
   # each dist we know about from the deps dictionary of distributions.
-  repo = depsolver.Repository(
+  repo = Repository(
       convert_packs_to_packageinfo_for_depsolver(deps))
 
   # Create an empty "Repository" to indicate nothing installed yet.
-  installed_repo = depsolver.Repository()
+  installed_repo = Repository()
 
   # A depsolver Pool is an abstraction encompassing the state of a repository
   # and what is installed locally. /:
-  pool = depsolver.Pool([repo, installed_repo])
+  pool = Pool([repo, installed_repo])
 
   # Putative installations are requests.
-  request = depsolver.Request(pool)
+  request = Request(pool)
 
   # This produces a sort of diff object that can be applied to the repository.
   # Installation would not actually occur. It's a request to install.
   request.install(
-      depsolver.Requirement.from_string(convert_distkey_for_depsolver(distkey,
+      Requirement.from_string(convert_distkey_for_depsolver(distkey,
       as_req=True)))
 
   depsolver_solution = [operation for operation in 
-      depsolver.Solver(pool, installed_repo).solve(request)]
+      Solver(pool, installed_repo).solve(request)]
 
   # What depsolver will have provided there will look like:
   #  [Installing A (3.0.0), Installing C (1.0.0), Installing B (1.0.0),

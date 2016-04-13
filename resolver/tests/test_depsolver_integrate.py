@@ -13,6 +13,7 @@ import json
 
 import resolver
 import resolver.deptools as deptools
+import depsolver
 
 import resolver.depsolver_integrate as depsolver_integrate # SAT solver
 
@@ -30,7 +31,7 @@ def test_depsolver_conversion():
   """
   Tests convert_deps_to_packageinfo_for_depsolver
   """
-  expected_depsolver_deps = sorted(DEPS_SIMPLE_PACKAGEINFOS)
+  expected_depsolver_deps = DEPS_SIMPLE_PACKAGEINFOS
   depsolver_deps = \
       depsolver_integrate.convert_packs_to_packageinfo_for_depsolver(
       DEPS_SIMPLE)

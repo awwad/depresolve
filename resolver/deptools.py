@@ -71,7 +71,8 @@ import resolver.resolver_sqli as sqli # the resolver's sqlite module
 
 
 # Local resources for the resolver package.
-DEPENDENCIES_DB_FILENAME = 'data/dependencies_db.json'
+DEPENDENCIES_DB_FILENAME = 'data/dependencies.json'
+#DEPENDENCY_CONFLICTS3_DB_FILENAME = 'data/conflicts_3.json'
 
 PACKAGE_VERSIONS_UNKNOWN = ['----ERROR--UNAVAILABLE-VERSION-INFORMATION----']
 

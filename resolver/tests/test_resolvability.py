@@ -31,19 +31,20 @@ def main():
 
   # We expected the current version of backtracking_satisfy to fail on the 2nd
   # through 4th calls.
-  # Hopefully, it can now work properly. (Nope)
+  # Hopefully, it can now work properly. (Nope - switching expectation back
+  # to failure. May skip fixing. Have moved on to SAT via depsolver.)
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE_SOLUTION, 'X(1)', 
     DEPS_SIMPLE)
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE2_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE2)#, expected_exception=resolver.UnresolvableConflictError)
+    DEPS_SIMPLE2, expected_exception=resolver.UnresolvableConflictError)
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE3_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE3)#, expected_exception=resolver.UnresolvableConflictError)
+    DEPS_SIMPLE3, expected_exception=resolver.UnresolvableConflictError)
 
   test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE4_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE4)#, expected_exception=resolver.UnresolvableConflictError)
+    DEPS_SIMPLE4, expected_exception=resolver.UnresolvableConflictError)
 
   print("Tests successful. (:")
 
@@ -238,7 +239,7 @@ def res_test5():
 
 def res_test6():
   # TEST 6: Let's get serious (:
-  #con3_json = json.load(open('data/conflicts_3_db.json','r'))
+  #con3_json = json.load(open('data/conflicts_3.json','r'))
   #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
   deps = DEPS_SERIOUS
   edeps = EDEPS_SERIOUS
@@ -298,7 +299,7 @@ def res_test8():
 
   # "TEST" 8: Try test 6 with fully_satisfy_backtracking instead to compare.
   # Expect these conflicts to resolve.
-  #con3_json = json.load(open('data/conflicts_3_db.json','r'))
+  #con3_json = json.load(open('data/conflicts_3.json','r'))
   #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
   solutions = dict()
   dotstrings = dict()
@@ -400,7 +401,7 @@ def res_test9():
 
 # Auxiliary test data (very large)
 
-DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies_db.json')
+DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies.json')
 EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
 VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
 

@@ -1,7 +1,11 @@
 # pypi-depresolve
 ##PyPI package dependency resolution project
 
-**The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip. This tool - scrape_deps_and_detect_conflicts - is means to do that.**
+**The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip.**
+
+**The first tool here - scrape_deps_and_detect_conflicts - is a means to do that.**
+
+**The resolver package is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
 
 **While there are MULTIPLE MODES OF EXECUTION, the tool's most useful function on its own is that (by default) it answers this question:**
 

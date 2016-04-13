@@ -176,141 +176,141 @@ def combine_candidate_sets(orig_candidates, addl_candidates):
 
 
 
-# def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package):
-#   """
-#   An exercise. Recurse and list all dists required to satisfy a dependency.
-#   Where there is ambiguity, select the first result from sort_versions().
-#   If multiple dists depend on the same package, we get both in this result.
+def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package):
+  """
+  An exercise. Recurse and list all dists required to satisfy a dependency.
+  Where there is ambiguity, select the first result from sort_versions().
+  If multiple dists depend on the same package, we get both in this result.
 
-#   This has the same level of capability as pip's dependency resolution, though
-#   the results are slightly different.
+  This has the same level of capability as pip's dependency resolution, though
+  the results are slightly different.
 
-#   Arguments:
-#     - depender_distkey ('django(1.8.3)'),
-#     - edeps (dictionary returned by deptools.deps_elaborated; see there.)
-#     - versions_by_package (dictionary of all distkeys, keyed by package name)
+  Arguments:
+    - depender_distkey ('django(1.8.3)'),
+    - edeps (dictionary returned by deptools.deps_elaborated; see there.)
+    - versions_by_package (dictionary of all distkeys, keyed by package name)
 
-#   Returns:
-#     - list of distkeys needed as direct or indirect dependencies to install
-#       depender_distkey
-#   """
+  Returns:
+    - list of distkeys needed as direct or indirect dependencies to install
+      depender_distkey
+  """
 
-#   logger = resolver.logging.getLogger('resolvability.fully_satisfy_strawman1')
+  logger = resolver.logging.getLogger('resolvability.fully_satisfy_strawman1')
 
-#   my_edeps = edeps[depender_distkey]
-#   if not my_edeps: # if no dependencies, return empty set
-#     return []
+  my_edeps = edeps[depender_distkey]
+  if not my_edeps: # if no dependencies, return empty set
+    return []
 
-#   satisfying_candidate_set = []
+  satisfying_candidate_set = []
 
-#   for edep in my_edeps:
-#     satisfying_packname = edep[0]
-#     satisfying_versions = edep[1]
-#     if not satisfying_versions:
-#       raise resolver.NoSatisfyingVersionError("Dependency of " +
-#         depender_distkey + " on " + satisfying_packname + " with specstring " +
-#         edep[2] + " cannot be satisfied: no versions found in elaboration "
-#         "attempt.")
-#     chosen_version = sort_versions(satisfying_versions)[0] # grab first
-#     chosen_distkey = deptools.get_distkey(satisfying_packname, chosen_version)
-#     satisfying_candidate_set.append(chosen_distkey)
+  for edep in my_edeps:
+    satisfying_packname = edep[0]
+    satisfying_versions = edep[1]
+    if not satisfying_versions:
+      raise resolver.NoSatisfyingVersionError("Dependency of " +
+        depender_distkey + " on " + satisfying_packname + " with specstring " +
+        edep[2] + " cannot be satisfied: no versions found in elaboration "
+        "attempt.")
+    chosen_version = sort_versions(satisfying_versions)[0] # grab first
+    chosen_distkey = deptools.get_distkey(satisfying_packname, chosen_version)
+    satisfying_candidate_set.append(chosen_distkey)
 
-#     # Now recurse.
-#     satisfying_candidate_set.extend(
-#         fully_satisfy_strawman1(chosen_distkey, edeps, versions_by_package))
+    # Now recurse.
+    satisfying_candidate_set.extend(
+        fully_satisfy_strawman1(chosen_distkey, edeps, versions_by_package))
 
-#   return satisfying_candidate_set
+  return satisfying_candidate_set
 
 
 
-# def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package,
-#     depth=0):
-#   """
-#   An exercise. Recurse and list all dists required to satisfy a dependency.
+def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package,
+    depth=0):
+  """
+  An exercise. Recurse and list all dists required to satisfy a dependency.
   
-#   This time, test for any potential conflicts when adding a dist to the
-#   satisfying_candidate_set, and only add to the satisfying_candidate_set when
-#   there isn't a conflict.
+  This time, test for any potential conflicts when adding a dist to the
+  satisfying_candidate_set, and only add to the satisfying_candidate_set when
+  there isn't a conflict.
 
-#   This version loops forever on circular dependencies, and seems not to
-#   find some solutions where they exist. (Example of latter: metasort(0.3.6))
-#   UPDATE: Algorithm is wrong. See Daily Notes.
+  This version loops forever on circular dependencies, and seems not to
+  find some solutions where they exist. (Example of latter: metasort(0.3.6))
+  UPDATE: Algorithm is wrong. See Daily Notes.
 
-#   Additionally, this recursion is extremely inefficient, and would profit from
-#   dynamic programming in general.
+  Additionally, this recursion is extremely inefficient, and would profit from
+  dynamic programming in general.
 
-#   Arguments:
-#     - depender_distkey ('django(1.8.3)'),
-#     - edeps (dictionary returned by deptools.deps_elaborated; see there.)
-#     - versions_by_package (dictionary of all distkeys, keyed by package name)
+  Arguments:
+    - depender_distkey ('django(1.8.3)'),
+    - edeps (dictionary returned by deptools.deps_elaborated; see there.)
+    - versions_by_package (dictionary of all distkeys, keyed by package name)
 
-#   Returns:
-#     - list of distkeys needed as direct or indirect dependencies to install
-#       depender_distkey, including depender_distkey
-#   """
+  Returns:
+    - list of distkeys needed as direct or indirect dependencies to install
+      depender_distkey, including depender_distkey
+  """
 
-#   logger = resolver.logging.getLogger('resolvability.fully_satisfy_strawman2')
-#   resolver.logging.basicConfig(level=resolver.logging.DEBUG) # filename='resolver.log'
-
-
-#   my_edeps = edeps[depender_distkey] # my elaborated dependencies
-#   satisfying_candidate_set = [depender_distkey] # Start with ourselves.
-
-#   if not my_edeps: # if no dependencies, return only ourselves
-#     logger.info('    '*depth + depender_distkey + ' had no dependencies. '
-#         'Returning just it.')
-#     return satisfying_candidate_set
+  logger = resolver.logging.getLogger('resolvability.fully_satisfy_strawman2')
+  resolver.logging.basicConfig(level=resolver.logging.DEBUG) # filename='resolver.log'
 
 
-#   for edep in my_edeps:
+  my_edeps = edeps[depender_distkey] # my elaborated dependencies
+  satisfying_candidate_set = [depender_distkey] # Start with ourselves.
 
-#     satisfying_packname = edep[0]
-#     satisfying_versions = sort_versions(edep[1])
-#     chosen_version = None
+  if not my_edeps: # if no dependencies, return only ourselves
+    logger.info('    '*depth + depender_distkey + ' had no dependencies. '
+        'Returning just it.')
+    return satisfying_candidate_set
 
-#     if not satisfying_versions:
-#       raise resolver.NoSatisfyingVersionError('Dependency of ' +
-#           depender_distkey + ' on ' + satisfying_packname + ' with specstring '
-#           + edep[2] + ' cannot be satisfied: no versions found in elaboration '
-#           'attempt.')
 
-#     logger.info('    '*depth + 'Dependency of ' + depender_distkey + ' on ' + 
-#         satisfying_packname + ' with specstring ' + edep[2] + ' is satisfiable'
-#         ' with these versions: ' + str(satisfying_versions))
+  for edep in my_edeps:
 
-#     for candidate_version in sort_versions(satisfying_versions):
-#       logger.info('    '*depth + '  Trying version ' + candidate_version)
+    satisfying_packname = edep[0]
+    satisfying_versions = sort_versions(edep[1])
+    chosen_version = None
 
-#       candidate_distkey = deptools.get_distkey(satisfying_packname,
-#           candidate_version)
+    if not satisfying_versions:
+      raise resolver.NoSatisfyingVersionError('Dependency of ' +
+          depender_distkey + ' on ' + satisfying_packname + ' with specstring '
+          + edep[2] + ' cannot be satisfied: no versions found in elaboration '
+          'attempt.')
 
-#       # Would the addition of this candidate result in a conflict?
-#       # Recurse and test result.
-#       candidate_satisfying_candidate_set = \
-#           fully_satisfy_strawman2(candidate_distkey, edeps,
-#               versions_by_package, depth+1)
-#       combined_satisfying_candidate_set = combine_candidate_sets(
-#           satisfying_candidate_set, candidate_satisfying_candidate_set)
+    logger.info('    '*depth + 'Dependency of ' + depender_distkey + ' on ' + 
+        satisfying_packname + ' with specstring ' + edep[2] + ' is satisfiable'
+        ' with these versions: ' + str(satisfying_versions))
 
-#       if detect_direct_conflict(combined_satisfying_candidate_set):
-#         # If this candidate version conflicts, try the next.
-#         logger.info('    '*depth + '  ' + candidate_version + ' conflicted. '
-#             'Trying next.')
-#         continue
-#       else: # save the new candidates
-#         chosen_version = candidate_version
-#         satisfying_candidate_set = combined_satisfying_candidate_set
-#         logger.info('    '*depth + '  ' + candidate_version + ' fits. Next '
-#             'dependency.')
-#         break
+    for candidate_version in sort_versions(satisfying_versions):
+      logger.info('    '*depth + '  Trying version ' + candidate_version)
 
-#     if chosen_version is None:
-#       raise resolver.UnresolvableConflictError('Dependency of ' + 
-#           depender_distkey + ' on ' + satisfying_packname + ' with specstring '
-#           + edep[2] + ' cannot be satisfied: versions found, but none had 0 '
-#           'conflicts.')
+      candidate_distkey = deptools.get_distkey(satisfying_packname,
+          candidate_version)
 
-#   return satisfying_candidate_set
+      # Would the addition of this candidate result in a conflict?
+      # Recurse and test result.
+      candidate_satisfying_candidate_set = \
+          fully_satisfy_strawman2(candidate_distkey, edeps,
+              versions_by_package, depth+1)
+      combined_satisfying_candidate_set = combine_candidate_sets(
+          satisfying_candidate_set, candidate_satisfying_candidate_set)
+
+      if detect_direct_conflict(combined_satisfying_candidate_set):
+        # If this candidate version conflicts, try the next.
+        logger.info('    '*depth + '  ' + candidate_version + ' conflicted. '
+            'Trying next.')
+        continue
+      else: # save the new candidates
+        chosen_version = candidate_version
+        satisfying_candidate_set = combined_satisfying_candidate_set
+        logger.info('    '*depth + '  ' + candidate_version + ' fits. Next '
+            'dependency.')
+        break
+
+    if chosen_version is None:
+      raise resolver.UnresolvableConflictError('Dependency of ' + 
+          depender_distkey + ' on ' + satisfying_packname + ' with specstring '
+          + edep[2] + ' cannot be satisfied: versions found, but none had 0 '
+          'conflicts.')
+
+  return satisfying_candidate_set
 
 
 
