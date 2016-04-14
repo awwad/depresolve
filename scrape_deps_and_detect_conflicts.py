@@ -7,6 +7,13 @@ import os
 import json
 #from distutils.version import StrictVersion, LooseVersion # for use in version parsing
 
+# Globals for modified pip code to use.
+dependencies_by_dist = None
+conflicts_db = None
+blacklist_db = None # Probably doesn't need to be a global, but....
+#conflict_model = None # Not currently used yet.
+
+
 # Local resources
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
 LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
@@ -23,6 +30,7 @@ DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
     'dependencies.json')
 TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY,
   'temp_distros')
+
 # May not want this in same place as working directory. Would be terrible to
 # duplicate. One such sdist cache per system! Gets big. If temp / output files
 # are added, please ensure that the directories they're in are also added to
@@ -37,10 +45,6 @@ LIST_OF_OUTPUT_FILE_DIRS = [TEMPDIR_FOR_DOWNLOADED_DISTROS,
 # Other Assumptions
 # assume the archived packages bandersnatch grabs end in this:
 SDIST_FILE_EXTENSION = '.tar.gz'
-# argument to pass to pip to tell it not to prod users about our strange pip
-# version (lest they follow that instruction and install a standard pip
-# version):
-DISABLE_PIP_VERSION_CHECK = '--disable-pip-version-check'
 
 # Ensure that appropriate directories for working files / output files exist.
 # Becomes relevant whenever those are placed elsewhere.
@@ -164,7 +168,9 @@ def main():
   if USE_BANDERSNATCH_MIRROR and not list_of_sdists_to_inspect:
     # Ensure that the local PyPI mirror directory exists first.
     if not os.path.exists(BANDERSNATCH_MIRROR_DIR):
-      raise Exception('--- Exception. Expecting a bandersnatched mirror of PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not exist.')
+      raise Exception('--- Exception. Expecting a bandersnatched mirror of '
+          'PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not'
+          ' exist.')
     i = 0
     for dir, subdirs, files in os.walk(BANDERSNATCH_MIRROR_DIR):
       for fname in files:
@@ -177,34 +183,26 @@ def main():
       if i >= DEBUG__N_SDISTS_TO_PROCESS:
         break
 
-  # Fetch info on already known conflicts so that we can skip packages below.
-  conflicts_db_fname = None
-  if CONFLICT_MODEL == 1:
-    conflicts_db_fname = DEPENDENCY_CONFLICTS1_DB_FILENAME
-  elif CONFLICT_MODEL == 2:
-    conflicts_db_fname = DEPENDENCY_CONFLICTS2_DB_FILENAME
-  else:
-    assert(CONFLICT_MODEL == 3)
-    conflicts_db_fname = DEPENDENCY_CONFLICTS3_DB_FILENAME
 
-  conflicts_db = load_json_db(conflicts_db_fname)
+  # Load the dependencies, conflicts, and blacklist databases.
+  # The blacklist is a list of runs that resulted in errors or runs that were
+  # manually added because, for example, they hang seemingly forever or take an
+  # inordinate length of time.
+
+  global dependencies_by_dist
+  global conflicts_db
+  global blacklist_db
+
+  ensure_globals_loaded(CONFLICT_MODEL)
+
 
   # For backward compatibility (before casing fixes for certain package names):
   #   Determine a lower-cased set of the keys in the conflicts db.
   keys_in_conflicts_db_lower = set(k.lower() for k in conflicts_db)
 
-  # Fetch info on packages in the blacklist.
-  # These are runs that resulted in errors or runs that were manually added
-  # because, for example, they hang seemingly forever or take an inordinate
-  # length of time.
-  # Because this came about after casing resolution addressed above, I know
-  # there are no non-lower keys in it.
-  # TODO: Write integration/validation tests for casing.
-  blacklist_db = load_json_db(BLACKLIST_DB_FILENAME)
-  
+
 
   n_inspected = 0
-  n_added_to_blacklist = 0
 
   # Generate a list of distkeys (e.g. 'django(1.8.3)') to inspect, from the
   # lists of sdists and "remotes".
@@ -214,14 +212,15 @@ def main():
 
       # Deduce package names and versions from sdist filename.
       packagename = get_package_name_given_full_filename(tarfilename_full)
-      packagename_withversion = get_package_and_version_string_from_full_filename(tarfilename_full)
+      packagename_withversion = \
+          get_package_and_version_string_from_full_filename(tarfilename_full)
       deduced_version_string = packagename_withversion[len(packagename) + 1:]
 
       # Perform a variety of fixes to match pip's normalized package and
       # version names, which are what my code inside pip spits out to the dbs.
       deduced_version_string = normalize_version_string(deduced_version_string)
-      distkey = packagename + "(" + deduced_version_string + ")" # This is the format for dists in the conflict db.
-      distkey = distkey.lower().replace('_', '-')
+      distkey = distkey_format(packagename, deduced_version_string)
+      distkey = distkey.lower().replace('_', '-') # Hacky. Improve using pip normalizer.
       
       distkeys_to_inspect.append(distkey)
       
@@ -237,9 +236,14 @@ def main():
   # run on them.
   for distkey in distkeys_to_inspect:
     
+    # To avoid losing too much data, make sure we at least write data to disk
+    # every 20 dists.
+    if n_inspected % 20:
+      write_globals_to_file(CONFLICT_MODEL)
+
+
     # Check to see if we already have conflict info for this package.
     # If so, don't run for it.
-
     if not NO_SKIP:
       if distkey in keys_in_conflicts_db_lower:
         n_inspected += 1
@@ -248,6 +252,7 @@ def main():
           str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) +
           ")")
         continue
+
       # Else if the dist is listed in the blacklist along with this python
       # major version (2 or 3), skip.
       elif distkey in blacklist_db and \
@@ -271,13 +276,14 @@ def main():
     assert(CONFLICT_MODEL in [1, 2, 3])
 
     # Construct the argument list.
+    # Include argument to pass to pip to tell it not to prod users about our
+    # strange pip version (lest they follow that instruction and install a
+    # standard pip version):
     pip_arglist = [
       'install',
       '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS,
-      DISABLE_PIP_VERSION_CHECK,
+      '--disable-pip-version-check',
       '--find-dep-conflicts', str(CONFLICT_MODEL),
-      '--conflicts-db-file', conflicts_db_fname,
-      '--dependencies-db-file', DEPENDENCIES_DB_FILENAME,
       '--quiet']
     
     if USE_BANDERSNATCH_MIRROR:
@@ -328,26 +334,15 @@ def main():
           blacklist_db[distkey].append(sys.version_info.major)
           print("  Added additional entry to blacklist for " + distkey)
 
-        n_added_to_blacklist += 1
-        # Occasionally write the blacklist to file so we don't lose tons of
-        # blacklist info if the script has to be killed.
-        if n_added_to_blacklist % 10 == 0:
-          write_blacklist_to_file(blacklist_db)
           
     # end of exit code processing
     n_inspected += 1
 
   # end of for each tarfile/sdist
 
-  # We're done with all packages. Write the collected blacklist back to file.
-  write_blacklist_to_file(blacklist_db)
+  # We're done with all packages. Write the collected data back to file.
+  write_globals_to_file(CONFLICT_MODEL)
 
-
-# Dump the blacklist json info to file.
-def write_blacklist_to_file(blacklist_db):
-  with open(BLACKLIST_DB_FILENAME, 'w') as fobj:
-    json.dump(blacklist_db, fobj)
-  
 
 # Given a full filename of an sdist (of the form
 # /srv/.../packagename/packagename-1.0.0.tar.gz), return package name and
@@ -406,7 +401,7 @@ def load_json_db(filename):
     print("  Directed to load " + filename + " but UNABLE TO OPEN file. "
       "Loading an empty dict.")
     db = dict()
-  except (ValueError):
+  except ValueError:
     fobj.close()
     print("  Directed to load " + filename + " but UNABLE TO PARSE JSON DATA "
       "from that file. Will load an empty dict.")
@@ -418,10 +413,21 @@ def load_json_db(filename):
 
 
 
-# Simulate most of the normalization of version strings that occurs in pip.
-#from pip._vendor.pkg_resources import safe_name, safe_version #These don't quite do what I need, alas. Pip is doing more than just this. Ugh.
-#distutils.version.StrictVersion might match what I'm getting from within pip....
-# Nope. It helps in one case (1.01 -> 1.1), but hurts in many others.
+
+def normalize_version_string(version):
+  """
+  EDIT: I believe I can now remove all of the below, but I'm already changing
+  too much here, so I'll keep this for the next round of commits.
+
+  This should normalize the version string the way that pip does it:
+    str(pip._vendor.packaging.version.Version(raw_version_string))
+
+  Obsolete code and comments follow, for now.
+
+  # Simulate most of the normalization of version strings that occurs in pip.
+  #from pip._vendor.pkg_resources import safe_name, safe_version #These don't quite do what I need, alas. Pip is doing more than just this. Ugh.
+  #distutils.version.StrictVersion might match what I'm getting from within pip....
+  # Nope. It helps in one case (1.01 -> 1.1), but hurts in many others.
     # Perform a variety of fixes to match pip's normalized package and version names,
     #   which are what my code inside pip spit out to the dbs.
     # So that our lookups work properly (and also to prevent continual reproduction
@@ -451,13 +457,12 @@ def load_json_db(filename):
     #  # If StrictVersion doesn't accept the string (e.g. if there's "dev" or "beta" in it, etc.), well,
     #  #   all we can do is some hackery for some cases in order to match what I see inside pip for now.
     #  # Maybe I can find the rest of the normalization somewhere, but it has already consumed time.
-    #  # About 1% of my sample set has versions ending in "dev" that are then treated as "dev0" by pip.
+    #  # About 1/100 of my sample set has versions ending in "dev" that are then treated as "dev0" by pip.
     #  if deduced_version_string.endswith('dev)'): # Example: acted.projects(0.10.dev) is treated as acted.projects(0.10.dev0)
     #    deduced_version_string += "0"
     #  elif '-beta' in deduced_version_string: # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
     #    deduced_version_string = deduced_version_string.replace('-beta','b')
-def normalize_version_string(version):
-  
+  """
   # Example: about(0.1.0-alpha.1) is reported as about(0.1.0a1)
   # Dash removed, alpha to a, period after removed.    
   
@@ -559,3 +564,129 @@ if __name__ == "__main__":
   main()
 
 
+
+
+
+
+
+
+
+
+
+def deps_are_equal(deps_a, deps_b):
+  """
+  Returns true if given lists of dependencies that are equivalent
+  (regardless of order).
+  
+  Update: This is now QUITE A BIT simpler. It may not really be necessary
+  anymore. I stripped all the ugliness and replaced it with this line (which
+  didn't work before for unpleasant Reasons explained in comments in previous
+  versions).
+  """
+  return sorted(deps_a) == sorted(deps_b)
+
+
+
+
+
+def get_distkey(dist):
+  """
+  Helper functions to determine the key for a given distribution to be
+  used in the dependency conflict db and the dependencies db.
+  Splitting into two calls to allow for use on either a dist object or
+  just name and version strings.
+
+  Note that the argument dist here is an object of an internal pip type.
+  (Gotta dig the class back up later.)
+  """
+  return distkey_format(dist.project_name, dist.version)
+
+
+
+
+
+def distkey_format(name, version):
+  """
+  Given a package name and version, return the name of the distribution
+  in my nomenclature. :P
+  """
+  return name.lower() + "(" + version + ")"
+
+
+
+
+
+def write_globals_to_file(CONFLICT_MODEL):
+  """"""
+  global dependencies_by_dist
+  global conflicts_db
+  global blacklist_db
+
+  json.dump(dependencies_by_dist, open(DEPENDENCIES_DB_FILENAME, 'w'))
+  json.dump(conflicts_db, open(get_conflicts_db_fname(CONFLICT_MODEL), 'w'))
+  json.dump(blacklist_db, open(BLACKLIST_DB_FILENAME, 'w'))
+
+
+
+
+
+def get_conflicts_db_fname(CONFLICT_MODEL):
+  """
+  Maps conflict model to conflicts db filename.
+  """
+  conflicts_db_filename = None
+
+  if CONFLICT_MODEL == 1:
+    conflicts_db_filename = DEPENDENCY_CONFLICTS1_DB_FILENAME
+  elif CONFLICT_MODEL == 2:
+    conflicts_db_filename = DEPENDENCY_CONFLICTS2_DB_FILENAME
+  elif CONFLICT_MODEL == 3:
+    conflicts_db_filename = DEPENDENCY_CONFLICTS3_DB_FILENAME
+  else:
+    assert False, "Programming error. Invalid conflict model " + \
+    str(CONFLICT_MODEL)
+
+  return conflicts_db_filename
+
+
+
+
+def ensure_globals_loaded(CONFLICT_MODEL):
+  """
+  Ensure that the global dependencies, conflicts, and blacklist dictionaries
+  are loaded, importing them now if not.
+  """
+  global dependencies_by_dist
+  global conflicts_db
+  global blacklist_db
+
+  # If the global is not defined yet, load the contents of the json file.
+  # If the db file doesn't exist, create it (open in append mode and close.)
+  # Else, open the db files and then try parsing them in as jsons.
+  # If the parses fail, just make empty dicts instead, and we'll overwrite
+  # the files later.
+
+  if dependencies_by_dist is None:
+
+    if not os.path.exists(dependencies_db_filename):
+      open(dependencies_db_filename, 'a').close()
+
+    dependencies_by_dist = load_json_db(dependencies_db_filename)
+
+
+  if conflicts_db is None:
+    conflicts_db_filename = get_conflicts_db_fname(CONFLICT_MODEL)
+
+    if not os.path.exists(conflicts_db_filename):
+      open(conflicts_db_filename, 'a').close()
+
+    conflicts_db = load_json_db(conflicts_db_filename)
+
+
+  if blacklist_db is None:
+    blacklist_db = load_json_db(BLACKLIST_DB_FILENAME)
+
+
+  assert type(dependencies_by_dist) is dict
+  assert type(conflicts_db) is dict
+  assert type(blacklist_db) is dict
