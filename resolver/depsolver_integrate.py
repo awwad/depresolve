@@ -44,8 +44,12 @@ def convert_version_from_depsolver(semantic_version):
   """
   Convert version format depsolver is using (depsolver.SemanticVersion) into
   version format I'm using (string of loose form '1.56.3a').
+
+  Currently, for proof of concept and initial tests, we're using versions like
+  "1" or "53", instead of elaborate ones. Depsolver can't accept anything other
+  than exactly 3 numeric units (3.5.0, 15.3.4, etc.).
   """
-  assert False, "Still writing."
+  return(str(semantic_version.major))
 
 
 
@@ -212,5 +216,5 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None):
 
     parsed_depsolver_solution.append(distkey)
 
-  return parsed_depsolver_solution
+  return parsed_depsolver_solution, None, None
 

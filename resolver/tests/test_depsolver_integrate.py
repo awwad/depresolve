@@ -13,7 +13,8 @@ import json
 
 import resolver
 import resolver.deptools as deptools
-import depsolver
+import resolver.resolvability as resolvability
+import resolver.tests.test_resolvability as test_resolvability
 
 import resolver.depsolver_integrate as depsolver_integrate # SAT solver
 
@@ -23,7 +24,21 @@ from resolver.tests.testdata import *
 
 def main():
   test_depsolver_conversion()
+  
+  # Try out the SAT solver in depsolver by using the wrapper function in
+  # depsolver_integrate and passing that to the resolver tester in
+  # resolver.test_resolvability.
+  test_resolvability.test_resolver(
+      depsolver_integrate.resolve_via_depsolver, # resolver function
+      DEPS_SIMPLE_SOLUTION, #expected result
+      'X(1)', # dist to install
+      DEPS_SIMPLE, # dependency data
+      use_raw_deps=True # Do not convert deps to edeps - func expects deps.
+  )
+
+
   print("Tests successful. (:")
+
 
 
 #   TEST DEPSOLVER_INTEGRATE

@@ -98,10 +98,11 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
 
   else:
     print('Resolved ' + distkey + '. Solution: ' + str(solution))
-    fobj = open('data/resolver/test_resolver_' + resolver_func.__name__ +
-        '_' + distkey + '.dot', 'w')
-    fobj.write('digraph G {\n' + dotstrings + '}\n')
-    fobj.close()
+    if dotstrings is not None: # If the func provides dotstrings
+      fobj = open('data/resolver/test_resolver_' + resolver_func.__name__ +
+          '_' + distkey + '.dot', 'w')
+      fobj.write('digraph G {\n' + dotstrings + '}\n')
+      fobj.close()
 
     if sorted(solution) == sorted(expected_result):
       print('Solution is as expected.')
