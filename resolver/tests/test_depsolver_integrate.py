@@ -38,6 +38,7 @@ def main():
   ))
 
 
+  # The next three test resolvable conflicts that my backtracker can't solve.
   successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
       DEPS_SIMPLE2_SOLUTION, #expected result
@@ -61,6 +62,36 @@ def main():
       DEPS_SIMPLE4, # dependency data
       use_raw_deps=True # Do not convert deps to edeps - func expects deps.
   ))
+
+
+  # # The next two test complex versions strings and are otherwise the same as 2.
+  # successes.append(test_resolvability.test_resolver(
+  #     depsolver_integrate.resolve_via_depsolver, # resolver function
+  #     DEPS_SIMPLE5_SOLUTION, #expected result
+  #     'X(1)', # dist to install
+  #     DEPS_SIMPLE5, # dependency data
+  #     use_raw_deps=True # Do not convert deps to edeps - func expects deps.
+  # ))
+
+  # successes.append(test_resolvability.test_resolver(
+  #     depsolver_integrate.resolve_via_depsolver, # resolver function
+  #     DEPS_SIMPLE6_SOLUTION, #expected result
+  #     'X(1)', # dist to install
+  #     DEPS_SIMPLE6, # dependency data
+  #     use_raw_deps=True # Do not convert deps to edeps - func expects deps.
+  # ))
+
+  # This one tests an unresolvable conflict.
+  successes.append(test_resolvability.test_resolver(
+      depsolver_integrate.resolve_via_depsolver, # resolver function
+      DEPS_UNRESOLVABLE_SOLUTION, #expected result
+      'X(1)', # dist to install
+      DEPS_UNRESOLVABLE, # dependency data
+      use_raw_deps=True, # Do not convert deps to edeps - func expects deps.
+      expected_exception=resolver.UnresolvableConflictError
+  ))
+
+
 
   assert [success for success in successes], "Some tests failed!"
 

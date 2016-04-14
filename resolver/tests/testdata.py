@@ -55,6 +55,37 @@ DEPS_SIMPLE4 = {
 DEPS_SIMPLE4_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'D(1)', 'E(1)'])
 
 
+# Same as DEPS_SIMPLE2, but with slightly diverse version strings.
+# (for depsolver_integrate testing)
+DEPS_SIMPLE5 = {
+    'X(1)': [  ['B', []], ['C', []]],
+    'B(2.0)': [],
+    'B(1.0.0)': [],
+    'C(1)': [  ['B', [['<=', '1.0.1']]]  ],
+}
+DEPS_SIMPLE5_SOLUTION = sorted(['X(1)', 'B(1.0.0)', 'C(1)'])
+
+# Same as DEPS_SIMPLE2, but with very diverse version strings.
+DEPS_SIMPLE6 = {
+    'X(1.0)': [  ['B', []], ['C', []]],
+    'B(2.0b)': [],
+    'B(1.0.0alpha)': [],
+    'C(1-neg)': [  ['B', [['<=', '1.0.1beta']]]  ],
+}
+DEPS_SIMPLE6_SOLUTION = sorted(['X(1.0)', 'B(1.0.0alpha)', 'C(1-neg)'])
+
+
+# This is an unresolvable conflict.
+DEPS_UNRESOLVABLE = {
+    'X(1)': [  ['B', [['>=', '2']]], ['C', []]],
+    'B(2)': [],
+    'B(1)': [],
+    'C(1)': [  ['B', [['<=', '1']]]  ],
+}
+DEPS_UNRESOLVABLE_SOLUTION = None
+
+
+
 
 DEPS_MODEL2 = {
     'motorengine(0.7.4)': [

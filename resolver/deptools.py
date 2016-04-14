@@ -9,26 +9,40 @@
 
 <Functions>
 
-  Public:
+  ------Public-------------------------------
+
+    ----Data Import / Export-----------------
 
       load_raw_deps_from_sql                  ()
-
-      load_raw_deps_from_json                 ()
-
+      load_raw_deps_from_json                 (deps_db_fname=
+                                               DEPENDENCIES_DB_FILENAME)
       populate_sql_with_full_dependency_info  (
                                       deps_elaborated,
                                       versions_by_package,
                                       packages_without_available_version_info,
                                       dists_with_missing_dependencies)
 
-      generate_dict_versions_by_package       (deps)
 
+    ----Data Conversion---------------------
+      generate_dict_versions_by_package       (deps)
       elaborate_dependencies                  (deps, versions_by_package)
       spectuples_to_specset                   (spectuples)
       spectuples_to_specstring                (spectuples)
+      get_dependencies_of_all_X_on_Y          (depender_pack, satisfying_pack,
+                                               deps, versions_by_package)
+    * validate_deps                           (deps)
 
 
-  Internal:
+    ----Basic Mappings----------------------
+
+      get_pack_and_version                    (distkey)
+      get_packname                            (distkey)
+      get_version                             (distkey)
+      get_distkey                             (packname, version)
+
+
+  ------Internal----------------------------
+
       _elaborate_dependency                   (dep, versions_by_package)
       _convert_to_specifierset                (list_of_spec_tuples)
 
@@ -78,10 +92,11 @@ PACKAGE_VERSIONS_UNKNOWN = ['----ERROR--UNAVAILABLE-VERSION-INFORMATION----']
 
 
 
+
+
 def load_raw_deps_from_sql():
   """"""
   assert False, "Not written yet"
-
 
 
 
@@ -153,7 +168,6 @@ def populate_sql_with_full_dependency_info(
         )
 
   sqli.flush()
-
 
 
 
@@ -370,6 +384,7 @@ def elaborate_dependencies(deps, versions_by_package):
 
 
 
+
 def _elaborate_dependency(dep, versions_by_package):
   """
   Given a single dependency in post-pip format, return its specifier string,
@@ -493,6 +508,10 @@ def spectuples_to_specset(list_of_spectuples):
 
   return pip._vendor.packaging.specifiers.SpecifierSet(specstring), specstring
 
+
+
+
+
 def spectuples_to_specstring(list_of_spectuples):
   """
   See spectuples_to_specset for some more details.
@@ -521,6 +540,8 @@ def spectuples_to_specstring(list_of_spectuples):
     specstring = specstring[:-1]
 
   return specstring
+
+
 
 
 
@@ -561,6 +582,18 @@ def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
 
 
 
+
+def validate_deps(deps):
+  """
+  TODO: Validate dependency dictionary for formatting and generate informative
+  errors.
+  """
+  assert False, "Not yet implemented."
+
+
+
+
+
 # General purpose utility functions.
 def get_pack_and_version(distkey):
   """
@@ -573,15 +606,26 @@ def get_pack_and_version(distkey):
   version = get_version(distkey)
   return (packagename, version)
 
+
+
+
+
 def get_packname(distkey):
   # The package name ends with the first open parenthesis.
   return distkey[:distkey.find('(')]
+
+
+
+
 
 def get_version(distkey):
   # Note that the version string may contain parentheses. /:
   # So it's just every character after the first '(' until the last
   # character, which must be ')'.
   return distkey[distkey.find('(') + 1 : -1]
+
+
+
 
 
 def get_distkey(package_name, version_string):
@@ -592,3 +636,4 @@ def get_distkey(package_name, version_string):
   Reverse: get_pack_and_version()
   """
   return package_name + '(' + version_string + ')'
+
