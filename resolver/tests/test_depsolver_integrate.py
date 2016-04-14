@@ -24,17 +24,45 @@ from resolver.tests.testdata import *
 
 def main():
   test_depsolver_conversion()
-  
+
   # Try out the SAT solver in depsolver by using the wrapper function in
   # depsolver_integrate and passing that to the resolver tester in
   # resolver.test_resolvability.
-  test_resolvability.test_resolver(
+  successes = []
+  successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
       DEPS_SIMPLE_SOLUTION, #expected result
       'X(1)', # dist to install
       DEPS_SIMPLE, # dependency data
       use_raw_deps=True # Do not convert deps to edeps - func expects deps.
-  )
+  ))
+
+
+  successes.append(test_resolvability.test_resolver(
+      depsolver_integrate.resolve_via_depsolver, # resolver function
+      DEPS_SIMPLE2_SOLUTION, #expected result
+      'X(1)', # dist to install
+      DEPS_SIMPLE2, # dependency data
+      use_raw_deps=True # Do not convert deps to edeps - func expects deps.
+  ))
+
+  successes.append(test_resolvability.test_resolver(
+      depsolver_integrate.resolve_via_depsolver, # resolver function
+      DEPS_SIMPLE3_SOLUTION, #expected result
+      'X(1)', # dist to install
+      DEPS_SIMPLE3, # dependency data
+      use_raw_deps=True # Do not convert deps to edeps - func expects deps.
+  ))
+
+  successes.append(test_resolvability.test_resolver(
+      depsolver_integrate.resolve_via_depsolver, # resolver function
+      DEPS_SIMPLE4_SOLUTION, #expected result
+      'X(1)', # dist to install
+      DEPS_SIMPLE4, # dependency data
+      use_raw_deps=True # Do not convert deps to edeps - func expects deps.
+  ))
+
+  assert [success for success in successes], "Some tests failed!"
 
 
   print("Tests successful. (:")

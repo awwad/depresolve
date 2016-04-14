@@ -109,8 +109,8 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
       return True
     else:
       print('Solution does not match! Expected:')
-      print('    Expected: ' + sorted(expected_result))
-      print('    Produced: ' + sorted(solution))
+      print('    Expected: ' + str(sorted(expected_result)))
+      print('    Produced: ' + str(sorted(solution)))
       return False
 
 

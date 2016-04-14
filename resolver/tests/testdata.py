@@ -32,7 +32,7 @@ DEPS_SIMPLE2 = {
     'B(1)': [],
     'C(1)': [  ['B', [['<=', '1']]]  ],
 }
-DEPS_SIMPLE2_SOLUTION = sorted(['X(1)', 'B(2)', 'C(1)'])
+DEPS_SIMPLE2_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)'])
 
 
 DEPS_SIMPLE3 = {
