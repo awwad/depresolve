@@ -115,9 +115,49 @@ def load_raw_deps_from_json(deps_db_fname=DEPENDENCIES_DB_FILENAME):
 
 
 
+def populate_sql_with_dependency_specifiers(
+    deps,
+    db_fname=None):
+  """
+  Function that feeds dependency info in my old internal format into a sqlite3
+  db with a format more amenable to pip and tidier that I think I'll use in the
+  future.
+  """
+  log = logging.getLogger('populate_sql_with_dependency_specifiers')
+  log.info("Initializing db")
+
+  # Initialize the sqlite3 database that will be populated with dependency
+  # information as interpreted from the json files above.
+  sqli.initialize(db_fname)
+
+  for distkey in deps:
+    log.info("Working through " + distkey + "'s dependencies.")
+    if not deps[distkey]:
+      log.info(distkey + ' has no dependencies. Adding to that table.')
+    for dep in deps[distkey]: # for every one of its dependencies,
+      satisfying_packagename = dep[0]
+      spectuples = dep[1]
+      specstring = spectuples_to_specstring(spectuples)
+
+      log.info("  satisfying_packagename:" + satisfying_packagename)
+      log.info("  specstring: " + specstring)
+
+
+      sqli.add_to_table(
+          sqli.SQL_DEP_SPECIFIER_TABLE,
+          distkey,
+          satisfying_packagename,
+          specstring)
+
+  sqli.flush()
+
+
+
+
+
 def populate_sql_with_full_dependency_info(
     deps_elaborated,
-    versions_by_package,
+    versions_by_package, # <---- NOT USED. TODO: Remove.
     packages_without_available_version_info,
     dists_with_missing_dependencies,
     db_fname=None):
@@ -149,7 +189,7 @@ def populate_sql_with_full_dependency_info(
 
       # First, let's add the dependency specifier to that table.
       sqli.add_to_table(
-          sqli.SQL_DEP_SPECIFIER_TABLENAME,
+          sqli.SQL_DEP_SPECIFIER_TABLE,
           distkey,
           satisfying_packagename,
           specstring
@@ -161,7 +201,7 @@ def populate_sql_with_full_dependency_info(
         satisfying_distkey = get_distkey(satisfying_packagename, version)
 
         sqli.add_to_table(
-            sqli.SQL_DEPENDENCY_TABLENAME,
+            sqli.SQL_DEPENDENCY_TABLE,
             distkey, # depending dist: 'codegrapher(0.1.1)'
             satisfying_packagename, # package depended on: 'click'
             satisfying_distkey # one distkey that could satisfy: 'click(1.0)'
