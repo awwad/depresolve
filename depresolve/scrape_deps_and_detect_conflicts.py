@@ -233,6 +233,7 @@ def main():
     # To avoid losing too much data, make sure we at least write data to disk
     # every 20 dists.
     if n_inspected % 10000 == 0 or n_successfully_processed % 100 == 0:
+      print("Writing early.")
       depdata.write_data_to_files([CONFLICT_MODEL])
 
 
@@ -288,7 +289,8 @@ def main():
     # With arg list constructed, call pip.main with it to run a modified pip
     # install attempt (will not install).
     # This assumes that we're dealing with my pip fork version 8.0.0.dev0seb).
-    print('Scraper says: before pip call, len(deps) is ' + str(len(depdata.dependencies_by_dist)))
+    print('Scraper says: before pip call, len(deps) is ' +
+        str(len(depdata.dependencies_by_dist)))
     exitcode = pip.main(pip_arglist)
 
     # Process the output of the pip command.
@@ -337,6 +339,7 @@ def main():
   # end of for each tarfile/sdist
 
   # We're done with all packages. Write the collected data back to file.
+  print("Writing.")
   depdata.write_data_to_files([CONFLICT_MODEL])
 
 
