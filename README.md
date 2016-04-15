@@ -53,6 +53,7 @@ Note that all skipping based on blacklisting or data on the existence / lack of 
 2.  cd depresolve
 2.  virtualenv -p python3 --no-site-packages v3
 3.  source v3/bin/activate
+4.  pip install -e .
 4.  cd ..
 11. git clone https://github.com/enthought/depsolver
 12. cd depsolver
