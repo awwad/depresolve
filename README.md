@@ -7,7 +7,7 @@ The purpose of this project is to investigate the problem of package dependency 
 **The resolver package is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
 
 
-###Scraper Documentation###
+###Scraper / Conflict Detector Documentation###
 
 **The first tool here - scrape_deps_and_detect_conflicts - is a means to do that.**
 
