@@ -196,6 +196,7 @@ def main():
 
 
   n_inspected = 0
+  n_successfully_processed = 0
 
   # Generate a list of distkeys (e.g. 'django(1.8.3)') to inspect, from the
   # lists of sdists and "remotes".
@@ -231,7 +232,7 @@ def main():
     
     # To avoid losing too much data, make sure we at least write data to disk
     # every 20 dists.
-    if n_inspected % 20:
+    if n_inspected % 10000 == 0 or n_successfully_processed % 100 == 0:
       depdata.write_data_to_files([CONFLICT_MODEL])
 
 
@@ -331,6 +332,7 @@ def main():
           
     # end of exit code processing
     n_inspected += 1
+    n_successfully_processed += 1
 
   # end of for each tarfile/sdist
 
