@@ -1,11 +1,17 @@
 # pypi-depresolve
 ##PyPI package dependency resolution project
 
-**The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip.**
+The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip. It currently contains two parts: ***scraper***: a dependency scraper and conflict detector that plugs into a modified version of pip, and ***resolver***: tools for determining the resolvability of package conflicts and resolving them. Provided are a backtracking solver (within the resolver package) and a SAT solver with a wrapper in the resolver package that employs external package "depsolver" (https://github.com/enthought/depsolver).
+
+###Resolver Documentation###
+**The resolver package is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
+
+
+###Scraper Documentation###
 
 **The first tool here - scrape_deps_and_detect_conflicts - is a means to do that.**
 
-**The resolver package is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
+
 
 **While there are MULTIPLE MODES OF EXECUTION, the tool's most useful function on its own is that (by default) it answers this question:**
 
@@ -16,6 +22,8 @@
 scrape_deps_and_detect_conflicts.py employs awwad/pip, a modified fork of pypa/pip I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
 
 By default, it pulls packages straight from PyPI, but can be run using a local .tar.gz sdist, or even from a local bandersnatch'd PyPI mirror. See instructions below.
+
+The resolver requires six (pip install six) and package depsolver (available at (https://github.com/enthought/depsolver)).
 
 ###Overview:
 I assume that the reader is familiar with package conflicts and the resolvable/unresolvable distinction. (TODO: Can add links to docs that will cover these if we intend this for general consumption.) Pip has long had issues with dependency resolution. See for example:
