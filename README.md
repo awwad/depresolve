@@ -49,17 +49,21 @@ Note that all skipping based on blacklisting or data on the existence / lack of 
 
 ###Instructions for use:
 
-1.  git clone https://github.com/awwad/pip.git
-2.  cd pip
-3.  git checkout develop
+1.  git clone https://github.com/awwad/depresolve
+2.  cd depresolve
+2.  virtualenv -p python3 --no-site-packages v3
+3.  source v3/bin/activate
 4.  cd ..
-5.  git clone https://github.com/awwad/pypi-depresolve.git
-6.  virtualenv -p python3 --no-site-packages v3
-7.  source v3/bin/activate
-8.  cd pip
-9.  pip install -e .     # (For your convenience, this installs in editable mode. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs )
-10. cd ../pypi-depresolve
-13. python scrape_deps_and_detect_conflicts.py "motorengine(0.7.4)" --noskip      # (to run this on version 0.7.4 of package motorengine, from remote PyPI, not skipping if the package has already been analyzed, using conflict model 3. This example has a model 3 conflict, so you should see an error explaining that.)
+11. git clone https://github.com/enthought/depsolver
+12. cd depsolver
+13. pip install -e .
+14. cd ..
+5.  git clone https://github.com/awwad/pip
+6.  cd pip
+9.  pip install -e .     # (For convenience, this installs in editable mode. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs )
+10. cd ../depresolve
+13. python depresolve/scrape_deps_and_detect_conflicts.py "motorengine(0.7.4)" --noskip      # (to run this on version 0.7.4 of package motorengine, from remote PyPI, not skipping if the package has already been analyzed, using conflict model 3. This example has a model 3 conflict, so you should see an error explaining that.)
+14. 
 
 Detailed info on calling the script:
 
