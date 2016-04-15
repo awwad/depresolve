@@ -1,0 +1,2 @@
+# Data is stored here, but not included on git.
+# Generally, this is output, like dependency dotgraphs or dependency conflict solutions.

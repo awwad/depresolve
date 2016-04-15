@@ -1,0 +1,5 @@
+# Data is stored here, but not included on git.
+# elaborated_dependencies.json
+# dependencies_db.json
+# conflicts_3_db.json
+# etc.
