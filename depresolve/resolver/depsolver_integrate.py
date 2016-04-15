@@ -26,13 +26,17 @@
 
 """
 
-import resolver
-import resolver.deptools as deptools
-import resolver.resolvability as ry
+import depresolve
+import depresolve.deptools as deptools
+import depresolve.resolver.resolvability as ry
 
 from depsolver import * # external
 
-
+# Wait, no: maybe I'll just modify depsolver instead.
+# # Unfortunately, we have to map distkeys like django(1.8) or foo(1-dev0) into
+# # keys of a much more limited format that depsolver understands: django-1.8.0
+# # I hold my nose as I do this....
+# distkey_map = None
 
 
 

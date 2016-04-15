@@ -12,12 +12,12 @@
 """
 import json
 
-import resolver
-import resolver.deptools as deptools
+import depresolve
+import depresolve.deptools as deptools
 
-import resolver.resolvability as ry # backtracking solver
+import depresolve.resolver.resolvability as ry # backtracking solver
 
-from resolver.tests.testdata import *
+from tests.testdata import *
 
 
 

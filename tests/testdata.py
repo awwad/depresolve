@@ -9,8 +9,8 @@
 
 """
 
-import resolver
-import resolver.deptools as deptools
+import depresolve
+import depresolve.deptools as deptools
 
 DEPS_SIMPLE = {
     'X(1)': [  ['B', []], ['C', []]],

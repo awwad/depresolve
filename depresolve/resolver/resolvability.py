@@ -11,13 +11,13 @@
 
 """
 
-import resolver # __init__ for errors and logging
+import depresolve # __init__ for errors and logging
 import logging # grrr, actually use logging correctly, pls.
 logging.basicConfig(level=logging.DEBUG)
 
 # Moved the code for dealing with dependency data directly into its own module,
 # and should tweak this to use it as a separate module later.
-import resolver.deptools as deptools
+import depresolve.deptools as deptools
 
 import pip._vendor.packaging.specifiers
 

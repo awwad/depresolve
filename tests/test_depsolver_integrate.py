@@ -11,14 +11,14 @@
 """
 import json
 
-import resolver
-import resolver.deptools as deptools
-import resolver.resolvability as resolvability
-import resolver.tests.test_resolvability as test_resolvability
+import depresolve
+import depresolve.deptools as deptools
+import depresolve.resolver.resolvability as resolvability
+import tests.test_resolvability as test_resolvability
 
-import resolver.depsolver_integrate as depsolver_integrate # SAT solver
+import depresolve.resolver.depsolver_integrate as depsolver_integrate # SAT solver
 
-from resolver.tests.testdata import *
+from tests.testdata import *
 
 
 

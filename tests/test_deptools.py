@@ -11,11 +11,11 @@
 import json
 import os
 
-import resolver # __init__ for errors
+import depresolve # __init__ for errors
 
-import resolver.deptools as deptools
+import depresolve.deptools as deptools
 
-from resolver.tests.testdata import *
+from tests.testdata import *
 
 
 def main():

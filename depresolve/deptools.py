@@ -1,5 +1,7 @@
 """
 <Program Name>
+  deptools.py
+
   Dependency Tools
 
 <Purpose>
@@ -38,7 +40,7 @@
       get_pack_and_version                    (distkey)
       get_packname                            (distkey)
       get_version                             (distkey)
-      get_distkey                             (packname, version)
+      distkey_format                          (packname, version)
 
 
   ------Internal----------------------------
@@ -74,15 +76,17 @@ Example usage:
 
 """
 
-import resolver # __init__ for errors
+import depresolve # __init__ for errors
 import os      # for path joins
 import json    # the dependency db we'll read is in a json
 import logging
 logging.basicConfig(filename='resolver.log',level=logging.DEBUG)
 import pip._vendor.packaging.specifiers # for SpecifierSet for version parsing
 
-import resolver.resolver_sqli as sqli # the resolver's sqlite module
+import depresolve.sql_i as sqli # depresolve's sqlite3 interface
 
+from depresolve.depdata import distkey_format
+from depresolve.depdata import get_version, get_packname, get_pack_and_version
 
 # Local resources for the resolver package.
 DEPENDENCIES_DB_FILENAME = 'data/dependencies.json'
@@ -198,7 +202,7 @@ def populate_sql_with_full_dependency_info(
       # Now let's add every satisfying version to the full dependency info
       # table.
       for version in list_of_satisfying_versions:
-        satisfying_distkey = get_distkey(satisfying_packagename, version)
+        satisfying_distkey = distkey_format(satisfying_packagename, version)
 
         sqli.add_to_table(
             sqli.SQL_DEPENDENCY_TABLE,
@@ -616,7 +620,7 @@ def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
   """
   return [distkey + ": " + [spectuples_to_specstring(dep[1]) for \
       dep in deps[distkey] if dep[0] == satisfying_pack][0] for \
-      distkey in [get_distkey(depender_pack, version) for \
+      distkey in [distkey_format(depender_pack, version) for \
       version in versions_by_package[depender_pack]]]
 
 
@@ -633,47 +637,4 @@ def validate_deps(deps):
 
 
 
-
-# General purpose utility functions.
-def get_pack_and_version(distkey):
-  """
-  Convert a distkey, e.g. 'django(1.8.3)', into a package name and
-  version string, e.g. ('django', '1.8.3').
-
-  Reverse: get_distkey()
-  """
-  packagename = get_packname(distkey)
-  version = get_version(distkey)
-  return (packagename, version)
-
-
-
-
-
-def get_packname(distkey):
-  # The package name ends with the first open parenthesis.
-  return distkey[:distkey.find('(')]
-
-
-
-
-
-def get_version(distkey):
-  # Note that the version string may contain parentheses. /:
-  # So it's just every character after the first '(' until the last
-  # character, which must be ')'.
-  return distkey[distkey.find('(') + 1 : -1]
-
-
-
-
-
-def get_distkey(package_name, version_string):
-  """
-  Combine a package name and version string (e.g. 'django', '1.8.3') into a
-  distkey e.g. 'django(1.8.3)'
-
-  Reverse: get_pack_and_version()
-  """
-  return package_name + '(' + version_string + ')'
 

@@ -1,8 +1,16 @@
-# Subpackage of the resolver for sqlite interaction.
+"""
+<Program Name>
+  sql_i.py
 
-# I am not thread-safe. :D
+<Purpose>
+  This module provides sqlite3 interface and data for deptools and the
+  resolver.
 
-import resolver # __init__ for logging
+  Not thread-safe :D
+  
+"""
+
+import depresolve # __init__ for logging
 import sqlite3 # dependency db as sqlite db is the future of this :P
 
 
