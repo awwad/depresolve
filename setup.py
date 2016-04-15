@@ -7,7 +7,7 @@ setup(
     author = 'Sebastien Awwad',
     author_email = 'sebastien.awwad@gmail.com',
     url = 'https://github.com/awwad/depresolve',
-    install_requires = ['six']
+    install_requires = ['six'],
     keywords = 'update updater pypi dependency dependencies',
     packages = ['depresolve']
 )
