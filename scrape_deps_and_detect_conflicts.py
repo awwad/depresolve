@@ -1,17 +1,16 @@
 # Employs custom version of pip (awwad/pip:develop) to harvest dependencies and find dependency conflicts for packages in PyPI.
 # See README.md!
 
+
 import sys # for arguments and exceptions
-import pip
+#import pip # This has to be done below to avoid circular importing.
 import os
 import json
 #from distutils.version import StrictVersion, LooseVersion # for use in version parsing
 
 # Globals for modified pip code to use.
-dependencies_by_dist = None
-conflicts_db = None
-blacklist_db = None # Probably doesn't need to be a global, but....
-#conflict_model = None # Not currently used yet.
+# These have to be before the imports below, to avoid circular issues.
+import scraper_data as s
 
 
 # Local resources
@@ -131,6 +130,8 @@ def main():
   NO_SKIP = False
   USE_BANDERSNATCH_MIRROR = False
 
+  import pip
+
   print("scrape_deps_and_detect_conflicts - Version 0.3")
   list_of_sdists_to_inspect = [] # potentially filled with local sdist filenames, from arguments
   list_of_remotes_to_inspect = [] # potentially filled with remote packages to check, from arguments
@@ -189,16 +190,16 @@ def main():
   # manually added because, for example, they hang seemingly forever or take an
   # inordinate length of time.
 
-  global dependencies_by_dist
-  global conflicts_db
-  global blacklist_db
+  #global dependencies_by_dist
+  #global conflicts_db
+  #global blacklist_db
 
   ensure_globals_loaded(CONFLICT_MODEL)
 
 
   # For backward compatibility (before casing fixes for certain package names):
   #   Determine a lower-cased set of the keys in the conflicts db.
-  keys_in_conflicts_db_lower = set(k.lower() for k in conflicts_db)
+  keys_in_conflicts_db_lower = set(k.lower() for k in s.conflicts_db)
 
 
 
@@ -255,8 +256,8 @@ def main():
 
       # Else if the dist is listed in the blacklist along with this python
       # major version (2 or 3), skip.
-      elif distkey in blacklist_db and \
-        sys.version_info.major in blacklist_db[distkey]:
+      elif distkey in s.blacklist_db and \
+        sys.version_info.major in s.blacklist_db[distkey]:
         n_inspected += 1
         print("---    SKIP -- Blacklist includes " + distkey +
           ". Skipping. (Now at " + str(n_inspected) + " out of " +
@@ -294,6 +295,7 @@ def main():
     # With arg list constructed, call pip.main with it to run a modified pip
     # install attempt (will not install).
     # This assumes that we're dealing with my pip fork version 8.0.0.dev0seb).
+    print('Scraper says: before pip call, len(deps) is ' + str(len(s.dependencies_by_dist)))
     exitcode = pip.main(pip_arglist)
 
     # Process the output of the pip command.
@@ -317,8 +319,8 @@ def main():
       # Contents are to eventually be a list of the major versions in which it
       # fails. We should never get here if the dist is already in the blacklist
       # for this version of python, but let's keep going even if so.
-      if distkey in blacklist_db and sys.version_info.major in \
-        blacklist_db[distkey] and not NO_SKIP:
+      if distkey in s.blacklist_db and sys.version_info.major in \
+        s.blacklist_db[distkey] and not NO_SKIP:
         print("  WARNING! This should not happen! " + distkey + " was already "
           "in the blacklist for python " + str(sys.version_info.major) + ", "
           "thus it should not have been run unless we have --noskip on (which "
@@ -326,12 +328,12 @@ def main():
       else:
       # Either the dist is not in the blacklist or it's not in the blacklist
       # for this version of python. (Sensible)
-        if distkey not in blacklist_db: # 
-          blacklist_db[distkey] = [sys.version_info.major]
+        if distkey not in s.blacklist_db: # 
+          s.blacklist_db[distkey] = [sys.version_info.major]
           print("  Added entry to blacklist for " + distkey)
         else:
-          assert(NO_SKIP or sys.version_info.major not in blacklist_db[distkey])
-          blacklist_db[distkey].append(sys.version_info.major)
+          assert(NO_SKIP or sys.version_info.major not in s.blacklist_db[distkey])
+          s.blacklist_db[distkey].append(sys.version_info.major)
           print("  Added additional entry to blacklist for " + distkey)
 
           
@@ -560,15 +562,6 @@ def normalize_version_string(version):
 
   
 
-if __name__ == "__main__":
-  main()
-
-
-
-
-
-
-
 
 
 
@@ -618,13 +611,13 @@ def distkey_format(name, version):
 
 def write_globals_to_file(CONFLICT_MODEL):
   """"""
-  global dependencies_by_dist
-  global conflicts_db
-  global blacklist_db
+  #global s.dependencies_by_dist
+  #global conflicts_db
+  #global blacklist_db
 
-  json.dump(dependencies_by_dist, open(DEPENDENCIES_DB_FILENAME, 'w'))
-  json.dump(conflicts_db, open(get_conflicts_db_fname(CONFLICT_MODEL), 'w'))
-  json.dump(blacklist_db, open(BLACKLIST_DB_FILENAME, 'w'))
+  json.dump(s.dependencies_by_dist, open(DEPENDENCIES_DB_FILENAME, 'w'))
+  json.dump(s.conflicts_db, open(get_conflicts_db_fname(CONFLICT_MODEL), 'w'))
+  json.dump(s.blacklist_db, open(BLACKLIST_DB_FILENAME, 'w'))
 
 
 
@@ -656,9 +649,9 @@ def ensure_globals_loaded(CONFLICT_MODEL):
   Ensure that the global dependencies, conflicts, and blacklist dictionaries
   are loaded, importing them now if not.
   """
-  global dependencies_by_dist
-  global conflicts_db
-  global blacklist_db
+  #global s.dependencies_by_dist
+  #global conflicts_db
+  #global blacklist_db
 
   # If the global is not defined yet, load the contents of the json file.
   # If the db file doesn't exist, create it (open in append mode and close.)
@@ -666,27 +659,34 @@ def ensure_globals_loaded(CONFLICT_MODEL):
   # If the parses fail, just make empty dicts instead, and we'll overwrite
   # the files later.
 
-  if dependencies_by_dist is None:
+  if s.dependencies_by_dist is None:
 
-    if not os.path.exists(dependencies_db_filename):
-      open(dependencies_db_filename, 'a').close()
+    if not os.path.exists(DEPENDENCIES_DB_FILENAME):
+      open(DEPENDENCIES_DB_FILENAME, 'a').close()
 
-    dependencies_by_dist = load_json_db(dependencies_db_filename)
+    s.dependencies_by_dist = load_json_db(DEPENDENCIES_DB_FILENAME)
 
 
-  if conflicts_db is None:
+  if s.conflicts_db is None:
     conflicts_db_filename = get_conflicts_db_fname(CONFLICT_MODEL)
 
     if not os.path.exists(conflicts_db_filename):
       open(conflicts_db_filename, 'a').close()
 
-    conflicts_db = load_json_db(conflicts_db_filename)
+    s.conflicts_db = load_json_db(conflicts_db_filename)
 
 
-  if blacklist_db is None:
-    blacklist_db = load_json_db(BLACKLIST_DB_FILENAME)
+  if s.blacklist_db is None:
+    s.blacklist_db = load_json_db(BLACKLIST_DB_FILENAME)
 
 
-  assert type(dependencies_by_dist) is dict
-  assert type(conflicts_db) is dict
-  assert type(blacklist_db) is dict
+  assert type(s.dependencies_by_dist) is dict
+  assert type(s.conflicts_db) is dict
+  assert type(s.blacklist_db) is dict
+
+  print('Scraper globals have been imported.')
+
+
+
+if __name__ == "__main__":
+  main()
