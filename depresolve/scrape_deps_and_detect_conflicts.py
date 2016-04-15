@@ -232,7 +232,7 @@ def main():
     
     # To avoid losing too much data, make sure we at least write data to disk
     # every 20 dists.
-    if n_inspected % 10000 == 0 or n_successfully_processed % 100 == 0:
+    if n_inspected % 10000 == 9999 or n_successfully_processed % 100 == 99:
       print("Writing early.")
       depdata.write_data_to_files([CONFLICT_MODEL])
 
