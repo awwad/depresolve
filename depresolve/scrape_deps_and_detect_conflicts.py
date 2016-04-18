@@ -19,8 +19,12 @@ import json
 # These have to be before the imports below, to avoid circular issues.
 import depresolve.depdata as depdata
 
-from depresolve.depdata import get_version, get_packname, distkey_format
+from depresolve.depdata import get_version, get_packname
+from depresolve.depdata import distkey_format, get_pack_and_version
 
+
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Local resources
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
@@ -115,9 +119,12 @@ def main():
   USE_BANDERSNATCH_MIRROR = False
 
 
-
   # Files and directories.
-  assert(os.path.exists(WORKING_DIRECTORY))
+  assert(os.path.exists(WORKING_DIRECTORY)), 'Working dir does not exist...??'
+
+
+  logger = logging.getLogger('scrape_deps_and_detect_conflicts')
+
   # Ensure that appropriate directory for downloaded distros exists.
   # This would be terrible to duplicate if scraping a large number of packages.
   # One such sdist cache per system! Gets big.
@@ -125,7 +132,8 @@ def main():
     os.makedirs(TEMPDIR_FOR_DOWNLOADED_DISTROS)
 
 
-  print("scrape_deps_and_detect_conflicts - Version 0.4")
+
+  logger.info("scrape_deps_and_detect_conflicts - Version 0.4")
   list_of_sdists_to_inspect = [] # potentially filled with local sdist filenames, from arguments
   list_of_remotes_to_inspect = [] # potentially filled with remote packages to check, from arguments
 
@@ -203,28 +211,16 @@ def main():
   distkeys_to_inspect = []
   if USE_BANDERSNATCH_MIRROR:
     for tarfilename_full in list_of_sdists_to_inspect:
-
       # Deduce package names and versions from sdist filename.
-      packagename = get_package_name_given_full_filename(tarfilename_full)
-      packagename_withversion = \
-          get_package_and_version_string_from_full_filename(tarfilename_full)
-      deduced_version_string = packagename_withversion[len(packagename) + 1:]
-
-      # Perform a variety of fixes to match pip's normalized package and
-      # version names, which are what my code inside pip spits out to the dbs.
-      deduced_version_string = normalize_version_string(deduced_version_string)
-      distkey = distkey_format(packagename, deduced_version_string)
-      distkey = distkey.lower().replace('_', '-') # Hacky. Improve using pip normalizer.
-      
+      distkey = get_distkey_from_full_filename(tarfilename_full)
       distkeys_to_inspect.append(distkey)
       
   else: # if not using local bandersnatched PyPI mirror
     for distkey in list_of_remotes_to_inspect:
       assert '(' in distkey and distkey.endswith(')'), "Invalid input."
-      distkey = distkey.lower().replace('_', '-') # avoid casing issues and incorrect underscores
+      distkey = normalize_distkey(distkey)
       distkeys_to_inspect.append(distkey)
     
-
 
   # Now take all of the distkeys ( e.g. 'python-twitter(0.2.1)' ) indicated and
   # run on them.
@@ -233,7 +229,7 @@ def main():
     # To avoid losing too much data, make sure we at least write data to disk
     # every 20 dists.
     if n_inspected % 10000 == 9999 or n_successfully_processed % 100 == 99:
-      print("Writing early.")
+      logger.info("Writing early.")
       depdata.write_data_to_files([CONFLICT_MODEL])
 
 
@@ -242,8 +238,8 @@ def main():
     if not NO_SKIP:
       if distkey in keys_in_conflicts_db_lower:
         n_inspected += 1
-        print("---    SKIP -- Already have " + distkey + " in db of type " +
-          str(CONFLICT_MODEL) + " conflicts. Skipping. (Now at " +
+        logger.info("---    SKIP -- Already have " + distkey + " in db of " +
+          "type " + str(CONFLICT_MODEL) + " conflicts. Skipping. (Now at " +
           str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) +
           ")")
         continue
@@ -253,13 +249,13 @@ def main():
       elif distkey in depdata.blacklist and \
         sys.version_info.major in depdata.blacklist[distkey]:
         n_inspected += 1
-        print("---    SKIP -- Blacklist includes " + distkey +
+        logger.info("---    SKIP -- Blacklist includes " + distkey +
           ". Skipping. (Now at " + str(n_inspected) + " out of " +
           str(len(list_of_sdists_to_inspect)) + ")")
         continue
 
-      print(distkey + " not found in conflicts or blacklist dbs. Sending to "
-        "pip.\n")
+      logger.debug(distkey + ' not found in conflicts or blacklist dbs. '
+        'Sending to pip.\n')
 
     # Else, process the dist.
 
@@ -289,23 +285,23 @@ def main():
     # With arg list constructed, call pip.main with it to run a modified pip
     # install attempt (will not install).
     # This assumes that we're dealing with my pip fork version 8.0.0.dev0seb).
-    print('Scraper says: before pip call, len(deps) is ' +
+    logger.debug('Scraper says: before pip call, len(deps) is ' +
         str(len(depdata.dependencies_by_dist)))
     exitcode = pip.main(pip_arglist)
 
     # Process the output of the pip command.
     if exitcode == 2:
-      print("--- X  SDist " + distkey + " : pip errored out (code=" +
+      logger.info("--- X  SDist " + distkey + " : pip errored out (code=" +
         str(exitcode) + "). Possible DEPENDENCY CONFLICT. Result recorded in "
         "conflicts_<...>.json. (Finished with " +
         str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) +
         ")")
     elif exitcode == 0:
-      print("--- .  SDist " + distkey + " : pip completed successfully. No "
-        "dependency conflicts observed. (Finished with " + str(n_inspected) +
-        " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      logger.info("--- .  SDist " + distkey + " : pip completed successfully. "
+        "No dependency conflicts observed. (Finished with " + str(n_inspected)
+        + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
     else:
-      print("--- .  SDist " + distkey + ": pip errored out (code=" +
+      logger.debug("--- .  SDist " + distkey + ": pip errored out (code=" +
         str(exitcode) + "), but it seems to have been unrelated to any dep "
         "conflict.... (Finished with " + str(n_inspected) + " out of " +
         str(len(list_of_sdists_to_inspect)) + ")")
@@ -316,20 +312,20 @@ def main():
       # for this version of python, but let's keep going even if so.
       if distkey in depdata.blacklist and sys.version_info.major in \
         depdata.blacklist[distkey] and not NO_SKIP:
-        print("  WARNING! This should not happen! " + distkey + " was already "
-          "in the blacklist for python " + str(sys.version_info.major) + ", "
-          "thus it should not have been run unless we have --noskip on (which "
-          "it is not)!")
+        logger.warning('  WARNING! This should not happen! ' + distkey + ' was'
+          'already in the blacklist for python ' + str(sys.version_info.major)
+          + ', thus it should not have been run unless we have --noskip on '
+          '(which it is not)!')
       else:
       # Either the dist is not in the blacklist or it's not in the blacklist
       # for this version of python. (Sensible)
         if distkey not in depdata.blacklist: # 
           depdata.blacklist[distkey] = [sys.version_info.major]
-          print("  Added entry to blacklist for " + distkey)
+          logger.info("  Added entry to blacklist for " + distkey)
         else:
           assert(NO_SKIP or sys.version_info.major not in depdata.blacklist[distkey])
           depdata.blacklist[distkey].append(sys.version_info.major)
-          print("  Added additional entry to blacklist for " + distkey)
+          logger.info("  Added additional entry to blacklist for " + distkey)
 
           
     # end of exit code processing
@@ -339,44 +335,10 @@ def main():
   # end of for each tarfile/sdist
 
   # We're done with all packages. Write the collected data back to file.
-  print("Writing.")
+  logger.debug("Writing.")
   depdata.write_data_to_files([CONFLICT_MODEL])
 
 
-# Given a full filename of an sdist (of the form
-# /srv/.../packagename/packagename-1.0.0.tar.gz), return package name and
-# version (e.g. packagename-1.0.0)
-# Updating to use lower().
-def get_package_and_version_string_from_full_filename(fname_full):
-  #     get position of last / in full filename
-  i_of_last_slash = fname_full.rfind('/')
-  #     get position of .tar.gz in full filename
-  i_of_targz = fname_full.rfind('.tar.gz')
-  return fname_full[i_of_last_slash + 1 : i_of_targz].lower()
-
-
-
-# Given a .tar.gz in a bandersnatch mirror, determine the package name.
-
-# Bing's code sees fit to assume that the parent directory name is the package
-# name. I'll go with that assumption. (It breaks sometimes with dash/underscore
-# switching, but we fix that manually.)
-# Updating to use lower()
-def get_package_name_given_full_filename(fname_full):
-  return get_parent_dir_name_from_full_path(fname_full).lower()
-
-
-
-# Given a fully specified filename (i.e. including its path), extract name of
-# parent directory (without full path).
-def get_parent_dir_name_from_full_path(fname_full):
-  #     get position of last / in full filename
-  i_of_last_slash = fname_full.rfind('/')
-  #     get position of 2nd to last / in full filename
-  i_of_second_to_last_slash = fname_full[: i_of_last_slash].rfind('/')
-  parent_dir = fname_full[i_of_second_to_last_slash + 1 : i_of_last_slash]
-
-  return parent_dir
 
 
 
@@ -389,9 +351,105 @@ def is_sdist(fname):
 
 
 
+def get_distkey_from_full_filename(tarfilename_full):
+  """
+  Given a full filename of an sdist (a .tar.gz in a bandersnatch mirror, say,
+  of the form e.g. /srv/.../packagename/packagename-1.0.0.tar.gz), return the
+  distkey, the key I use to identify the distribution, format currently
+  'packname(version)'.
+
+  Also perform some normalizations to match what we can expect from pip.
+  """
+
+  #     get position of last / in full filename
+  i_of_last_slash = fname_full.rfind('/')
+  #     get position of 2nd to last / in full filename
+  i_of_second_to_last_slash = fname_full[: i_of_last_slash].rfind('/')
+  #     get position of .tar.gz in full filename
+  i_of_targz = fname_full.rfind('.tar.gz')
+
+  # Parent directory roughly dictates the package name.
+  parent_dir = fname_full[i_of_second_to_last_slash + 1 : i_of_last_slash]
+  unnormalized_packagename = parent_dir
+
+  unnormalized_package_and_version = \
+      fname_full[i_of_last_slash + 1 : i_of_targz].lower()
+
+  # Subtract the unnormalized packagename to get the unnormalized version str.
+  unnormalized_version = \
+      unnormalized_package_and_version[len(unnormalized_package) + 1 :]
+
+  # Now normalize them both and combine them into a normalized distkey.
+
+  packname = normalize_package_name(unnormalized_packagename)
+  version = normalize_version_string(unnormalized_version)
+
+  distkey = distkey_format(packname, version)
+
+  return distkey
+
+
+
+
+
+def normalize_distkey(distkey):
+  """
+  Break apart the distkey and normalize its components before combining and
+  returning the normalized key. (Unproven)
+  """
+  (packname, version) = get_pack_and_version(distkey)
+
+  packname = normalize_package_name(packname)
+  version = normalize_version_string(version)
+
+  return distkey_format(packname, version)
+
+
+
 
 
 def normalize_version_string(version):
+  """
+  Normalize version strings in the way that pip does.
+  This must be tested against old normalization and data (blacklist, 
+  conflicts?) must probably be converted.
+
+  Note that pip._vendor.pkg_resources.safe_version does much less than pip
+  does. pip employs a regex to handle certain version string components.
+  """
+  try:
+    normalized = str(pip._vendor.packaging.version.Version(version))
+  
+  except pip._vendor.packaging.version.InvalidVersion:
+    normalized = normalize_version_string(version)
+    logger.debug('converting ' + version + ' via pip version class failed. '
+      'using bandaid normalization: ' + old_normalize_version_string(version))
+
+  finally:
+    return normalized
+
+
+
+
+
+def normalize_package_name(packname):
+  """
+  I am not confident that safe_name does adequate normalization of package
+  names. It seems to me that the canonical names are lowercase, and safe_name
+  doesn't do this. I could be wrong about that, but because safe_version very
+  clearly does NOT normalize versions the way that pip does (pip does much
+  more), I don't have a lot of confidence in safe_name either. Instead, I've
+  just been replacing _ with - and calling lower. I hope the switch to using
+  safe_name doesn't break things..... >.<
+  """
+  return packname.replace('_', '-').lower()
+  #return pip._vendor.pkg_resources.safe_name(packname).lower()
+
+
+
+
+
+def old_normalize_version_string(version):
   """
   EDIT: I believe I can now remove all of the below, but I'm already changing
   too much here, so I'll keep this for the next round of commits.
@@ -531,7 +589,7 @@ def normalize_version_string(version):
     version = version.replace('.09', '.9')
 
 
-  return version
+    return version
 
 
 
