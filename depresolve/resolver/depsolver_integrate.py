@@ -30,13 +30,9 @@ import depresolve
 import depresolve.deptools as deptools
 import depresolve.resolver.resolvability as ry
 
-from depsolver import * # external
+import depsolver # external
 
-# Wait, no: maybe I'll just modify depsolver instead.
-# # Unfortunately, we have to map distkeys like django(1.8) or foo(1-dev0) into
-# # keys of a much more limited format that depsolver understands: django-1.8.0
-# # I hold my nose as I do this....
-# distkey_map = None
+import pip._vendor.packaging.specifiers # for SpecifierSet
 
 
 
@@ -49,15 +45,25 @@ def convert_version_from_depsolver(semantic_version):
   Convert version format depsolver is using (depsolver.SemanticVersion) into
   version format I'm using (string of loose form '1.56.3a').
 
-  Currently, for proof of concept and initial tests, we're using versions like
-  "1" or "53", instead of elaborate ones. Depsolver can't accept anything other
-  than exactly 3 numeric units (3.5.0, 15.3.4, etc.).
+  Currently, for proof of concept and initial tests, we're using versions that
+  fit the SemanticVersion spec instead of PyPI's sometimes elaborate ones.
+  Depsolver can't accept anything other than exactly 3 numeric units (3.5.0,
+  15.3.4, etc.).
+
+  For the time being, I'm not converting them back in any way, since it's not
+  really clear how to. I may need to update conflict checking, blacklisting,
+  or anything else that might consume these version strings coming from
+  depsolver to take into account the possible version string ambiguity.
+
+  For now, this is just being used to provide solutions for human consumption,
+  so the ambiguous version strings are OK.
+
   """
-  return(str(semantic_version.major))
+  return str(semantic_version)
 
 
 
-def convert_version_into_depsolver(version_string):
+def convert_version_into_depsolver(ver_str):
   """
   Convert version format I'm using for now to one for depsolver, which is very
   restrictive about version numbers.
@@ -65,7 +71,66 @@ def convert_version_into_depsolver(version_string):
   This is an unpleasant mapping. ^_^
   For now, I assume my versions are all single-unit (e.g. '3', not '3.0')
   """
-  return version_string + '.0.0' # cheesy assumption for now
+
+  new_ver_str = ver_str
+  pipified_ver = None # paranoid declaration in case of nested try scope issue
+  semver = None # paranoid declaration in case of nested try scope issue
+
+  # 1: try parsing into a 
+  try:
+    semver = depsolver.version.SemanticVersion.from_string(ver_str)
+  
+  except depsolver.errors.InvalidVersion:
+    # depsolver cannot understand the version string.
+    # Try normalizing here.
+    # First, find out if pip can handle it. If not, give up.
+    try:
+      pipified_ver = str(pip._vendor.packaging.version.Version(ver_str))
+
+    except pip._vendor.packaging.version.InvalidVersion:
+      raise ValueError('Neither pip nor depsolver can parse this version str:'
+          '"' + ver_str + '". Giving up on converting for depsolver.')
+
+    else:
+      # Pip was able to make sense of the version string, but depsolver wasn't.
+      # We'll try converting.
+
+      # Conversion 1: Just try what pip understood it as. (Low probability.)
+      try:
+        semver = depsolver.version.SemanticVersion.from_string(pipified_ver)
+
+      # Conversion 2: Check to see if it's partially specified. (High prob.)
+      except depsolver.errors.InvalidVersion:
+        n_periods_in_verstring = ver_str.count('.')
+
+        if 0 == n_periods_in_verstring:
+          new_ver_str += '.0.0'
+
+        elif 1 == n_periods_in_verstring:
+          new_ver_str += '.0'
+
+        else:
+          raise ValueError('Unable to convert version str "' + ver_str
+              + '". pip understood it as "' + pipified_ver + '", but '
+              'enthought/depsolver did not understand that, either, and it is '
+              'not clear how to convert it.')
+
+        # We added '.0' or '.0.0'. Try again now.
+        try:
+          semver = depsolver.version.SemanticVersion.from_string(new_ver_str)
+
+        except depsolver.errors.InvalidVersion:
+          raise ValueError('Unable to convert the version string. Received "' +
+              ver_str + '". depsolver raised error on it. pip understood '
+              'it as "' + pipified_ver + '". Tried that and "' +
+              new_ver_str + '". depsolver raised errors on all three.')
+
+  assert semver is not None, "Programming error."
+  
+  return str(semver)
+
+
+
 
 
 
@@ -73,10 +138,15 @@ def convert_distkey_for_depsolver(distkey, as_req=False):
   """
   Convert the distkey to one usable by depsolver.
   e.g. 'X(1)' to 'X-1.0.0'
+  e.g. 'pip-accel(1.0.0) to 'pip_accel-1.0.0'.
   (Shudder)
   """
   (packname, version) = deptools.get_pack_and_version(distkey)
-  my_ds_distkey = packname
+  
+  # depsolver can't handle '-' in package names (ARGH!), so turn all '-' to '_'
+  # Must turn them back in the conversion back........
+  my_ds_distkey = packname.replace('-', '_')
+
   if as_req:
     my_ds_distkey += '=='
   else:
@@ -86,6 +156,30 @@ def convert_distkey_for_depsolver(distkey, as_req=False):
 
   return my_ds_distkey
 
+
+# def convert_distkey_from_depsolver(depsolver_distkey):
+#   """
+#   Revert from depsolver's package name format to that expected by pip and my
+#   code. (Reverses convert_distkey_for_depsolver.)
+#   """
+
+#   # Note that there are no dashes in depsolver pack names.
+#   index_of_first_dash = depsolver_distkey.find('-')
+
+#   packname = depsolver_distkey[: index_of_first_dash]
+#   version = depsolver_distkey[index_of_first_dash+1 :]
+
+#   # Convert back from depsolver's backward name constraints.
+#   packname = packname.replace('_', '-')
+  
+#   return deptools.distkey_format(packname, version)
+
+def convert_packname_from_depsolver(depsolver_packname):
+  """
+  Revert from depsolver's package name format to that expected by pip and my
+  code. (Reverses the package name part of convert_distkey_for_depsolver.)
+  """
+  return depsolver_packname.replace('-', '_')
 
 
 
@@ -110,17 +204,31 @@ def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
   for dep in deps[distkey]:
     # dep is e.g. ['A', [['>=', '2'], ['<', '4']]]
     satisfying_packname = dep[0]
-    satisfying_specifiers = dep[1]
+    specstring = dep[1]
     this_ds_dep = ''
 
-    # if version is not constrained, e.g. [ 'A', [] ]
-    if not satisfying_specifiers:
+
+    # Split up the specifier string into a dependency format depsolver will
+    # understand.
+    # Deps here look like ['django', '>=1.8.3,<=1.9']
+    # That must come to look like:
+    #   '... depends (django >= 1.8.3, django <= 1.9.0)'
+
+    # if version is not constrained, e.g. [ 'A', '' ]
+    if not specstring:
       this_ds_dep = satisfying_packname + ', '
 
-    else: # version is constrained, e.g. ['A', [ ['>', '2'], ['<=' '4'] ]]
-      for spec in satisfying_specifiers:
-        op = spec[0]
-        ver = spec[1]
+
+    else: # version is constrained, e.g. ['A', '>=1.8.3,<=1.9']
+
+      ops_and_versions = split_specstring_into_ops_and_versions(specstring)
+
+      # import ipdb
+      # ipdb.set_trace()
+
+      for op_and_version in ops_and_versions:
+        op = op_and_version[0]
+        ver = op_and_version[1]
         this_ds_dep += satisfying_packname + ' ' + op + ' ' + \
             convert_version_into_depsolver(ver) + ', '
 
@@ -133,9 +241,31 @@ def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
     my_ds_deps = my_ds_deps[:-2]
 
     ds_packageinfostr += '; depends (' + my_ds_deps + ')'
+    print('convert_dist_to_packageinfo_for_depsolver produced: ' +
+        ds_packageinfostr)
 
-  return PackageInfo.from_string(ds_packageinfostr)
+  #import ipdb
+  #ipdb.set_trace()
+  return depsolver.PackageInfo.from_string(ds_packageinfostr)
 
+
+
+
+
+def split_specstring_into_ops_and_versions(spec):
+  """
+  Convert a single specifier's string (e.g. '>=1.8.3', as a piece of
+  '>=1.8.3,<1.9') into operator and version strings
+  (in this case, '>=' and '1.8.3')
+  Does this using pip's Specifier class.
+  """
+  specset = pip._vendor.packaging.specifiers.SpecifierSet(spec)
+  ops_and_versions = []
+
+  for spec in specset._specs:
+    ops_and_versions.append([spec.operator, spec.version])
+  
+  return ops_and_versions
 
 
 
@@ -178,30 +308,41 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None):
   resolver.resolvability. Mapping involves some ugly fudging of version
   strings.
 
+  Raises depresolve.UnresolvableConflictError if depsolver seems to detect
+  an unresolvable conflict (which it does by raising, of all things, a
+  NotImplementedError ): )
+
   """
   # Create a depsolver "Repository" object containing a PackageInfo object for
   # each dist we know about from the deps dictionary of distributions.
-  repo = Repository(
+  repo = depsolver.Repository(
       convert_packs_to_packageinfo_for_depsolver(deps))
 
   # Create an empty "Repository" to indicate nothing installed yet.
-  installed_repo = Repository()
+  installed_repo = depsolver.Repository()
 
   # A depsolver Pool is an abstraction encompassing the state of a repository
   # and what is installed locally. /:
-  pool = Pool([repo, installed_repo])
+  pool = depsolver.Pool([repo, installed_repo])
 
   # Putative installations are requests.
-  request = Request(pool)
+  request = depsolver.Request(pool)
 
   # This produces a sort of diff object that can be applied to the repository.
   # Installation would not actually occur. It's a request to install.
   request.install(
-      Requirement.from_string(convert_distkey_for_depsolver(distkey,
+      depsolver.Requirement.from_string(convert_distkey_for_depsolver(distkey,
       as_req=True)))
 
-  depsolver_solution = [operation for operation in 
-      Solver(pool, installed_repo).solve(request)]
+  try:
+    depsolver_solution = [operation for operation in 
+        depsolver.Solver(pool, installed_repo).solve(request)]
+
+  except NotImplementedError, e: # Sadly, this is what depsolver throws.
+    print("Caught NotImplementedError from depsolver: \n" + str(e.args) + "\n")
+    raise depresolve.UnresolvableConflictError('Unable to resolve conflict '
+        'via depsolver SAT solver. Presume that the distribution ' + distkey +
+        ' has an unresolvable conflict.')
 
   # What depsolver will have provided there will look like:
   #  [Installing A (3.0.0), Installing C (1.0.0), Installing B (1.0.0),
@@ -214,9 +355,9 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None):
   #
   parsed_depsolver_solution = []
   for install in depsolver_solution:
-    packname = install.package.name
+    packname = convert_packname_from_depsolver(install.package.name)
     version = convert_version_from_depsolver(install.package.version)
-    distkey = deptools.get_distkey(packname, version)
+    distkey = deptools.distkey_format(packname, version)
 
     parsed_depsolver_solution.append(distkey)
 
