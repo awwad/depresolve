@@ -25,6 +25,14 @@ def main():
   """
   """
 
+  # Auxiliary test data (very large). Moving into main() so it doesn't slow
+  # down anything that imports it.
+
+  DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies.json')
+  EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
+  VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
+
+
   # Should move away from this, but it's a serviceable set of regression tests
   # for now.
   test_old_resolver_suite() 
@@ -67,6 +75,12 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
   will pass deps directly to the named function instead of first elaborating
   the dependencies.
 
+  TODO: Should compare the solutions more correctly, checking the versions
+  against each other. There are cases where depsolver may return '2.0.0'
+  instead of '2' for the version, for example, and that needs to still be
+  regarded as correct. I should use pip's Version class methods to test
+  equality.
+
   """
 
   if versions_by_package is None:
@@ -92,7 +106,8 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
       #return False
     else:
       # We expected this error.
-      print('As expected, unable to resolve ' + distkey)
+      print('As expected, unable to resolve ' + distkey + ' due to ' +
+          str(type(e)) + '.')
       print('  Exception caught: ' + e.args[0])
       return True
 
@@ -104,6 +119,8 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
       fobj.write('digraph G {\n' + dotstrings + '}\n')
       fobj.close()
 
+    # TODO: This test has to be more elaborate. See docstring above. Better
+    # version string testing is necessary.
     if sorted(solution) == sorted(expected_result):
       print('Solution is as expected.')
       return True
@@ -395,14 +412,4 @@ def res_test9():
   print("test_resolver(): Test 9 OK. (:")
 
 
-
-
-
-
-
-# Auxiliary test data (very large)
-
-DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies.json')
-EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
-VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
 
