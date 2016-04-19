@@ -56,7 +56,10 @@ def convert_version_from_depsolver(semantic_version):
   depsolver to take into account the possible version string ambiguity.
 
   For now, this is just being used to provide solutions for human consumption,
-  so the ambiguous version strings are OK.
+  so the ambiguous version strings are OK. It does muck with unit tests, but
+  I'll live with that for now (or rewrite part of test_resolvability to
+  compare the versions selected intelligently instead of just as strings, so
+  that things like '3' being the same as '3.0.0' will be caught.)
 
   """
   return str(semantic_version)
@@ -69,7 +72,6 @@ def convert_version_into_depsolver(ver_str):
   restrictive about version numbers.
 
   This is an unpleasant mapping. ^_^
-  For now, I assume my versions are all single-unit (e.g. '3', not '3.0')
   """
 
   new_ver_str = ver_str
