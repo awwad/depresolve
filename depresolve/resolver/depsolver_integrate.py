@@ -148,7 +148,7 @@ def convert_distkey_for_depsolver(distkey, as_req=False):
   
   # depsolver can't handle '-' in package names (ARGH!), so turn all '-' to '_'
   # Must turn them back in the conversion back........
-  my_ds_distkey = packname.replace('-', '_')
+  my_ds_distkey = convert_packname_for_depsolver(packname)
 
   if as_req:
     my_ds_distkey += '=='
@@ -177,12 +177,29 @@ def convert_distkey_for_depsolver(distkey, as_req=False):
   
 #   return deptools.distkey_format(packname, version)
 
+
+
+
+
+def convert_packname_for_depsolver(packname):
+  """
+  e.g. pip-accel to pip_accel
+  depsolver has constraining package name requirements. /:
+  """
+  return packname.replace('-', '_')
+
+
+
+
+
 def convert_packname_from_depsolver(depsolver_packname):
   """
   Revert from depsolver's package name format to that expected by pip and my
   code. (Reverses the package name part of convert_distkey_for_depsolver.)
   """
   return depsolver_packname.replace('_', '-')
+
+
 
 
 
@@ -205,8 +222,8 @@ def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
   my_ds_deps = ''
 
   for dep in deps[distkey]:
-    # dep is e.g. ['A', [['>=', '2'], ['<', '4']]]
-    satisfying_packname = dep[0]
+    # dep is e.g. ['A', '>=2,<4']
+    satisfying_packname = convert_packname_for_depsolver(dep[0])
     specstring = dep[1]
     this_ds_dep = ''
 
