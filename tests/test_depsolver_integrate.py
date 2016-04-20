@@ -9,12 +9,6 @@
   Note that some extra data for the tests is at the end.
 
 """
-import json
-
-import logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('test_depsolver_integrate.py')
-
 import depresolve
 import depresolve.deptools as deptools
 import depresolve.resolver.resolvability as resolvability
@@ -24,6 +18,7 @@ import depresolve.resolver.depsolver_integrate as depsolver_integrate # SAT solv
 
 from tests.testdata import *
 
+logger = depresolve.logging.getLogger('test_depsolver_integrate.py')
 
 
 def main():
@@ -83,7 +78,7 @@ def main():
   # This tests a SLIGHTLY more complex version string, via the resolver.
   successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
-      DEPS_EDGE_CASES_DEPSOLVER_SOLUTION, #expected result
+      DEPS_EDGE_CASES_SOLUTION, #expected result
       'pip-accel(0.9.10)', # dist to install
       DEPS_EDGE_CASES, # dependency data
       use_raw_deps=True # Do not convert deps to edeps - func expects deps.
@@ -119,14 +114,11 @@ def main():
 
 
 
+  assert False not in [success for success in successes], \
+      "Some tests failed! Results are: " + str(successes)
 
 
-
-  assert [success for success in successes], "Some tests failed! Results " \
-      "are: " + str(successes)
-
-
-  logger.info("Tests successful. (:")
+  logger.info("All tests in main() successful. (: (:")
 
 
 
@@ -205,11 +197,11 @@ def test_depsolver_conversion3():
 
 
 
-DEPS_SIMPLE_DEPSOLVER_SOLUTION = \
-    'Installing A (3.0.0)\n' + \
-    'Installing C (1.0.0)\n' + \
-    'Installing B (1.0.0)\n' + \
-    'Installing X (1.0.0)\n'
+# DEPS_SIMPLE_DEPSOLVER_SOLUTION = \
+#     'Installing A (3.0.0)\n' + \
+#     'Installing C (1.0.0)\n' + \
+#     'Installing B (1.0.0)\n' + \
+#     'Installing X (1.0.0)\n'
 
 DEPS_SIMPLE_PACKAGEINFOS = [
     depsolver_integrate.depsolver.PackageInfo.from_string('X-1.0.0; depends (B, C)'),
@@ -229,10 +221,12 @@ DEPS_EDGE_CASES = {
     'A(1)': [],
     'B(1)': [  ['A', '>=2,<4']  ],
 }
-DEPS_EDGE_CASES_DEPSOLVER_SOLUTION = \
-    'Installing pip_accel (0.9.10)\n' + \
-    'Installing A (2.0.0)\n' + \
-    'Installing B (1.0.0)\n'
+# DEPS_EDGE_CASES_DEPSOLVER_SOLUTION = \
+#     'Installing pip_accel (0.9.10)\n' + \
+#     'Installing A (2.0.0)\n' + \
+#     'Installing B (1.0.0)\n'
+
+DEPS_EDGE_CASES_SOLUTION = sorted(['pip-accel(0.9.10)', 'B(1)', 'A(2)'])
 
 
 if __name__ == '__main__':

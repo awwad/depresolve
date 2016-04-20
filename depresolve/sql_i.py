@@ -134,12 +134,12 @@ def add_to_table(
   TODO: Rewrite slightly to use **kwargs for arbitrary column names, and
   validate.
   """
-  logger = resolver.logging.getLogger('add_to_table')
+  logger = depresolve.logging.getLogger('add_to_table')
   _ensure_connected_to_sqlite()
 
   global SQL_CURSOR
 
-  logger.info("           SQLI: \n"
+  logger.debug("           SQLI: \n"
       "INSERT INTO " + tablename + " VALUES (" + depender_dist_key + ", " +
       satisfying_pack_name + ", " + third_argument + ")")
 

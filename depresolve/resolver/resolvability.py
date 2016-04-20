@@ -12,8 +12,6 @@
 """
 
 import depresolve # __init__ for errors and logging
-import logging # grrr, actually use logging correctly, pls.
-logging.basicConfig(level=logging.DEBUG)
 
 # Moved the code for dealing with dependency data directly into its own module,
 # and should tweak this to use it as a separate module later.
@@ -53,6 +51,8 @@ def convert_json_dep_to_elaborated_sql():
 
 
 
+
+
 def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
   """
   Directly pull model 2 conflicts from the elaborated dependency data.
@@ -64,7 +64,7 @@ def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
   False.
 
   """
-  logger = resolver.logging.getLogger( \
+  logger = depresolve.logging.getLogger( \
       'resolvability.detect_model_2_conflict_from_distkey')
 
   candidates = fully_satisfy_strawman1(distkey, edeps, versions_by_package)
@@ -89,25 +89,107 @@ def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
 
 
 
-def find_dists_matching_packname(packname, distkey_set):
+
+
+def dist_lists_are_equal(distlist1, distlist2):
   """
-  Given a package name packname (e.g. django) and a set of distkeys (e.g.
-  ['django(1.8.3)', 'foo(1)', 'mysql-python(1.1.1)']), returns the set of dists
-  in that set that matches the package name given. In the case given, returns
+  Returns True if the two given lists of dists are equal - that is, if they
+  contain all the same versions of the same packages. No dist may exist in only
+  one list and not the other.
+
+  This function may fail if there are multiple versions of the same package in
+  a single list.
+
+  Version equality is not simply string matching, but equality of pip's
+  Version objects. (This treats v 2 as the same as v 2.0.0, for example.)
+
+  Runtime: O(N^2)
+  """
+
+  if len(distlist1) != len(distlist2):
+    print('dist lists do not have the same length and so are not equal.')
+    return False
+
+
+  # Convert to [  (nameA, verA), (nameB, verB), (nameC, verC)  ] format for
+  # code convenience below.
+  dists1 = []
+  dists2 = []
+  for distkey in distlist1:
+    (pack, ver) = deptools.get_pack_and_version(distkey)
+    dists1.append( (pack, ver) )
+  for distkey in distlist2:
+    (pack, ver) = deptools.get_pack_and_version(distkey)
+    dists2.append( (pack, ver) )
+
+
+  # Do the check for list1 vs list2 as well as list2 vs list1.
+  for (thislist, otherlist) in [ (dists1, dists2), (dists2, dists1) ]:
+
+    for (pack, ver) in thislist:
+      # Easy case positive, where it exists with same version string:
+      if (pack, ver) in otherlist:
+        # We don't need to worry about multiples, as that is covered by the
+        # other checks combined with the matching lengths.
+        continue
+
+      # Items in otherlist that have same package name as current item in
+      # thislist.
+      possible_matches = [v for (p, v) in otherlist if p == pack]
+
+      # Easy case negative, where there's no dist of the same pack name in the
+      # other set:
+      if not possible_matches:
+        print('This list contains "' + pack + '(' + ver + ')", but other list '
+            'contains no dists of pack "' + pack + '". Lists not equal.')
+        return False
+
+      # Okay, we're in the harder case. There's at least one possible match,
+      # but none of their versions are literal string matches. We have to make
+      # sure that (at least) one of them has the same effective version.
+      
+      match_found = False
+
+      for match_ver in possible_matches:
+        if deptools.versions_are_equal(ver, match_ver):
+          match_found = True
+          break
+
+      if not match_found:
+        # If we haven't continued by the end of that for loop, then there is no
+        # matching version of (pack,ver) from thislist in otherlist, so the
+        # lists are not equal.
+        return False
+
+      # else continue to the next dist to check a match for in thislist.
+
+  return True # Unable to find mismatch
+
+
+
+
+def find_dists_matching_packname(packname, distkey_list):
+  """
+  Given a package name packname (e.g. django) and a list of distkeys (e.g.
+  ['django(1.8.3)', 'foo(1)', 'mysql-python(1.1.1)']), returns the distkeys
+  in that set that match the package name given. In the case given, returns
   'django(1.8.3)'.
 
-  Returns [] if none match (that is, if the set of distributions does not
+  Returns [] if none match (that is, if the list of distributions does not
   include a distribution of the given package).
 
   Runtime: O(N)
   """
   matched_dists = []
 
-  for distkey in distkey_set:
+  for distkey in distkey_list:
     if packname == deptools.get_packname(distkey):
       matched_dists.append(distkey)
   
   return matched_dists
+
+
+
 
 
 def conflicts_with(distkey, distkey_set):
@@ -124,12 +206,30 @@ def conflicts_with(distkey, distkey_set):
   """
   (packname, version) = deptools.get_pack_and_version(distkey)
 
-  matched_dists = find_dists_matching_packname(packname, distkey_set)
+  # For more accurate version equality testing:
+  pipified_version = pip._vendor.packaging.version.Version(version)
 
-  competing_candidates = \
-      [dist for dist in matched_dists if dist != distkey]
+  # Find all matches for this distkey's package name in the given distkey_set
+  # that are not the same literal distkey as this distkey.
+  possible_competitors = \
+      [dist for dist in find_dists_matching_packname(packname, distkey_set)
+      if dist != distkey]
+
+
+  # Check each possible conflict to be sure it's not actually the same version
+  # (e.g. recognize version '2' as the same as version '2.0')
+  competing_candidates = []
+  for competitor_dist in possible_competitors:
+
+    if not deptools.versions_are_equal(version, 
+        deptools.get_version(competitor_dist)):
+
+      competing_candidates.append(competitor_dist)
 
   return competing_candidates
+
+
+
 
 
 def detect_direct_conflict(candidates):
@@ -141,7 +241,7 @@ def detect_direct_conflict(candidates):
 
   Runtime: O(N^2)
   """
-  logger = resolver.logging.getLogger('resolvability.detect_direct_conflict')
+  logger = depresolve.logging.getLogger('resolvability.detect_direct_conflict')
 
   logger.debug("Running with candidates: " + str(candidates))
 
@@ -166,7 +266,7 @@ def combine_candidate_sets(orig_candidates, addl_candidates):
   combined = list(set(orig_candidates + addl_candidates)) # unique
 
   # if detect_direct_conflict(combined):
-  #   raise resolver.ConflictingVersionError("Found conflict in the sets: " +
+  #   raise depresolve.ConflictingVersionError("Found conflict in the sets: " +
   #     str(orig_candidates) + " and " + str(addl_candidates))
 
   # else:
@@ -195,7 +295,7 @@ def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package):
       depender_distkey
   """
 
-  logger = resolver.logging.getLogger('resolvability.fully_satisfy_strawman1')
+  logger = depresolve.logging.getLogger('resolvability.fully_satisfy_strawman1')
 
   my_edeps = edeps[depender_distkey]
   if not my_edeps: # if no dependencies, return empty set
@@ -207,12 +307,13 @@ def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package):
     satisfying_packname = edep[0]
     satisfying_versions = edep[1]
     if not satisfying_versions:
-      raise resolver.NoSatisfyingVersionError("Dependency of " +
+      raise depresolve.NoSatisfyingVersionError("Dependency of " +
         depender_distkey + " on " + satisfying_packname + " with specstring " +
         edep[2] + " cannot be satisfied: no versions found in elaboration "
         "attempt.")
     chosen_version = sort_versions(satisfying_versions)[0] # grab first
-    chosen_distkey = deptools.get_distkey(satisfying_packname, chosen_version)
+    chosen_distkey = \
+        deptools.distkey_format(satisfying_packname, chosen_version)
     satisfying_candidate_set.append(chosen_distkey)
 
     # Now recurse.
@@ -249,15 +350,13 @@ def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package,
       depender_distkey, including depender_distkey
   """
 
-  logger = resolver.logging.getLogger('resolvability.fully_satisfy_strawman2')
-  resolver.logging.basicConfig(level=resolver.logging.DEBUG) # filename='resolver.log'
-
+  logger = depresolve.logging.getLogger('resolvability.fully_satisfy_strawman2')
 
   my_edeps = edeps[depender_distkey] # my elaborated dependencies
   satisfying_candidate_set = [depender_distkey] # Start with ourselves.
 
   if not my_edeps: # if no dependencies, return only ourselves
-    logger.info('    '*depth + depender_distkey + ' had no dependencies. '
+    logger.debug('    '*depth + depender_distkey + ' had no dependencies. '
         'Returning just it.')
     return satisfying_candidate_set
 
@@ -269,19 +368,19 @@ def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package,
     chosen_version = None
 
     if not satisfying_versions:
-      raise resolver.NoSatisfyingVersionError('Dependency of ' +
+      raise depresolve.NoSatisfyingVersionError('Dependency of ' +
           depender_distkey + ' on ' + satisfying_packname + ' with specstring '
           + edep[2] + ' cannot be satisfied: no versions found in elaboration '
           'attempt.')
 
-    logger.info('    '*depth + 'Dependency of ' + depender_distkey + ' on ' + 
+    logger.debug('    '*depth + 'Dependency of ' + depender_distkey + ' on ' + 
         satisfying_packname + ' with specstring ' + edep[2] + ' is satisfiable'
         ' with these versions: ' + str(satisfying_versions))
 
     for candidate_version in sort_versions(satisfying_versions):
-      logger.info('    '*depth + '  Trying version ' + candidate_version)
+      logger.debug('    '*depth + '  Trying version ' + candidate_version)
 
-      candidate_distkey = deptools.get_distkey(satisfying_packname,
+      candidate_distkey = deptools.distkey_format(satisfying_packname,
           candidate_version)
 
       # Would the addition of this candidate result in a conflict?
@@ -294,18 +393,18 @@ def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package,
 
       if detect_direct_conflict(combined_satisfying_candidate_set):
         # If this candidate version conflicts, try the next.
-        logger.info('    '*depth + '  ' + candidate_version + ' conflicted. '
+        logger.debug('    '*depth + '  ' + candidate_version + ' conflicted. '
             'Trying next.')
         continue
       else: # save the new candidates
         chosen_version = candidate_version
         satisfying_candidate_set = combined_satisfying_candidate_set
-        logger.info('    '*depth + '  ' + candidate_version + ' fits. Next '
+        logger.debug('    '*depth + '  ' + candidate_version + ' fits. Next '
             'dependency.')
         break
 
     if chosen_version is None:
-      raise resolver.UnresolvableConflictError('Dependency of ' + 
+      raise depresolve.UnresolvableConflictError('Dependency of ' + 
           depender_distkey + ' on ' + satisfying_packname + ' with specstring '
           + edep[2] + ' cannot be satisfied: versions found, but none had 0 '
           'conflicts.')
@@ -362,9 +461,7 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
 
   """
 
-  logger = resolver.logging.getLogger('resolvability.backtracking_satisfy')
-  resolver.logging.basicConfig(level=resolver.logging.DEBUG) # filename='resolver.log'
-
+  logger = depresolve.logging.getLogger('resolvability.backtracking_satisfy')
 
   # (Not sure this check is necessary yet, but we'll see.)
   if conflicts_with(distkey_to_satisfy, _candidates):
@@ -374,7 +471,7 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
     #   str(_candidates) + " as candidates to install already.")
     #   " a different version of me! I'm: " + distkey_to_satisfy + "; you had " +
     #   str(_candidates) + " as candidates to install already.")
-    # raise resolver.ConflictingVersionError("Can't install me! You already have"
+    # raise depresolve.ConflictingVersionError("Can't install me! You already have"
     #   " a different version of me! I'm: " + distkey_to_satisfy + "; you had " +
     #   str(_candidates) + " as candidates to install already.")
 
@@ -403,7 +500,7 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
   my_edeps = edeps[distkey_to_satisfy] # my elaborated dependencies
 
   if not my_edeps: # if no dependencies, return only what's already listed
-    logger.info('    '*_depth + distkey_to_satisfy + ' had no dependencies. '
+    logger.debug('    '*_depth + distkey_to_satisfy + ' had no dependencies. '
         'Returning just it.')
     return satisfying_candidate_set, [], ''
 
@@ -415,12 +512,12 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
     chosen_version = None
 
     if not satisfying_versions:
-      raise resolver.NoSatisfyingVersionError('Dependency of ' +
+      raise depresolve.NoSatisfyingVersionError('Dependency of ' +
           distkey_to_satisfy + ' on ' + satisfying_packname + ' with '
           'specstring ' + edep[2] + ' cannot be satisfied: no versions found '
           'in elaboration attempt.')
 
-    logger.info('    '*_depth + 'Dependency of ' + distkey_to_satisfy + ' on ' 
+    logger.debug('    '*_depth + 'Dependency of ' + distkey_to_satisfy + ' on ' 
         + satisfying_packname + ' with specstring ' + edep[2] + ' is '
         'satisfiable with these versions: ' + str(satisfying_versions))
 
@@ -439,14 +536,14 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
           deptools.get_version(preexisting_dist_of_this_package)
 
       if preexisting_version in satisfying_versions:
-        logger.info('    '*_depth + 'Dependency of ' + distkey_to_satisfy +
+        logger.debug('    '*_depth + 'Dependency of ' + distkey_to_satisfy +
             ' on ' + satisfying_packname + ' with specstring ' + edep[2] +
             ' is already satisfied by pre-existing candidate ' +
             preexisting_dist_of_this_package + '. Next dependency.')
         continue
 
       else:
-        raise resolver.ConflictingVersionError('Dependency of ' +
+        raise depresolve.ConflictingVersionError('Dependency of ' +
           distkey_to_satisfy + ' on ' + satisfying_packname + ' with '
           'specstring ' + edep[2] + ' conflicts with a pre-existing distkey in'
           ' the list of candidates to install: ' +
@@ -455,16 +552,16 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
 
     for candidate_version in sort_versions(satisfying_versions):
 
-      candidate_distkey = deptools.get_distkey(satisfying_packname,
+      candidate_distkey = deptools.distkey_format(satisfying_packname,
           candidate_version)
 
       if candidate_distkey in _conflicting_distkeys:
-        logger.info('    '*_depth + '  Skipping version ' + candidate_version +
-            '(' + candidate_distkey + '): already in _conflicting_distkeys.')
+        logger.debug('    '*_depth + '  Skipping version ' + candidate_version
+            + '(' + candidate_distkey + '): already in _conflicting_distkeys.')
         continue
  
       # else try this version.
-      logger.info('    '*_depth + '  Trying version ' + candidate_version)
+      logger.debug('    '*_depth + '  Trying version ' + candidate_version)
 
 
       # Would the addition of this candidate result in a conflict?
@@ -478,8 +575,9 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
             versions_by_package, _depth+1, satisfying_candidate_set)
 
       # I don't know that I should be catching both. Let's see what happens.
-      except (resolver.ConflictingVersionError, resolver.UnresolvableConflictError):
-        logger.info('    '*_depth + '  ' + candidate_version + ' conflicted. '
+      except (depresolve.ConflictingVersionError,
+          depresolve.UnresolvableConflictError):
+        logger.debug('    '*_depth + '  ' + candidate_version + ' conflicted. '
             'Trying next.')
         my_conflicting_distkeys.append(candidate_distkey)
         continue
@@ -502,13 +600,13 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
         dotgraph += dot_sanitize(deptools.get_packname(distkey_to_satisfy)) + \
             ' -> ' + dot_sanitize(satisfying_packname) + ';\n' + child_dotgraph
         
-        logger.info('    '*_depth + '  ' + candidate_version + ' fits. Next '
+        logger.debug('    '*_depth + '  ' + candidate_version + ' fits. Next '
             'dependency.')
         break
 
 
     if chosen_version is None:
-      raise resolver.UnresolvableConflictError('Dependency of ' + 
+      raise depresolve.UnresolvableConflictError('Dependency of ' + 
           distkey_to_satisfy + ' on ' + satisfying_packname +
           ' with specstring ' + edep[2] + ' cannot be satisfied: versions '
           'found, but none had 0 conflicts.')

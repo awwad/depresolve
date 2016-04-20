@@ -19,6 +19,11 @@ import depresolve.resolver.resolvability as ry # backtracking solver
 
 from tests.testdata import *
 
+logger = depresolve.logging.getLogger('test_resolvability')
+
+DEPS_SERIOUS = None
+EDEPS_SERIOUS = None
+VERSIONS_BY_PACKAGE = None
 
 
 def main():
@@ -28,33 +33,121 @@ def main():
   # Auxiliary test data (very large). Moving into main() so it doesn't slow
   # down anything that imports it.
 
+  global DEPS_SERIOUS
+  global EDEPS_SERIOUS
+  global VERSIONS_BY_PACKAGE
+
   DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies.json')
   EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
   VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
 
 
+  # Test resolvability.conflicts_with, which is used in the resolver.
+  test_conflicts_with()
+
+  # Test resolvability.dist_lists_are_equal, which is used in testing.
+  test_dist_lists_are_equal()
+
   # Should move away from this, but it's a serviceable set of regression tests
   # for now.
   test_old_resolver_suite() 
+
 
   # We expected the current version of backtracking_satisfy to fail on the 2nd
   # through 4th calls.
   # Hopefully, it can now work properly. (Nope - switching expectation back
   # to failure. May skip fixing. Have moved on to SAT via depsolver.)
+  successes = []
 
-  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE)
+  successes.append(test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE_SOLUTION,
+      'X(1)', DEPS_SIMPLE))
 
-  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE2_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE2, expected_exception=resolver.UnresolvableConflictError)
+  successes.append(test_resolver(ry.backtracking_satisfy,
+      DEPS_SIMPLE2_SOLUTION, 'X(1)', DEPS_SIMPLE2,
+      expected_exception=depresolve.UnresolvableConflictError))
 
-  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE3_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE3, expected_exception=resolver.UnresolvableConflictError)
+  successes.append(test_resolver(ry.backtracking_satisfy,
+      DEPS_SIMPLE3_SOLUTION, 'X(1)', DEPS_SIMPLE3,
+      expected_exception=depresolve.UnresolvableConflictError))
 
-  test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE4_SOLUTION, 'X(1)', 
-    DEPS_SIMPLE4, expected_exception=resolver.UnresolvableConflictError)
+  successes.append(test_resolver(ry.backtracking_satisfy,
+      DEPS_SIMPLE4_SOLUTION, 'X(1)', DEPS_SIMPLE4,
+      expected_exception=depresolve.UnresolvableConflictError))
 
-  print("Tests successful. (:")
+  assert False not in [success for success in successes], \
+      "Some tests failed! Results are: " + str(successes)
+
+  logger.info("All tests in main() successful. (: (:")
+
+
+
+
+
+def test_dist_lists_are_equal():
+  """Tests resolvability.dist_lists_are_equal."""
+
+  test_sets = [
+      (
+        True,   # Expect this result
+        [],     # from comparing this list
+        []      # to this list
+      ),
+
+      (True, ['django(1.8)', 'foo(1.0.0)'], ['django(1.8.0)', 'foo(1)']),
+      (False, ['bar(1)'], ['bar(1.0.1)']),
+      (True, ['barry(3.5)'], ['barry(3.5)']),
+      (False, ['onevsempty(2)'], []),
+      (False, [], ['twovsempty(1)']),
+      (False, ['diffver(1.3)'], ['diffver(1.4)']),
+      (False, ['foo(1.0.0)', 'bar(2.0)'], ['bat(1.0.0)', 'bar(2.0)']),
+      (False, ['foo(1)'], ['bar(1)'])
+  ]
+
+  for (expected, list1, list2) in test_sets:
+    assert expected == ry.dist_lists_are_equal(list1, list2), \
+        'Test failed - function resolvability.dist_lists_are_equal returned' +\
+        ' unexpected answer. Lists were:\n' + str(list1) + '\n' + str(list2)
+
+  logger.info('Tests successful. (:')
+  return True
+
+
+
+
+
+def test_conflicts_with():
+  """Tests resolvability.conflicts_with."""
+
+  test_sets = [
+    (
+      [],                  # Expect this result
+      'A(1.5)',            # from checking for conflicts between this distkey
+      ['A(1.5)', 'B(2)'],  # and this list of distkeys
+    ),
+    ( ['A(2)'], 'A(1)', ['A(2)'] ),
+    ( [], 'Z(5.5.1)', [] ),
+    ( [], 'bat(2.6)', ['foo(1.0.0)', 'bar(2.0)'] ),
+    ( [], 'D(1)', ['D(1.0)'] ),
+    ( [], 'D(1)', ['D(1.0.0)'] ),
+    ( [], 'D(1.0.0)', ['D(1.0)'] ),
+    ( [], 'D(1.0.0)', ['D(1)'] ),
+    ( [], 'D(1.0.0)', ['D(1.0.0)'] ),
+    ( ['D(1)'], 'D(1.0.1)', ['D(1)'] ),
+    ( ['g(3.4.1)', 'g(3.2)'], 'g(1.04.3)',
+      ['g(1.04.3)', 'g(3.4.1)', 'g(3.2)'] ),
+
+  ]
+
+  for (expected, distkey, dlist) in test_sets:
+    assert expected == ry.conflicts_with(distkey, dlist), \
+        'Test failed - function resolvability.conflicts_with returned' +\
+        ' unexpected answer. Args were:\n' + distkey+ '\n' + str(dlist)
+
+  logger.info('Tests successful. (:')
+  return True
+
+
+
 
 
 
@@ -101,33 +194,32 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
 
   except Exception as e:
     if expected_exception is None or type(e) is not expected_exception:
-      print('Unexpectedly unable to resolve ' + distkey)
+      logger.exception('Unexpectedly unable to resolve ' + distkey)
       raise
       #return False
     else:
       # We expected this error.
-      print('As expected, unable to resolve ' + distkey + ' due to ' +
+      logger.info('As expected, unable to resolve ' + distkey + ' due to ' +
           str(type(e)) + '.')
-      print('  Exception caught: ' + e.args[0])
+      logger.info('  Exception caught: ' + e.args[0])
       return True
 
   else:
-    print('Resolved ' + distkey + '. Solution: ' + str(solution))
+    logger.info('Resolved ' + distkey + '. Solution: ' + str(solution))
     if dotstrings is not None: # If the func provides dotstrings
       fobj = open('data/resolver/test_resolver_' + resolver_func.__name__ +
           '_' + distkey + '.dot', 'w')
       fobj.write('digraph G {\n' + dotstrings + '}\n')
       fobj.close()
 
-    # TODO: This test has to be more elaborate. See docstring above. Better
-    # version string testing is necessary.
-    if sorted(solution) == sorted(expected_result):
-      print('Solution is as expected.')
+    # Is the solution set as expected?
+    if ry.dist_lists_are_equal(solution, expected_result):
+      logger.info('Solution is as expected.')
       return True
     else:
-      print('Solution does not match! Expected:')
-      print('    Expected: ' + str(sorted(expected_result)))
-      print('    Produced: ' + str(sorted(solution)))
+      logger.info('Solution does not match! Expected:')
+      logger.info('    Expected: ' + str(sorted(expected_result)))
+      logger.info('    Produced: ' + str(sorted(solution)))
       return False
 
 
@@ -146,7 +238,7 @@ def test_old_resolver_suite():
   res_test6()
   res_test7()
   res_test8()
-  print("test_resolver_suite(): All resolvability tests OK. (:")
+  logger.info("test_resolver_suite(): All resolvability tests OK. (:")
 
 
 def res_test1():
@@ -169,7 +261,7 @@ def res_test1():
   expected_result = ['3']
   assert expected_result == satisfying_versions, \
       "Expected one satisfying version: '3'. Got: " + str(satisfying_versions)
-  print("test_resolver(): Test 1 OK.")
+  logger.info("test_resolver(): Test 1 OK.")
 
 
 
@@ -189,7 +281,7 @@ def res_test2():
       "Expected the strawman solution to X(1)'s dependencies to be " + \
       str(expected_result) + ", sorted, but got instead: " + \
       str(sorted(satisfying_set))
-  print("test_resolver(): Test 2 OK.")
+  logger.info("test_resolver(): Test 2 OK.")
 
 
 
@@ -202,7 +294,7 @@ def res_test3():
   assert ry.detect_model_2_conflict_from_distkey(
       'motorengine(0.7.4)', edeps, versions_by_package
   ), "Did not detect model 2 conflict for motorengine(0.7.4). ): "
-  print("test_resolver(): Test 3 OK.")
+  logger.info("test_resolver(): Test 3 OK.")
 
 
 
@@ -221,7 +313,7 @@ def res_test4():
       "Expected the strawman solution to X(1)'s dependencies to be " + \
       str(expected_result) + ", sorted, but got instead: " + \
       str(sorted(satisfying_set))
-  print("test_resolver(): Test 4 OK.")
+  logger.info("test_resolver(): Test 4 OK.")
 
 
 
@@ -252,7 +344,7 @@ def res_test5():
       "Expected the strawman solution to motorengine(0.7.4)'s dependencies " \
       " to be " + str(expected_result) + ", sorted, but got instead: " + \
       str(sorted(satisfying_set))
-  print("test_resolver(): Test 5 OK.")
+  logger.info("test_resolver(): Test 5 OK.")
 
 
 def res_test6():
@@ -275,12 +367,12 @@ def res_test6():
     try:
       solutions[distkey] = \
           ry.fully_satisfy_strawman2(distkey, edeps, versions_by_package)
-      print("Resolved: " + distkey)
-    except resolver.UnresolvableConflictError:
+      logger.debug("Resolved: " + distkey)
+    except depresolve.UnresolvableConflictError:
       solutions[distkey] = -1
-      print("Unresolvable: " + distkey)
+      logger.debug("Unresolvable: " + distkey)
 
-  print("test_resolver(): Text 6 completed, at least. (:")
+  logger.info("test_resolver(): Text 6 completed, at least. (:")
 
   # json.dump(solutions, open('data/resolver/con3_solutions_via_strawman2.json', 'w'))
 
@@ -305,7 +397,7 @@ def res_test7():
       " to be " + str(expected_result) + ", sorted, but got instead: " + \
       str(sorted(satisfying_set))
   
-  print("test_resolver(): Test 7 OK. (:")
+  logger.info("test_resolver(): Test 7 OK. (:")
 
 
 
@@ -334,11 +426,11 @@ def res_test8():
     try:
       (solutions[distkey], _junk_, dotstrings[distkey]) = \
           ry.backtracking_satisfy(distkey, edeps, versions_by_package)
-      print('Resolved: ' + distkey)
-    except resolver.UnresolvableConflictError:
+      logger.debug('Resolved: ' + distkey)
+    except depresolve.UnresolvableConflictError:
       solutions[distkey] = -1
       dotstrings[distkey] = ''
-      print('Unresolvable: ' + distkey)
+      logger.debug('Unresolvable: ' + distkey)
 
   n_unresolvable = len(
       [distkey for distkey in solutions if solutions[distkey] == -1])
@@ -363,7 +455,7 @@ def res_test8():
   json.dump(solutions, fobj)
   fobj.close()
 
-  print("test_resolver(): Test 8 OK (: (: (:")
+  logger.info("test_resolver(): Test 8 OK (: (: (:")
 
 
 
@@ -384,11 +476,11 @@ def res_test9():
     try:
       (solutions[distkey], _junk_, dotstrings[distkey]) = \
           ry.backtracking_satisfy(distkey, edeps, versions_by_package)
-      print('Resolved: ' + distkey)
-    except resolver.UnresolvableConflictError:
+      logger.debug('Resolved: ' + distkey)
+    except depresolve.UnresolvableConflictError:
       solutions[distkey] = -1
       dotstrings[distkey] = ''
-      print('Unresolvable: ' + distkey)
+      logger.debug('Unresolvable: ' + distkey)
 
   n_unresolvable = len(
       [distkey for distkey in solutions if solutions[distkey] == -1])
@@ -409,7 +501,13 @@ def res_test9():
   assert 0 == n_unresolvable, 'Expect 3 unresolvable conflicts. Got ' + \
       str(n_unresolvable) + ' instead. ):'
 
-  print("test_resolver(): Test 9 OK. (:")
+  logger.info("test_resolver(): Test 9 OK. (:")
 
 
 
+
+
+
+
+if __name__ == '__main__':
+  main()

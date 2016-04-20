@@ -79,8 +79,7 @@ Example usage:
 import depresolve # __init__ for errors
 import os      # for path joins
 import json    # the dependency db we'll read is in a json
-import logging
-logging.basicConfig(filename='resolver.log',level=logging.DEBUG)
+
 import pip._vendor.packaging.specifiers # for SpecifierSet for version parsing
 
 import depresolve.sql_i as sqli # depresolve's sqlite3 interface
@@ -127,7 +126,7 @@ def populate_sql_with_dependency_specifiers(
   db with a format more amenable to pip and tidier that I think I'll use in the
   future.
   """
-  log = logging.getLogger('populate_sql_with_dependency_specifiers')
+  log = depresolve.logging.getLogger('populate_sql_with_dependency_specifiers')
   log.info("Initializing db")
 
   # Initialize the sqlite3 database that will be populated with dependency
@@ -168,7 +167,7 @@ def populate_sql_with_full_dependency_info(
   """
   (Write this docstring last.)
   """
-  log = logging.getLogger('populate_sql_with_full_dependency_info')
+  log = depresolve.logging.getLogger('populate_sql_with_full_dependency_info')
 
   log.info("Initializing db")
 
@@ -326,12 +325,8 @@ def elaborate_dependencies(deps, versions_by_package):
        _generate_dict_versions_by_package()
        For this docstring's example, we start with deps containing an entry:
        deps['codegrapher(0.1.1)']  = [
-           [ 'click', [
-                        ['>=', '1.0'],
-                        ['<',  '4.1']
-                      ]
-           ],
-           [ 'graphviz', [] ],
+           [ 'click', '>=1.0,<4.1'],
+           [ 'graphviz', '' ],
        ]
 
     2. versions_by_package, a dictionary of all dists keyed by package name.
@@ -371,7 +366,7 @@ def elaborate_dependencies(deps, versions_by_package):
        information on the available versions).
   """
 
-  log = logging.getLogger('elaborate_dependencies')
+  log = depresolve.logging.getLogger('elaborate_dependencies')
 
   deps_elaborated = dict()
 
@@ -447,10 +442,8 @@ def _elaborate_dependency(dep, versions_by_package):
                 1. operator ('>', '>=', '==', '<', '<=', or ''
                 2. version (e.g. '1.4')
        e.g.: for a dependency on a version of motor between 0.4.0 and 0.6.6:
-         ('motor',                  # The package name
-           [  [ '>', '0.4.0' ],     # specifier: versions > 0.4.0
-              [ '<', '0.6.6' ]      # specifier: versions < 0.6.6
-           ]
+         ('motor',                # package name
+          '>0.4.0,<0.6.6' ]     # specifier string
          )
         indicating: depends on motor, version > 0.4.0 and < 0.6.6
 
@@ -476,19 +469,15 @@ def _elaborate_dependency(dep, versions_by_package):
 
     3. A dependency specifier string characterizing the version range for this
        dependency, in the format required by pip._vendor.packaging.specifiers.
+       (Now the same as the specifier string from argument dep above)
        e.g.:
          '>0.4.0,<0.6.6'
 
-    Note that item 3 is somewhat redundant and provided for convenience/debug.
-
   """
-
-  #log = logging.getLogger('_elaborate_dependency')
-
   # Interpret the dependency as a package name and SpecifierSet.
   satisfying_packagename = dep[0]
-  list_of_spec_tuples = dep[1]
-  (specset, specstring) = spectuples_to_specset(list_of_spec_tuples)
+  specstring = dep[1]
+  specset = pip._vendor.packaging.specifiers.SpecifierSet(specstring)
   # Now we have a SpecifierSet for this dependency.
 
   # One of the capabilities of pip's SpecifierSet is to filter a list of
@@ -527,6 +516,7 @@ def _elaborate_dependency(dep, versions_by_package):
 # pip-connecting utility functions
 def spectuples_to_specset(list_of_spectuples):
   """
+  This provides compatibility with an old format of dependency data.
 
   Arguments:
      1. A list of specifiers in the form of 2-tuples, operator and version.
@@ -558,6 +548,8 @@ def spectuples_to_specset(list_of_spectuples):
 
 def spectuples_to_specstring(list_of_spectuples):
   """
+  This provides compatibility with an old format of dependency data.
+
   See spectuples_to_specset for some more details.
 
   Given   [ ['>=', '2'], ['<', '4'] ]
@@ -622,6 +614,40 @@ def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
       dep in deps[distkey] if dep[0] == satisfying_pack][0] for \
       distkey in [distkey_format(depender_pack, version) for \
       version in versions_by_package[depender_pack]]]
+
+
+
+
+
+def versions_are_equal(v1, v2):
+  """
+  Given two versions, each either strings or pip Version objects
+  (pip._vendor.packaging.version.Version), returns True if both can be
+  interpreted as the same version, within pip's sense of version strings.
+
+  Raises (does not catch) pip._vendor.packaging.version.InvalidVersion if a
+  given version cannot be interpreted by pip (BUT only if the arguments are not
+  trivially identical to begin with, in which case doesn't bother with
+  with conversion to pip Version objects.
+  """
+  # Given objects of same type that are identical.
+  if type(v1) == type(v2) and v1 == v2:
+    return True
+
+  pipified1 = None
+  pipified2 = None
+
+  if type(v1) is pip._vendor.packaging.version.Version:
+    pipified1 = v1
+  else:
+    pipified1 = pip._vendor.packaging.version.Version(v1)
+
+  if type(v2) is pip._vendor.packaging.version.Version:
+    pipified2 = v2
+  else:
+    pipified2 = pip._vendor.packaging.version.Version(v2)
+
+  return pipified1 == pipified2
 
 
 

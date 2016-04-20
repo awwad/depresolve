@@ -15,6 +15,9 @@ import json
 ## for use in version parsing
 #from distutils.version import StrictVersion, LooseVersion 
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 # Globals for modified pip code to use.
 # These have to be before the imports below, to avoid circular issues.
 import depresolve.depdata as depdata
@@ -22,9 +25,6 @@ import depresolve.depdata as depdata
 from depresolve.depdata import get_version, get_packname
 from depresolve.depdata import distkey_format, get_pack_and_version
 
-
-import logging
-logging.basicConfig(level=logging.DEBUG)
 
 # Local resources
 BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'

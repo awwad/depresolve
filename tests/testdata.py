@@ -27,7 +27,7 @@ DEPS_SIMPLE_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'A(3)'])
 # If B is handled before C, we must backtrack to solve this
 # dependency conflict, as B2 will be chosen.
 DEPS_SIMPLE2 = {
-    'X(1)': [  ['B', []], ['C', []]],
+    'X(1)': [  ['B', ''], ['C', '']  ],
     'B(2)': [],
     'B(1)': [],
     'C(1)': [  ['B', '<=1']  ],
@@ -45,9 +45,9 @@ DEPS_SIMPLE3 = {
 DEPS_SIMPLE3_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'D(1)'])
 
 DEPS_SIMPLE4 = {
-    'X(1)': [  ['B', []], ['C', []]],
-    'B(1)': [  ['E', []]  ],
-    'C(1)': [  ['D', []]  ],
+    'X(1)': [  ['B', ''], ['C', '']  ],
+    'B(1)': [  ['E', '']  ],
+    'C(1)': [  ['D', '']  ],
     'D(1)': [  ['E', '==1']  ],
     'E(1)': [],
     'E(2)': []
@@ -111,7 +111,7 @@ DEPS_MODEL2 = {
 }
 
 DEPS_MODERATE = {
-    'X(1)': [  ['B', []], ['C', []]],
+    'X(1)': [  ['B', ''], ['C', '']],
     'B(1)': [  ['A', '>=2,<4']  ],
     'C(1)': [  ['A', '==3']  ],
     'A(1)': [],

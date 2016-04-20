@@ -34,6 +34,7 @@ import depsolver # external
 
 import pip._vendor.packaging.specifiers # for SpecifierSet
 
+logger = depresolve.logging.getLogger('depsolver_integrate')
 
 
 #########################################################
@@ -181,7 +182,7 @@ def convert_packname_from_depsolver(depsolver_packname):
   Revert from depsolver's package name format to that expected by pip and my
   code. (Reverses the package name part of convert_distkey_for_depsolver.)
   """
-  return depsolver_packname.replace('-', '_')
+  return depsolver_packname.replace('_', '-')
 
 
 
@@ -243,7 +244,7 @@ def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
     my_ds_deps = my_ds_deps[:-2]
 
     ds_packageinfostr += '; depends (' + my_ds_deps + ')'
-    print('convert_dist_to_packageinfo_for_depsolver produced: ' +
+    logger.debug('convert_dist_to_packageinfo_for_depsolver produced: ' +
         ds_packageinfostr)
 
   #import ipdb
@@ -341,7 +342,8 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None):
         depsolver.Solver(pool, installed_repo).solve(request)]
 
   except NotImplementedError, e: # Sadly, this is what depsolver throws.
-    print("Caught NotImplementedError from depsolver: \n" + str(e.args) + "\n")
+    logger.debug("Caught NotImplementedError from depsolver: \n" +
+        str(e.args) + "\n")
     raise depresolve.UnresolvableConflictError('Unable to resolve conflict '
         'via depsolver SAT solver. Presume that the distribution ' + distkey +
         ' has an unresolvable conflict.')

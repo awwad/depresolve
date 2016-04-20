@@ -23,7 +23,7 @@ def main():
   """
   test_deptools()
 
-  print("Tests successful. (:")
+  print("All tests in main() OK (:")
 
 
 def test_deptools():
@@ -86,7 +86,7 @@ def test_deptools():
       edeps, versions_by_package, packs_wout_avail_version_info, 
       dists_w_missing_dependencies, db_fname='data/test_dependencies.db')
 
-  print("test_deptools(): Tests OK.")
+  print("test_deptools(): All tests OK.")
 
 
 
