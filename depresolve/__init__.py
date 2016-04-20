@@ -1,6 +1,6 @@
 
 import logging
-logging.basicConfig(level=logging.DEBUG) # filename='resolver.log'
+logging.basicConfig(level=logging.INFO) # filename='resolver.log'
 
 class NoSatisfyingVersionError(Exception):
   pass
