@@ -17,29 +17,19 @@ import depresolve.deptools as deptools
 
 import depresolve.resolver.resolvability as ry # backtracking solver
 
-from tests.testdata import *
+# Don't from-import dynamic global variables, or target module globals don't
+# stay bound if the aliases are rebound.
+#from tests.testdata import *
+import tests.testdata as data
 
 logger = depresolve.logging.getLogger('test_resolvability')
-
-DEPS_SERIOUS = None
-EDEPS_SERIOUS = None
-VERSIONS_BY_PACKAGE = None
 
 
 def main():
   """
   """
-
-  # Auxiliary test data (very large). Moving into main() so it doesn't slow
-  # down anything that imports it.
-
-  global DEPS_SERIOUS
-  global EDEPS_SERIOUS
-  global VERSIONS_BY_PACKAGE
-
-  DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies.json')
-  EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
-  VERSIONS_BY_PACKAGE = deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
+  # Load the giant dictionary of scraped dependencies for DEPS_SERIOUS etc.
+  data.ensure_full_data_loaded()
 
 
   # Test resolvability.conflicts_with, which is used in the resolver.
@@ -63,15 +53,15 @@ def main():
       'X(1)', DEPS_SIMPLE))
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      DEPS_SIMPLE2_SOLUTION, 'X(1)', DEPS_SIMPLE2,
+      data.DEPS_SIMPLE2_SOLUTION, 'X(1)', data.DEPS_SIMPLE2,
       expected_exception=depresolve.UnresolvableConflictError))
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      DEPS_SIMPLE3_SOLUTION, 'X(1)', DEPS_SIMPLE3,
+      data.DEPS_SIMPLE3_SOLUTION, 'X(1)', data.DEPS_SIMPLE3,
       expected_exception=depresolve.UnresolvableConflictError))
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      DEPS_SIMPLE4_SOLUTION, 'X(1)', DEPS_SIMPLE4,
+      data.DEPS_SIMPLE4_SOLUTION, 'X(1)', data.DEPS_SIMPLE4,
       expected_exception=depresolve.UnresolvableConflictError))
 
   assert False not in [success for success in successes], \
@@ -243,7 +233,7 @@ def test_old_resolver_suite():
 
 def res_test1():
   # TEST 1: Test satisfy_immediate_dependencies
-  deps = DEPS_SIMPLE
+  deps = data.DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
   specstring_B1_for_A = '>=2,<4'
@@ -266,7 +256,7 @@ def res_test1():
 
 
 def res_test2():
-  deps = DEPS_SIMPLE
+  deps = data.DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
   # TEST 2: Test fully_satisfy_strawman1 (during development)
@@ -287,7 +277,7 @@ def res_test2():
 
 def res_test3():
   # TEST 3: Detection of model 2 conflicts.
-  deps = DEPS_MODEL2
+  deps = data.DEPS_MODEL2
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
       deptools.elaborate_dependencies(deps, versions_by_package)
@@ -300,7 +290,7 @@ def res_test3():
 
 def res_test4():
   # TEST 4: Test fully_satisfy_strawman2 (during development)
-  deps = DEPS_SIMPLE
+  deps = data.DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
       deptools.elaborate_dependencies(deps, versions_by_package)
@@ -320,12 +310,12 @@ def res_test4():
 def res_test5():
   # TEST 5: Test fully_satisfy_strawman2 (during development)
   #         on a slightly more complex case.
-  deps = DEPS_MODEL2
+  deps = data.DEPS_MODEL2
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
   # (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
   #     deptools.elaborate_dependencies(deps, versions_by_package)
 
-  edeps = EDEPS_SERIOUS
+  edeps = data.EDEPS_SERIOUS
 
   satisfying_set = \
       ry.fully_satisfy_strawman2('motorengine(0.7.4)', edeps,
@@ -351,9 +341,10 @@ def res_test6():
   # TEST 6: Let's get serious (:
   #con3_json = json.load(open('data/conflicts_3.json','r'))
   #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
-  deps = DEPS_SERIOUS
-  edeps = EDEPS_SERIOUS
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
+  data.ensure_full_data_loaded()
+  deps = data.DEPS_SERIOUS
+  edeps = data.EDEPS_SERIOUS
+  versions_by_package = data.VERSIONS_BY_PACKAGE#deptools.generate_dict_versions_by_package(deps)
   solutions = dict()
 
   artificial_set = [ # These come from the type 3 conflict results. (:
@@ -380,8 +371,9 @@ def res_test6():
 def res_test7():
 
   # TEST 7: Test fully_satisfy_backtracking (during development)
-  deps = DEPS_SERIOUS
-  edeps = EDEPS_SERIOUS
+  data.ensure_full_data_loaded()
+  deps = data.DEPS_SERIOUS
+  edeps = data.EDEPS_SERIOUS
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
   (satisfying_set, _junk_, dotstrings) = \
@@ -403,9 +395,10 @@ def res_test7():
 
 
 def res_test8():
-  deps = DEPS_SERIOUS
-  edeps = EDEPS_SERIOUS
-  versions_by_package = VERSIONS_BY_PACKAGE
+  data.ensure_full_data_loaded()
+  deps = data.DEPS_SERIOUS
+  edeps = data.EDEPS_SERIOUS
+  versions_by_package = data.VERSIONS_BY_PACKAGE
 
   # "TEST" 8: Try test 6 with fully_satisfy_backtracking instead to compare.
   # Expect these conflicts to resolve.
@@ -461,9 +454,10 @@ def res_test8():
 
 def res_test9():
   # "TEST" 9: Try to resolve a conflict we know to be unresolvable.
-  deps = DEPS_SERIOUS
-  edeps = EDEPS_SERIOUS
-  versions_by_package = VERSIONS_BY_PACKAGE
+  data.ensure_full_data_loaded()
+  deps = data.DEPS_SERIOUS
+  edeps = data.EDEPS_SERIOUS
+  versions_by_package = data.VERSIONS_BY_PACKAGE
   solutions = dict()
   dotstrings = dict()
 

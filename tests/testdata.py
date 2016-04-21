@@ -12,6 +12,37 @@
 import depresolve
 import depresolve.deptools as deptools
 
+import json # not really ideal here...
+
+# Auxiliary test data (very large). Loaded by ensure_full_data_loaded().
+DEPS_SERIOUS = None
+EDEPS_SERIOUS = None
+VERSIONS_BY_PACKAGE = None
+
+
+def ensure_full_data_loaded():
+  """
+  Auxiliary test data (very large). Moving into an optional loading function
+  so that it doesn't slow down anything that needs any test data.
+  """
+  global DEPS_SERIOUS
+  global EDEPS_SERIOUS
+  global VERSIONS_BY_PACKAGE
+
+  if DEPS_SERIOUS is None:
+    DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies.json')
+
+  if EDEPS_SERIOUS is None:
+    EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
+
+  if VERSIONS_BY_PACKAGE is None:
+    VERSIONS_BY_PACKAGE = \
+        deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
+
+
+
+
+
 DEPS_SIMPLE = {
     'X(1)': [  ['B', ''], ['C', '']  ],
     'B(1)': [  ['A', '>=2,<4']  ],
