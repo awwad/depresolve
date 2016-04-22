@@ -623,13 +623,104 @@ def sort_versions(versions):
   Sort a list of versions such that they are ordered by most recent to least
   recent, with some prioritization based on which is best to install.
 
-  STUB FUNCTION. To be written properly.
-  Currently sorts reverse alphabetically, which is *clearly* wrong.
+  Instantiate all given objects as pip versions
+  (pip._vendor.packaging.version.Version) and then sort those, then spit back
+  the original strings associated with each in the sorted order.
+
+  This is used by backtracking_satisfy to prioritize version selection.
   """
-  return sorted(versions, reverse=True)
+
+  # Construct a list associating version string with pip version object.
+  pipified_versions = []
+  for v in versions:
+    pipified_versions.append((pip._vendor.packaging.version.Version(v), v))
+
+  # Sort that list in reverse order. (pip Versions have overriden comparisons,
+  # sort keys, etc.)
+  pipified_versions = sorted(pipified_versions, reverse=True)
+
+  # Return just the version strings, but in the correct order now.
+  return [v[1] for v in pipified_versions]
 
 
 
+
+
+
+def resolve_all_via_backtracking(dists_to_solve_for, edeps,
+    versions_by_package, fname_solutions, fname_errors, fname_unresolvables, ):
+  """
+  Try finding the install solution for every dist in the list given, using
+  dependency information from the given elaborated dependencies dictionary.
+
+  Write this out to a temporary json occasionally so as not to lose data
+  if the process is interrupted, as it very slow.
+
+  """
+
+  def _write_data_out(solutions, unable_to_resolve, unresolvables):
+    """THIS IS AN INNER FUNCTION WITHIN resolve_all_via_depsolver!"""
+    import json
+    print('')
+    print('------------------------')
+    print('--- Progress So Far: ---')
+    print('Solved: ' + str(len(solutions)))
+    print('Error while resolving: ' + str(len(unable_to_resolve)))
+    print('Unresolvable conflicts: ' + str(len(unresolvables)))
+    print('Saving progress to json.')
+    print('------------------------')
+    print('')
+    json.dump(solutions, open(fname_solutions, 'w'))
+    json.dump(unable_to_resolve, open(fname_errors, 'w'))
+    json.dump(unresolvables, open(fname_unresolvables, 'w'))
+
+
+
+
+  solutions = dict()
+  unable_to_resolve = []
+  unresolvables = []
+  i = 0
+
+  for distkey in dists_to_solve_for:
+    i += 1
+
+    # TODO: Exclude the ones we don't have PackageInfo for (due to conversion
+    # errors) so as not to skew the numbers. Currently, they should show up as
+    # resolver errors.
+
+    print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Starting ' + 
+        distkey + '....')
+
+    try:
+      solution = \
+          backtracking_satisfy(distkey, edeps, versions_by_package)
+
+    # This is what the unresolvables look like:
+    except (depresolve.ConflictingVersionError,
+        depresolve.UnresolvableConflictError) as e:
+
+      unresolvables.append(str(distkey)) # cleansing unicode prefixes (python2)
+      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Unresolvable: ' +
+          distkey + '. (Error was: ' + str(e.args[0]))
+
+    except Exception as e: # Other potential causes of failure.
+
+      unable_to_resolve.append(str(distkey)) # cleansing unicode prefixes (py2)
+      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Could not parse: '
+          + distkey + '. Exception follows:' + str(e.args))
+
+    else:
+      solutions[distkey] = str(solution) # cleansing unicode prefixes (python2)
+      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Resolved: ' +
+          distkey)
+
+    # Write early for my testing convenience.
+    if i % 40 == 39:
+      _write_data_out(solutions, unable_to_resolve, unresolvables)
+
+  # Write at end.
+  _write_data_out(solutions, unable_to_resolve, unresolvables)
 
 
 
@@ -642,46 +733,46 @@ def sort_versions(versions):
 #
 
 # Alternative design scribbles
-def still_resolvable_so_far(constraints, versions_by_package):
-  """
+# def still_resolvable_so_far(constraints, versions_by_package):
+#   """
 
-  Fill in.
+#   Fill in.
 
-  Returns true if there is a set of dists to pick that satisfies the given
-  single-level constraints on packages.
+#   Returns true if there is a set of dists to pick that satisfies the given
+#   single-level constraints on packages.
 
-  The structure of the constraints argument:
-    packagename-indexed dictionary with value being a list of 2-tuples,
-      value 1 of such being a specifier string and value 2 of such being a
-      means of identifying the source of the constraint (e.g. needed for B(1)
-      which is needed for X(1)).
-      e.g.:
-        {'A': [
-                ('>1', B(1)<--X(1)),
-                ('<5', C(1)<--X(1))
-              ],
-         'B': [
-                ('>1,<12, F(1)<--X(1))
-              ],
-         ...
-        }
+#   The structure of the constraints argument:
+#     packagename-indexed dictionary with value being a list of 2-tuples,
+#       value 1 of such being a specifier string and value 2 of such being a
+#       means of identifying the source of the constraint (e.g. needed for B(1)
+#       which is needed for X(1)).
+#       e.g.:
+#         {'A': [
+#                 ('>1', B(1)<--X(1)),
+#                 ('<5', C(1)<--X(1))
+#               ],
+#          'B': [
+#                 ('>1,<12, F(1)<--X(1))
+#               ],
+#          ...
+#         }
 
-        In the case above, True is returned as long as there is at least one
-        version of A available greater than 1 and less than 5 and a version of
-        B greater than 1 and less than 12. If either is not true, False is
-        returned.
+#         In the case above, True is returned as long as there is at least one
+#         version of A available greater than 1 and less than 5 and a version of
+#         B greater than 1 and less than 12. If either is not true, False is
+#         returned.
 
-  """
-  for packname in constraints:
-    sat_versions = \
-        select_satisfying_versions(
-            packname,
-            [constraint[0] for constraint in constraints(package)],
-            versions_by_package
-        )
+#   """
+#   for packname in constraints:
+#     sat_versions = \
+#         select_satisfying_versions(
+#             packname,
+#             [constraint[0] for constraint in constraints(package)],
+#             versions_by_package
+#         )
 
-    if not sat_versions:
-      return False
+#     if not sat_versions:
+#       return False
 
 
 # def satisfy_dependencies(distkey, dist_deps, versions_by_package, \
@@ -720,32 +811,32 @@ def still_resolvable_so_far(constraints, versions_by_package):
 
 
 
-def select_satisfying_versions(
-    satisfying_packname,
-    specstrings,
-    versions_by_package):
-  """
-  Given the name of the depended-on package, a list of the specifier strings
-  characterizing the version constraints of each dependency on that package,
-  and a dictionary of all versions of all packages, returns the list of
-  versions that would satisfy all given specifier strings (thereby satisfying
-  all of the given dependencies).
+# def select_satisfying_versions(
+#     satisfying_packname,
+#     specstrings,
+#     versions_by_package):
+#   """
+#   Given the name of the depended-on package, a list of the specifier strings
+#   characterizing the version constraints of each dependency on that package,
+#   and a dictionary of all versions of all packages, returns the list of
+#   versions that would satisfy all given specifier strings (thereby satisfying
+#   all of the given dependencies).
 
-  Returns an empty list if there is no intersection (no versions that would
-  satisfy all given dependencies).
+#   Returns an empty list if there is no intersection (no versions that would
+#   satisfy all given dependencies).
 
-  Raises (does not catch) KeyError if satisfying_packname does not appear in
-  versions_by_package (i.e. if there is no version info for it).
-  """
-  # Get all versions of the satisfying package. Copy the values.
-  satisfying_versions = versions_by_package[satisfying_packname][:] 
+#   Raises (does not catch) KeyError if satisfying_packname does not appear in
+#   versions_by_package (i.e. if there is no version info for it).
+#   """
+#   # Get all versions of the satisfying package. Copy the values.
+#   satisfying_versions = versions_by_package[satisfying_packname][:] 
 
-  for specstring in specstrings:
-    specset = pip._vendor.packaging.specifiers.SpecifierSet(specstring)
-    # next line uses list because filter returns a generator
-    satisfying_versions = list(specset.filter(satisfying_versions)) 
+#   for specstring in specstrings:
+#     specset = pip._vendor.packaging.specifiers.SpecifierSet(specstring)
+#     # next line uses list because filter returns a generator
+#     satisfying_versions = list(specset.filter(satisfying_versions)) 
 
-  return satisfying_versions
+#   return satisfying_versions
 
 
 

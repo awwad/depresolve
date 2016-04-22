@@ -494,7 +494,7 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None,
     depsolver_solution = [operation for operation in 
         depsolver.Solver(pool, installed_repo).solve(request)]
 
-  except NotImplementedError, e: # Sadly, this is what depsolver throws.
+  except NotImplementedError as e: # Sadly, this is what depsolver throws.
     logger.debug("Caught NotImplementedError from depsolver: \n" +
         str(e.args) + "\n")
     raise depresolve.UnresolvableConflictError('Unable to resolve conflict '

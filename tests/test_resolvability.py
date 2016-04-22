@@ -232,7 +232,7 @@ def test_old_resolver_suite():
 
 
 def res_test1():
-  # TEST 1: Test satisfy_immediate_dependencies
+  """TEST 1: Test satisfy_immediate_dependencies"""
   deps = data.DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
@@ -256,10 +256,11 @@ def res_test1():
 
 
 def res_test2():
+  """TEST 2: Test fully_satisfy_strawman1 (during development)"""
+
   deps = data.DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
-  # TEST 2: Test fully_satisfy_strawman1 (during development)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
       deptools.elaborate_dependencies(deps, versions_by_package)
 
@@ -276,7 +277,7 @@ def res_test2():
 
 
 def res_test3():
-  # TEST 3: Detection of model 2 conflicts.
+  """TEST 3: Detection of model 2 conflicts."""
   deps = data.DEPS_MODEL2
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
@@ -289,7 +290,7 @@ def res_test3():
 
 
 def res_test4():
-  # TEST 4: Test fully_satisfy_strawman2 (during development)
+  """TEST 4: Test fully_satisfy_strawman2 (during development)"""
   deps = data.DEPS_SIMPLE
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
@@ -308,12 +309,12 @@ def res_test4():
 
 
 def res_test5():
-  # TEST 5: Test fully_satisfy_strawman2 (during development)
-  #         on a slightly more complex case.
+  """
+  TEST 5: Test fully_satisfy_strawman2 (during development)
+  on a slightly more complex case.
+  """
   deps = data.DEPS_MODEL2
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
-  # (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-  #     deptools.elaborate_dependencies(deps, versions_by_package)
 
   edeps = data.EDEPS_SERIOUS
 
@@ -338,9 +339,7 @@ def res_test5():
 
 
 def res_test6():
-  # TEST 6: Let's get serious (:
-  #con3_json = json.load(open('data/conflicts_3.json','r'))
-  #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
+  """TEST 6: Let's get serious (:"""
   data.ensure_full_data_loaded()
   deps = data.DEPS_SERIOUS
   edeps = data.EDEPS_SERIOUS
@@ -369,8 +368,7 @@ def res_test6():
 
 
 def res_test7():
-
-  # TEST 7: Test fully_satisfy_backtracking (during development)
+  """TEST 7: Test fully_satisfy_backtracking (during development)"""
   data.ensure_full_data_loaded()
   deps = data.DEPS_SERIOUS
   edeps = data.EDEPS_SERIOUS
@@ -395,15 +393,15 @@ def res_test7():
 
 
 def res_test8():
+  """
+  "TEST" 8: Try test 6 with fully_satisfy_backtracking instead to compare.
+  Expect these conflicts to resolve.
+  """
   data.ensure_full_data_loaded()
   deps = data.DEPS_SERIOUS
   edeps = data.EDEPS_SERIOUS
   versions_by_package = data.VERSIONS_BY_PACKAGE
 
-  # "TEST" 8: Try test 6 with fully_satisfy_backtracking instead to compare.
-  # Expect these conflicts to resolve.
-  #con3_json = json.load(open('data/conflicts_3.json','r'))
-  #dists_w_conflict3 = [p for p in con3_json if con3_json[p]]
   solutions = dict()
   dotstrings = dict()
 
@@ -453,7 +451,7 @@ def res_test8():
 
 
 def res_test9():
-  # "TEST" 9: Try to resolve a conflict we know to be unresolvable.
+  """ TEST 9: Try to resolve a conflict we know to be unresolvable."""
   data.ensure_full_data_loaded()
   deps = data.DEPS_SERIOUS
   edeps = data.EDEPS_SERIOUS
@@ -499,6 +497,36 @@ def res_test9():
 
 
 
+
+
+def test_sort_versions():
+  """
+  Make sure the version sort used by the resolver is working.
+  """
+
+  test_sets = [
+      (['1.5', '1.6.3', '1.5.1', '1.10', '1.13.5', '12.5'], # to sort
+       ['12.5', '1.13.5', '1.10', '1.6.3', '1.5.1', '1.5']), # expected output
+      ([], []),
+      (['0.5.9', '5.0', '0.5.9.1'], ['5.0', '0.5.9.1', '0.5.9']),
+  ]
+
+  for pair in test_sets:
+    to_sort = pair[0]
+    expected_result = pair[1]
+
+    post_sort = ry.sort_versions(to_sort)
+
+    if post_sort != expected_result:
+      exception_text = 'sort_versions failed to produce the expected output' +\
+          '.\n  Expected: ' + str(expected_result) + '\n  Got: ' + \
+          str(post_sort)
+      logger.error(exception_text)
+      raise Exception(exception_text)
+      # return False
+
+  logger.info('test_sort_versions(): Test passed. (:')
+  return True
 
 
 

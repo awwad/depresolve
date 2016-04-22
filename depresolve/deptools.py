@@ -225,14 +225,14 @@ def generate_dict_versions_by_package(deps):
   Argument:
     1. deps: dependency info in the form of a dictionary, keys being distkeys
        and values being 'dep' elements, as defined in the docstrings of other
-       functions (TODO: consolidate).
+       functions (TODO: consolidate). (elaborated dependencies also work.)
        e.g.:
          {'motorengine(0.7.4)': 
-            [  ['pymongo', [['==', '2.5']]],
-               ['tornado', []],
-               ['motor', []],
-               ['six', []],
-               ['easydict', []]
+            [  ['pymongo', '==2.5'],
+               ['tornado', ''],
+               ['motor', ''],
+               ['six', ''],
+               ['easydict', '']
             ],
           'django(1.8.3)':
             [],
@@ -241,18 +241,18 @@ def generate_dict_versions_by_package(deps):
           'django(1.7)':
             [],
           'chembl-webservices(2.2.11)':
-            [  ['lxml', []],
-               ['pyyaml', [['>=', '3.10']]],
-               ['defusedxml', [['>=', '0.4.1']]],
-               ['simplejson', [['==', '2.3.2']]],
-               ['pillow', [['>=', '2.1.0']]],
-               ['django-tastypie', [['==', '0.10']]],
-               ['chembl-core-model', [['>=', '0.6.2']]],
-               ['cairocffi', [['>=', '0.5.1']]],
-               ['numpy', [['>=', '1.7.1']]],
-               ['mimeparse', []],
-               ['raven', [['>=', '3.5.0']]],
-               ['chembl-beaker', [['>=', '0.5.34']]
+            [  ['lxml', ''],
+               ['pyyaml', '>=3.10'],
+               ['defusedxml', '>=0.4.1'],
+               ['simplejson', '==2.3.2'],
+               ['pillow', '>=2.1.0'],
+               ['django-tastypie', '==0.10'],
+               ['chembl-core-model', '>=0.6.2'],
+               ['cairocffi', '>=0.5.1'],
+               ['numpy', '>=1.7.1'],
+               ['mimeparse', ''],
+               ['raven', '>=3.5.0],
+               ['chembl-beaker', '>=0.5.34']
             ],
           ...
           ...
@@ -610,10 +610,30 @@ def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
        'motor(0.1): >=2.4.2',
        'motor(0.0-): >=2.4.2']
   """
-  return [distkey + ": " + [spectuples_to_specstring(dep[1]) for \
-      dep in deps[distkey] if dep[0] == satisfying_pack][0] for \
-      distkey in [distkey_format(depender_pack, version) for \
-      version in versions_by_package[depender_pack]]]
+
+  dependencies = []
+  for version in sorted(versions_by_package[depender_pack], reverse=True):
+    depender_distkey = distkey_format(depender_pack, version)
+    depstring_for_v_x_on_pack_y = None
+    for dep in deps[depender_distkey]:
+      if dep[0] == satisfying_pack:
+        depstring_for_v_x_on_pack_y = dep[1]
+
+    if depstring_for_v_x_on_pack_y:
+      dependencies.append(
+          depender_distkey + ': ' + depstring_for_v_x_on_pack_y)
+    else:
+      dependencies.append(
+          depender_distkey + ' does not depend on ' + satisfying_pack)
+
+  return dependencies
+
+  # Old version below has a bug: breaks if one of the versions of X does not
+  # depend on Y.
+  # return [distkey + ": " + [dep[1] for \
+  #     dep in deps[distkey] if dep[0] == satisfying_pack][0] for \
+  #     distkey in [distkey_format(depender_pack, version) for \
+  #     version in versions_by_package[depender_pack]]]
 
 
 
