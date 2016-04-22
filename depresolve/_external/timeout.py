@@ -27,7 +27,7 @@ class TimeoutException(Exception):
 def timeout(seconds_before_timeout):
     def decorate(f):
         def handler(signum, frame):
-            raise TimeoutError()
+            raise TimeoutException()
         def new_f(*args, **kwargs):
             old = signal.signal(signal.SIGALRM, handler)
             signal.alarm(seconds_before_timeout)

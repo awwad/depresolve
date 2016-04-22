@@ -292,13 +292,23 @@ def main():
     # Call pip, with a 5 minute timeout.
     exitcode = None # scoping paranoia
     try:
-      exitcode = call_pip_with_timeout(pip_arglist)
-    except timeout.TimeoutException as e:
+      exitcode = _call_pip_with_timeout(pip_arglist)
+    except timeout.TimeoutException as e: # This catch is not likely. See below
       logger.warning('pip timed out on dist ' + distkey + '(5min)!'
           ' Will treat as error. Exception follows: ' + str(e.args))
       # Set the exit code to something other than 2 or 0 and it'll be treated
       # like any old pip error below, resulting in a blacklist.
       exitcode = 1000
+
+    # However, unfortunately, we cannot assume that pip will let that exception
+    # pass up to us. It seems to take the signal, stop and clean up, and then
+    # return exit code 2. This is fine, except that then we can't really
+    # blacklist the process. I'd have to add a timer here, detect something
+    # very close to the timeout, and guess that it timed out. /: That sucks.
+    # In any case, we'll not learn that it's a process that times out, but
+    # we'll just look at it as a possible conflict case. (The data recorded
+    # will not list it as a conflict. Hopefully, that data is not corrupted.
+    # It's unlikely that it would have been, though, so I judge this OK.)
     
     # Process the output of the pip command.
     if exitcode == 2:
@@ -354,7 +364,15 @@ def main():
 
 
 @timeout.timeout(300) # Timeout after 5 minutes.
-def call_pip_with_timeout(pip_arglist):
+def _call_pip_with_timeout(pip_arglist):
+  """
+  This function exists to allow us to call pip but prevent pip from going on
+  forever in case of strange behavior (like waiting for a sudo password when
+  no package should need sudo to determine dependencies, etc.). In practice,
+  when pip gets hit with a SIGALRM from this, it will clean up and return with
+  the exitcode 2. It won't be possible to distinguish whether it timed out or
+  was some other error (without some ugliness), so we make do.
+  """
   exitcode = pip.main(pip_arglist)
   return exitcode
 
