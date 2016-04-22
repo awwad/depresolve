@@ -19,36 +19,6 @@ import depresolve.deptools as deptools
 
 import pip._vendor.packaging.specifiers
 
-def main():
-  pass
-
-def convert_json_dep_to_elaborated_sql():
-  deps = deptools.load_raw_deps_from_json()
-
-  # First, I need a dict of available package versions given package name P.
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
-
-  # Elaborate deps into lists of specific satisfactory versions.
-  # We'll parse the version constraints in the dependency into a
-  # SpecifierSet, from pip._vendor.packaging.specifiers.SpecifierSet along
-  # the way.
-  (
-      deps_elaborated,
-      packages_without_available_version_info,
-      dists_with_missing_dependencies
-  ) = deptools.elaborate_dependencies(deps, versions_by_package)
-
-  # Feed this into the sqlite tables.
-  deptools.populate_sql_with_full_dependency_info(
-      deps_elaborated,
-      versions_by_package,
-      packages_without_available_version_info,
-      dists_with_missing_dependencies)
-
-
-  #json.dump(deps_elaborated, open(DEPENDENCIES_DB_ELABORATED_FILENAME, 'w'))
-  #json.dump(missing_dependencies, open(DEPENDENCIES_DB_MISSING_FILENAME, 'w'))
-
 
 
 
@@ -851,6 +821,3 @@ def dot_sanitize(packagename):
   return packagename.replace('-','_').replace('.','_')
 
 
-
-if __name__ == "__main__":
-  main()
