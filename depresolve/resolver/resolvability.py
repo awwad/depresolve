@@ -16,9 +16,8 @@ import depresolve # __init__ for errors and logging
 # Moved the code for dealing with dependency data directly into its own module,
 # and should tweak this to use it as a separate module later.
 import depresolve.deptools as deptools
-
+import depresolve._external.timeout as timeout # to prevent too-slow attempts
 import pip._vendor.packaging.specifiers
-
 
 
 
@@ -383,6 +382,8 @@ def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package,
 
 
 
+
+@timeout.timeout(300) # Timeout after 5 minutes.
 def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
     _depth=0, _candidates=[], _conflicting_distkeys=[]):
   """
@@ -674,7 +675,8 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
       print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Unresolvable: ' +
           distkey + '. (Error was: ' + str(e.args[0]))
 
-    except Exception as e: # Other potential causes of failure.
+    # Other potential causes of failure, including TimeoutException
+    except Exception as e:
 
       unable_to_resolve.append(str(distkey)) # cleansing unicode prefixes (py2)
       print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Could not parse: '

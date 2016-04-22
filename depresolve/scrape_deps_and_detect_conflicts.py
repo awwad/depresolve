@@ -21,6 +21,7 @@ logging.basicConfig(level=logging.DEBUG)
 # Globals for modified pip code to use.
 # These have to be before the imports below, to avoid circular issues.
 import depresolve.depdata as depdata
+import depresolve._external.timeout as timeout # to prevent endless pip calls
 
 from depresolve.depdata import get_version, get_packname
 from depresolve.depdata import distkey_format, get_pack_and_version
@@ -287,8 +288,18 @@ def main():
     # This assumes that we're dealing with my pip fork version 8.0.0.dev0seb).
     logger.debug('Scraper says: before pip call, len(deps) is ' +
         str(len(depdata.dependencies_by_dist)))
-    exitcode = pip.main(pip_arglist)
 
+    # Call pip, with a 5 minute timeout.
+    exitcode = None # scoping paranoia
+    try:
+      exitcode = call_pip_with_timeout(pip_arglist)
+    except timeout.TimeoutException as e:
+      logger.warning('pip timed out on dist ' + distkey + '(5min)!'
+          ' Will treat as error. Exception follows: ' + str(e.args))
+      # Set the exit code to something other than 2 or 0 and it'll be treated
+      # like any old pip error below, resulting in a blacklist.
+      exitcode = 1000
+    
     # Process the output of the pip command.
     if exitcode == 2:
       logger.info("--- X  SDist " + distkey + " : pip errored out (code=" +
@@ -337,6 +348,15 @@ def main():
   # We're done with all packages. Write the collected data back to file.
   logger.debug("Writing.")
   depdata.write_data_to_files([CONFLICT_MODEL])
+
+
+
+
+
+@timeout.timeout(300) # Timeout after 5 minutes.
+def call_pip_with_timeout(pip_arglist):
+  exitcode = pip.main(pip_arglist)
+  return exitcode
 
 
 
