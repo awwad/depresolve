@@ -320,8 +320,8 @@ def elaborate_dependencies(deps, versions_by_package):
 
 
   Running this on dependency data (package names and specifier strings) for
-  300,000 packages from PyPI takes on the order of 15 minutes.
-  
+  300,000 packages from PyPI takes on the order of 20 minutes.
+
 
   Argument:
     1. deps, dependency info in the form of a dictionary. Please see other
@@ -361,27 +361,27 @@ def elaborate_dependencies(deps, versions_by_package):
             )
         ]
 
-    2. packages_without_available_version_info, a simple list of package names
+    2. packages_without_available_version_info, a set() of package names
        for which the list of known versions is not available.
 
-    3. dists_with_missing_dependencies, a list of dists which depend on a
-       package in packages_without_available_version_info (that is, a list of
+    3. dists_with_missing_dependencies, a set() of dists which depend on a
+       package in packages_without_available_version_info (that is, the set of
        dists which have a dependency which we can't elaborate due to a lack of
-       information on the available versions).
+       information on the available versions of the satisfying package).
   """
 
   log = depresolve.logging.getLogger('elaborate_dependencies')
 
   deps_elaborated = dict()
 
-  # A list of all package names for which we do not have a list of available
+  # The set of all package names for which we do not have a list of available
   # versions.
-  packages_without_available_version_info = []
+  packages_without_available_version_info = set()
 
-  # A list of all dists for which one or more of their dependencies could not
+  # The set of all dists for which one or more of their dependencies could not
   # be enumerated. (i.e. a list of all dists depending on a package whose name
   # is in packages_without_available_version_info)
-  dists_with_missing_dependencies = []
+  dists_with_missing_dependencies = set()
 
   DEBUG_index_packages = 0
   DEBUG_index_dependencies = 0
@@ -415,8 +415,8 @@ def elaborate_dependencies(deps, versions_by_package):
       deps_elaborated[distkey].append(e_dep)
 
       if e_dep[1] == PACKAGE_VERSIONS_UNKNOWN:
-        packages_without_available_version_info.append(dep[0])
-        dists_with_missing_dependencies.append(distkey)
+        packages_without_available_version_info.add(dep[0])
+        dists_with_missing_dependencies.add(distkey)
 
   return (
       deps_elaborated,
