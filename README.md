@@ -1,31 +1,56 @@
 # depresolve
 ##PyPI package dependency resolution project
 
-The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip. It currently contains two parts: ***scraper***: a dependency scraper and conflict detector that plugs into a modified version of pip, and ***resolver***: tools for determining the resolvability of package conflicts and resolving them. Provided are a backtracking solver (within the resolver package) and a SAT solver with a wrapper in the resolver package that employs external package "depsolver" (https://github.com/enthought/depsolver).
+depresolve is a project aiming to investigate and address the problem of package dependency conflicts in the python package index (PyPI), python's community software repository (commonly accessed via pip). The project provides tools to harvest information and find and resolve conflicts.
 
-###Resolver Documentation###
-**The resolver package is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
+The primary components of the project are:
+ - ***scraper***, a script combined with a pip plugin/branch [awwad/pip:develop](https://github.com/awwad/pip/) that serves both to harvest dependency information from pip's processing of packages and to detect package dependency conflicts for those packages, also determining when pip would fail to install the correct package versions in a conflict situation (something that it can do without notifying the user).
+ - ***resolver.resolvability***, a module that categorizes and solves package dependency conflicts through a backtracking algorithm, providing a list of the distributions to install that would fulfill package dependency requirements without causing a conflict
+ - ***resolver.depsolver_integrate***, a module that pulls in external project [depsolver](https://github.com/enthought/depsolver) to provide alternative conflict resolution via SAT solving. (Currently out-of-order due to integration bugs)
+ - ***deptools*** & ***depdata***, modules that provide a variety of functions for handling package dependencies, upon which the others depend
+
+Along with these components are a few scripts for making use of them.
 
 
-###Scraper / Conflict Detector Documentation###
+![depresolve project components](docs/depresolve.png "depresolve project components")
 
-**The first tool here - scrape_deps_and_detect_conflicts - is a means to do that.**
+##Resolver Documentation##
+**The resolver subpackage is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
+
+
+###Requirements, Resolver:###
+
+The SAT-based resolver requires six (pip install six) and package depsolver (available at (https://github.com/enthought/depsolver)).
+
+The backtracking resolver currently has no external dependencies.
+
+
+###Overview, Resolver:###
+
+TODOC
+
+###Instructions for Use, Resolver###
+
+TODOC
 
 
 
-**While there are MULTIPLE MODES OF EXECUTION, the tool's most useful function on its own is that (by default) it answers this question:**
+##Scraper / Conflict Detector Documentation##
+
+**The first tool here - scrape_deps_and_detect_conflicts collects dependency data and detects package dependency conflicts, focusing on those that pip would fail to correctly handle.**
+
+**While there are multiple modes of execution, the scraper tool's most useful function on its own is that (by default) it answers this question:**
 
 ***If I try to install package X via pip in a clean environment configured as it is (Python version, OS, etc.), will pip install a set of packages with all dependencies correctly met?*** (In other words, will pip run headfirst into a dependency conflict and fail to resolve it?)
 
 
-###Requirements:
+###Requirements, Scraper:
 scrape_deps_and_detect_conflicts.py employs awwad/pip, a modified fork of pypa/pip I'm tagging 8.0.0.dev0seb, available at https://github.com/awwad/pip on branch "develop".
 
-By default, it pulls packages straight from PyPI, but can be run using a local .tar.gz sdist, or even from a local bandersnatch'd PyPI mirror. See instructions below.
+By default, the scraper pulls packages straight from PyPI, but can be run using a local .tar.gz sdist, or even from a local bandersnatch'd PyPI mirror. See instructions below.
 
-The resolver requires six (pip install six) and package depsolver (available at (https://github.com/enthought/depsolver)).
 
-###Overview:
+###Overview, Scraper:
 I assume that the reader is familiar with package conflicts and the resolvable/unresolvable distinction. (TODO: Can add links to docs that will cover these if we intend this for general consumption.) Pip has long had issues with dependency resolution. See for example:
 * [Pip doesn't spot conflicting versions](https://github.com/pypa/pip/issues/775#issuecomment-12748095)
 * [Pip needs a dependency resolver](https://github.com/pypa/pip/issues/988)
@@ -47,7 +72,7 @@ Via modified pip code, this project runs the initial (pre-install) portion of th
 Note that all skipping based on blacklisting or data on the existence / lack of a conflict for a given package (package name & version) can be avoided by use of argument --noskip.
 
 
-###Instructions for use:
+###Instructions for use, Scraper:
 
 1.  git clone https://github.com/awwad/depresolve
 2.  cd depresolve
@@ -106,7 +131,7 @@ Argument handling:
 
 
 
-  EXAMPLE CALLS:
+  EXAMPLE CALLS, SCRAPER:
 
      ~~ Run on a single package (in this case, arnold version 0.3.0) pulled from remote PyPI,
         using conflict model 3 (default):
