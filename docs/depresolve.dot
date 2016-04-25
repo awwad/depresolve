@@ -28,4 +28,19 @@ digraph imports {
   //pip_plugin -> pip_vendor_packaging [arrowhead=tee,style=dotted]
   //pip -> pip_vendor_packaging [arrowhead=tee]
 
+
+
+/*  subgraph legend {
+    label = "Legend";
+    key [label=<<table border="0" cellpadding="2" cellspacing="0" cellborder="0">
+      <tr><td align="right" port="i1">External dependencies</td></tr>
+      <tr><td align="right" port="i2">Main components</td></tr>
+      <tr><td align="right" port="i3">Supporting components</td></tr>
+      </table>>]
+    key:i1 [shape=box]
+    key:i2 [style="filled",color=gray]
+    key:i3 [style="filled",color="burlywood"]
+  }
+*/
+
 }

@@ -3,16 +3,17 @@
 
 depresolve is a project aiming to investigate and address the problem of package dependency conflicts in the python package index (PyPI), python's community software repository (commonly accessed via pip). The project provides tools to harvest information and find and resolve conflicts.
 
+![depresolve project components](docs/depresolve.png "depresolve project components")
+
 The primary components of the project are:
  - ***scraper***, a script combined with a pip plugin/branch [awwad/pip:develop](https://github.com/awwad/pip/) that serves both to harvest dependency information from pip's processing of packages and to detect package dependency conflicts for those packages, also determining when pip would fail to install the correct package versions in a conflict situation (something that it can do without notifying the user).
  - ***resolver.resolvability***, a module that categorizes and solves package dependency conflicts through a backtracking algorithm, providing a list of the distributions to install that would fulfill package dependency requirements without causing a conflict
  - ***resolver.depsolver_integrate***, a module that pulls in external project [depsolver](https://github.com/enthought/depsolver) to provide alternative conflict resolution via SAT solving. (Currently out-of-order due to integration bugs)
  - ***deptools*** & ***depdata***, modules that provide a variety of functions for handling package dependencies, upon which the others depend
 
-Along with these components are a few scripts for making use of them.
+Along with these components are a few additional scripts for making use of them.
 
 
-![depresolve project components](docs/depresolve.png "depresolve project components")
 
 ##Resolver Documentation##
 **The resolver subpackage is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
