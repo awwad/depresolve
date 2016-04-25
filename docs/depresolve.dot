@@ -1,0 +1,31 @@
+digraph imports {
+
+  scraper [label="scraper",fillcolor="burlywood",style="filled"]
+  deptools [label="deptools",fillcolor="burlywood",style="filled"]
+  pip [label="pip"]
+  resolvability [label="backtracker",fillcolor="burlywood",style="filled"]
+  depsolver_integrate [label="SAT solver",fillcolor="gray",style="filled",fontsize=9]
+  depdata [label="depdata",fillcolor="gray",style="filled"]
+  //pip_vendor_packaging [label="pip._vendor.packaging",shape=ellipse,fontsize=7]
+  depsolver [label="depsolver",shape=ellipse,fontsize=7]
+  pip_plugin [label="pip_plugin",fillcolor="gray",style="filled"]
+
+
+  //scraper -> pip_vendor_packaging [arrowhead=tee,style=dotted]
+  scraper -> pip [arrowhead=tee,]
+  scraper -> pip_plugin [arrowhead=tee]
+  scraper -> depdata [arrowhead=tee]
+  depsolver_integrate -> deptools [arrowhead=tee]
+  depsolver_integrate -> resolvability [arrowhead=tee]
+  //depsolver_integrate -> pip_vendor_packaging [arrowhead=tee,style=dotted]
+  depsolver_integrate -> depsolver [arrowhead=tee]
+  //deptools -> pip_vendor_packaging [arrowhead=tee,style=dotted]
+  deptools -> depdata [arrowhead=tee]
+  //resolvability -> pip_vendor_packaging [arrowhead=tee,style=dotted]
+  resolvability -> deptools [arrowhead=tee]
+  pip_plugin -> depdata [arrowhead=tee]
+  pip_plugin -> pip [dir=both]
+  //pip_plugin -> pip_vendor_packaging [arrowhead=tee,style=dotted]
+  //pip -> pip_vendor_packaging [arrowhead=tee]
+
+}
