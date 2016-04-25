@@ -1,0 +1,21 @@
+digraph example1 {
+
+  nifty11 [label="nifty-webshop(1.1)",fillcolor="burlywood",style="filled"]
+  #nifty12 [label="nifty-webshop(1.2)",fillcolor="burlywood",style="filled"]
+  #wheresmydelivery05 [label="wheresmydelivery(0.5)"]
+  #wheresmydelivery04 [label="wheresmydelivery(0.4)"]
+  #wheresmydelivery03 [label="wheresmydelivery(0.3)"]
+  #django19 [label='django(1.9)']
+  django18 [label="django(1.8)"]
+  #django17 [label="django(1.7)"]
+  #django16 [label="django(1.6)"]
+  #django15 [label="django(1.5)"]
+
+
+  subgraph n1 {
+    label = "Case 1"
+    nifty11 -> django18 [label="django>=1.7",fontsize=8]
+    #nifty11 -> django17 [label="django>=1.7",style=dotted,fontsize=8]
+    #nifty11 -> django16 [label="django>=1.7",style=dotted,fontsize=8]
+  }
+}

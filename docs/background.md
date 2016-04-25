@@ -4,7 +4,13 @@
 
 Installation of a package may require a number of other packages, making these other packages dependencies of the first.
 
+#### Example 1: Innocence
+![Dependency Example 1](dep_conflict_examples.png "Dependency Example 1")
+
 Your project nifty-webshop, a storefront webapp, might depend on django, for example. Version 1.1 of nifty-webshop might be written in python 3.4, and therefore need a version of django >= 1.7 (which is required for python 3.4+ support). You'd configure your package to list django>=1.7 as an install requirement, and so when a user runs `pip install nifty-webshop`, pip will grab the latest version of your nifty-webshop package, 1.1, figure out its dependencies (django>=1.7), fetch the latest version of django, and install both that and nifty-webshop. Tada.
+
+#### Example 2
+![Dependency Example 2](dep_conflict_examples2.png "Dependency Example 2")
 
 Suppose you expand your successful project, releasing nifty-webshop 1.2, which can do some fun new things like delivery tracking by taking advantage of someone else's open source webapp, wheresmydelivery. nifty-webshop depends, then, on django>=1.7, and on wheresmydelivery (any version). Now, when a user tries to `pip install nifty-webshop`, pip will fetch nifty-webshop(1.2), see that it requires django>=1.7 and wheresmydelivery. pip will fetch both and see that the latest version of wheresmydelivery, wheresmydelivery(0.5) requires django>=1.5,<1.8. (Some of the django 1.8 changes break wheresmydelivery!)
 
