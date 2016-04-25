@@ -31,13 +31,13 @@ def main():
   # All dists with model 3 conflicts.
   con3_dists = [dist for dist in con3_data if con3_data[dist]]
 
-  # Reload the package information formatted for depsolver.
+  # Load the package information, expanded into elaborated dependencies.
   edeps = json.load(open('data/elaborated_dependencies.json', 'r'))
 
   versions_by_package = deptools.generate_dict_versions_by_package(edeps)
 
 
-  # Solve all the conflicts!
+  # Solve all the conflicts! (Store data in the filenames listed.)
   # This is very slow.
   ry.resolve_all_via_backtracking(
       con3_dists,

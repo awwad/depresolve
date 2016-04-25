@@ -15,8 +15,7 @@ import json
 ## for use in version parsing
 #from distutils.version import StrictVersion, LooseVersion 
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
+import depresolve # for logging
 
 # Globals for modified pip code to use.
 # These have to be before the imports below, to avoid circular issues.
@@ -124,7 +123,7 @@ def main():
   assert(os.path.exists(WORKING_DIRECTORY)), 'Working dir does not exist...??'
 
 
-  logger = logging.getLogger('scrape_deps_and_detect_conflicts')
+  logger = depresolve.logging.getLogger('scrape_deps_and_detect_conflicts')
 
   # Ensure that appropriate directory for downloaded distros exists.
   # This would be terrible to duplicate if scraping a large number of packages.

@@ -319,6 +319,10 @@ def elaborate_dependencies(deps, versions_by_package):
     '>1,<3.1'        ['2.0', '2.5', '3.0']
 
 
+  Running this on dependency data (package names and specifier strings) for
+  300,000 packages from PyPI takes on the order of 15 minutes.
+  
+
   Argument:
     1. deps, dependency info in the form of a dictionary. Please see other
        docstrings for information on "deps", for example
@@ -391,7 +395,7 @@ def elaborate_dependencies(deps, versions_by_package):
     DEBUG_index_dependencies = 0
     #if DEBUG_index_packages > DEBUG_STOP_AFTER_X_PACKAGES:
     #  break
-    log.info("    Elaborating dependencies for " + str(DEBUG_index_packages)
+    log.debug("    Elaborating dependencies for " + str(DEBUG_index_packages)
         + "th package: " + distkey)
     # END OF DEBUG SECTION
 

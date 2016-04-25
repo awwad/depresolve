@@ -1,4 +1,4 @@
-# pypi-depresolve
+# depresolve
 ##PyPI package dependency resolution project
 
 The purpose of this project is to investigate the problem of package dependency conflict resolution for the Python Package Index (PyPI) and for pip. It currently contains two parts: ***scraper***: a dependency scraper and conflict detector that plugs into a modified version of pip, and ***resolver***: tools for determining the resolvability of package conflicts and resolving them. Provided are a backtracking solver (within the resolver package) and a SAT solver with a wrapper in the resolver package that employs external package "depsolver" (https://github.com/enthought/depsolver).
