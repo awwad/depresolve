@@ -5,11 +5,13 @@ depresolve is a project aiming to investigate and address the problem of package
 
 ![depresolve project components](docs/depresolve.png "depresolve project components")
 
+(Legend: unfilled ellipses indicate external dependencies. Goldenrod ellipses indicate central components and gray ellipses indicate supporting components.)
+
 The primary components of the project are:
  - ***scraper***, a script combined with a pip plugin/branch [awwad/pip:develop](https://github.com/awwad/pip/) that serves both to harvest dependency information from pip's processing of packages and to detect package dependency conflicts for those packages, also determining when pip would fail to install the correct package versions in a conflict situation (something that it can do without notifying the user).
- - ***resolver.resolvability***, a module that categorizes and solves package dependency conflicts through a backtracking algorithm, providing a list of the distributions to install that would fulfill package dependency requirements without causing a conflict
- - ***resolver.depsolver_integrate***, a module that pulls in external project [depsolver](https://github.com/enthought/depsolver) to provide alternative conflict resolution via SAT solving. (Currently out-of-order due to integration bugs)
- - ***deptools*** & ***depdata***, modules that provide a variety of functions for handling package dependencies, upon which the others depend
+ - ***backtracker*** (resolver.resolvability), a module that categorizes and solves package dependency conflicts through a backtracking algorithm, providing a list of the distributions to install that would fulfill package dependency requirements without causing a conflict
+ - ***SAT solver*** (resolver.depsolver_integrate), a module that pulls in external project [depsolver](https://github.com/enthought/depsolver) to provide alternative conflict resolution via SAT solving. (Currently out-of-order due to integration bugs)
+ - ***deptools*** & ***depdata***, modules that provide a variety of functions for handling package dependency data, upon which the others depend
 
 Along with these components are a few additional scripts for making use of them.
 
