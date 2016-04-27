@@ -28,29 +28,30 @@ logger = depresolve.logging.getLogger('test_resolvability')
 def main():
   """
   """
+  successes = []
+
   # Load the giant dictionary of scraped dependencies for DEPS_SERIOUS etc.
   data.ensure_full_data_loaded()
 
 
   # Test resolvability.conflicts_with, which is used in the resolver.
-  test_conflicts_with()
+  successes.append(test_conflicts_with())
 
   # Test resolvability.dist_lists_are_equal, which is used in testing.
-  test_dist_lists_are_equal()
+  successes.append(test_dist_lists_are_equal())
 
   # Should move away from this, but it's a serviceable set of regression tests
   # for now.
-  test_old_resolver_suite() 
+  successes.extend(test_old_resolver_suite())
 
 
   # We expected the current version of backtracking_satisfy to fail on the 2nd
   # through 4th calls.
   # Hopefully, it can now work properly. (Nope - switching expectation back
   # to failure. May skip fixing. Have moved on to SAT via depsolver.)
-  successes = []
 
-  successes.append(test_resolver(ry.backtracking_satisfy, DEPS_SIMPLE_SOLUTION,
-      'X(1)', DEPS_SIMPLE))
+  successes.append(test_resolver(ry.backtracking_satisfy,
+      data.DEPS_SIMPLE_SOLUTION, 'X(1)', data.DEPS_SIMPLE))
 
   successes.append(test_resolver(ry.backtracking_satisfy,
       data.DEPS_SIMPLE2_SOLUTION, 'X(1)', data.DEPS_SIMPLE2,
@@ -220,38 +221,46 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
 
 
 def test_old_resolver_suite():
-  res_test1()
-  res_test2()
-  res_test3()
-  res_test4()
-  res_test5()
-  res_test6()
-  res_test7()
-  res_test8()
-  logger.info("test_resolver_suite(): All resolvability tests OK. (:")
+  #res_test1() # No longer using the function this tests.
+  successes = []
+
+  successes.append(res_test2())
+  successes.append(res_test3())
+  successes.append(res_test4())
+  successes.append(res_test5())
+  successes.append(res_test6())
+  successes.append(res_test7())
+  successes.append(res_test8())
+  if False not in successes:
+    logger.info("test_resolver_suite(): All resolvability tests OK. (:")
+  else:
+    logger.error('test_resolver_suite() has failures.')
+  return successes
 
 
-def res_test1():
-  """TEST 1: Test satisfy_immediate_dependencies"""
-  deps = data.DEPS_SIMPLE
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
-  specstring_B1_for_A = '>=2,<4'
-  specstring_C1_for_A = '==3'
-  specstrings = [specstring_B1_for_A, specstring_C1_for_A,
-      '>1',
-      '<5',
-      '>=1.5',
-      ''
-  ]
+# # No longer using satisfy_immediate_dependencies, so commenting out.
+# def res_test1():
+#   """TEST 1: Test satisfy_immediate_dependencies"""
+#   deps = data.DEPS_SIMPLE
+#   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
-  satisfying_versions = \
-      ry.select_satisfying_versions('A', specstrings, versions_by_package)
+#   specstring_B1_for_A = '>=2,<4'
+#   specstring_C1_for_A = '==3'
+#   specstrings = [specstring_B1_for_A, specstring_C1_for_A,
+#       '>1',
+#       '<5',
+#       '>=1.5',
+#       ''
+#   ]
 
-  expected_result = ['3']
-  assert expected_result == satisfying_versions, \
-      "Expected one satisfying version: '3'. Got: " + str(satisfying_versions)
-  logger.info("test_resolver(): Test 1 OK.")
+#   satisfying_versions = \
+#       ry.select_satisfying_versions('A', specstrings, versions_by_package)
+
+#   expected_result = ['3']
+#   assert expected_result == satisfying_versions, \
+#       "Expected one satisfying version: '3'. Got: " + str(satisfying_versions)
+#   logger.info("test_resolver(): Test 1 OK.")
 
 
 
@@ -268,11 +277,17 @@ def res_test2():
       ry.fully_satisfy_strawman1('X(1)', edeps, versions_by_package)
 
   expected_result = ['A(3)', 'A(3)', 'B(1)', 'C(1)']
-  assert expected_result == sorted(satisfying_set), \
-      "Expected the strawman solution to X(1)'s dependencies to be " + \
-      str(expected_result) + ", sorted, but got instead: " + \
-      str(sorted(satisfying_set))
-  logger.info("test_resolver(): Test 2 OK.")
+  
+  success = expected_result == sorted(satisfying_set)
+
+  if not success:
+    logger.error("Expected the solution to X(1)'s dependencies to be " +
+      str(expected_result) + ", sorted, but got instead: " +
+      str(sorted(satisfying_set)))
+  else:
+    logger.info("test_resolver(): Test 2 OK.")
+
+  return success
 
 
 
@@ -282,10 +297,16 @@ def res_test3():
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
       deptools.elaborate_dependencies(deps, versions_by_package)
-  assert ry.detect_model_2_conflict_from_distkey(
-      'motorengine(0.7.4)', edeps, versions_by_package
-  ), "Did not detect model 2 conflict for motorengine(0.7.4). ): "
-  logger.info("test_resolver(): Test 3 OK.")
+
+  success = ry.detect_model_2_conflict_from_distkey(
+      'motorengine(0.7.4)', edeps, versions_by_package)
+
+  if not success:
+    logger.error('Did not detect model 2 conflict for motorengine(0.7.4). ):')
+  else:
+    logger.info("test_resolver(): Test 3 OK.")
+
+  return success
 
 
 
@@ -300,11 +321,17 @@ def res_test4():
       ry.fully_satisfy_strawman2('X(1)', edeps, versions_by_package)
 
   expected_result = ['A(3)', 'B(1)', 'C(1)', 'X(1)']
-  assert expected_result == sorted(satisfying_set), \
-      "Expected the strawman solution to X(1)'s dependencies to be " + \
-      str(expected_result) + ", sorted, but got instead: " + \
-      str(sorted(satisfying_set))
-  logger.info("test_resolver(): Test 4 OK.")
+  
+  success = expected_result == sorted(satisfying_set)
+
+  if not success:
+    logger.error("Expected the strawman solution to X(1)'s dependencies to be "
+        + str(expected_result) + ", sorted, but got instead: " +
+        str(sorted(satisfying_set)))
+  else:
+    logger.info("test_resolver(): Test 4 OK.")
+
+  return success
 
 
 
@@ -329,13 +356,18 @@ def res_test5():
       'motor(0.1.2)',
       'motorengine(0.7.4)',
       'pymongo(2.5)',
-      'six(1.9.0)',
+      'six(1.10.0)',
       'tornado(4.3)']
-  assert expected_result == sorted(satisfying_set), \
-      "Expected the strawman solution to motorengine(0.7.4)'s dependencies " \
-      " to be " + str(expected_result) + ", sorted, but got instead: " + \
-      str(sorted(satisfying_set))
-  logger.info("test_resolver(): Test 5 OK.")
+
+  success = expected_result == sorted(satisfying_set)
+  if not success:
+    logger.error("Expected the strawman solution to motorengine(0.7.4)'s "
+        "dependencies to be " + str(expected_result) + ", sorted, but got "
+        "instead: " + str(sorted(satisfying_set)))
+  else:
+    logger.info("test_resolver(): Test 5 OK.")
+
+  return success
 
 
 def res_test6():
@@ -352,6 +384,7 @@ def res_test6():
       'openstack-doc-tools(0.21.1)', 'openstack-doc-tools(0.7.1)',
       'python-magnetodbclient(1.0.1)']
 
+  errored = False
 
   for distkey in artificial_set:
     try:
@@ -361,10 +394,16 @@ def res_test6():
     except depresolve.UnresolvableConflictError:
       solutions[distkey] = -1
       logger.debug("Unresolvable: " + distkey)
+    except Exception as e:
+      logger.error('Unexpected exception while processing ' + distkey +
+          ' with strawman2! Exception follows: ' + str(e.args))
+      errored = True
 
-  logger.info("test_resolver(): Text 6 completed, at least. (:")
-
-  # json.dump(solutions, open('data/resolver/con3_solutions_via_strawman2.json', 'w'))
+  if not errored:
+    logger.info("test_resolver(): Text 6 completed, at least. (:")
+  else:
+    logger.warning('test_resolver() saw unexpected exceptions....')
+  return errored
 
 
 def res_test7():
@@ -382,13 +421,17 @@ def res_test7():
       'onecodex(0.0.9)', 'requests(2.5.3)',
       'requests-toolbelt(0.6.0)']
 
-  assert expected_result == sorted(satisfying_set), \
-      "Expected the strawman3 solution to metasort(0.3.6)'s dependencies " \
-      " to be " + str(expected_result) + ", sorted, but got instead: " + \
-      str(sorted(satisfying_set))
-  
-  logger.info("test_resolver(): Test 7 OK. (:")
+  success = expected_result == sorted(satisfying_set)
 
+  if not success:
+    logger.error("Expected the strawman3 solution to metasort(0.3.6)'s "
+      "dependencies to be " + str(expected_result) + ", sorted, but got "
+      "instead: " + str(sorted(satisfying_set)))
+
+  else:
+    logger.info("test_resolver(): Test 7 OK. (:")
+
+  return success
 
 
 
@@ -439,15 +482,19 @@ def res_test8():
     fobj.close()
 
 
-  assert 0 == n_unresolvable, 'Expect 0 unresolvable conflicts. Got ' + \
-      str(n_unresolvable) + ' instead. ):'
+  success = 0 == n_unresolvable
 
   fobj = open('data/resolver/test8_solutions_via_backtracking.json', 'w')
   json.dump(solutions, fobj)
   fobj.close()
 
-  logger.info("test_resolver(): Test 8 OK (: (: (:")
+  if not success:
+    logger.error('Expect 0 unresolvable conflicts. Got ' +
+        str(n_unresolvable) + ' instead. ):')
+  else:
+    logger.info("test_resolver(): Test 8 OK (: (: (:")
 
+  return success
 
 
 def res_test9():
@@ -490,10 +537,14 @@ def res_test9():
     fobj.close()
 
 
-  assert 0 == n_unresolvable, 'Expect 3 unresolvable conflicts. Got ' + \
-      str(n_unresolvable) + ' instead. ):'
+  success = 0 == n_unresolvable
+  if not success:
+    logger.error('Expect 3 unresolvable conflicts. Got ' +
+        str(n_unresolvable) + ' instead. ):')
+  else:
+    logger.info("test_resolver(): Test 9 OK. (:")
 
-  logger.info("test_resolver(): Test 9 OK. (:")
+  return success
 
 
 
