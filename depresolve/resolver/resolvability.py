@@ -409,10 +409,6 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package):
   Returns:
     - list of distkeys needed as direct or indirect dependencies to install
       distkey_to_satisfy, including distkey_to_satisfy
-    - _conflicting_distkeys, for internal use in recursion
-    - str, newline separated list, of the edges in the dot graph describing the
-      dependencies satisifed here
-      (e.g. 'X(1) -> B(1)\nX(1) -> C(1)\nC(1) -> A(3)\nB(1) -> A(3)')
 
   Throws:
     - timeout.TimeoutException if the process takes longer than 5 minutes
@@ -426,7 +422,10 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package):
       (Should not raise, ideally, but might - requires more testing)
 
   """
-  return _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package)
+  (satisfying_candidate_set, new_conflicts, child_dotgraph) = \
+      _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package)
+
+  return satisfying_candidate_set
 
 
 
@@ -437,7 +436,7 @@ def _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
   """
   Recursive helper to backtracking_satisfy. See comments there.
 
-  The additional arguments, for recursion state, are:
+  The ADDITIONAL arguments, for recursion state, are:
     - _depth: recursion depth, optionally, for debugging output
     - _candidates: used in recursion: the list of candidates already
       chosen, both to avoid circular dependencies and also to select sane
@@ -445,6 +444,13 @@ def _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
     - _conflicting_distkeys: similar to _candidates, but lists dists that
       we've established conflict with accepted members of _candidates. Saves
       time (minimal dynamic programming)
+
+  The ADDITIONAL returns, for recursion state, are:
+    - _conflicting_distkeys, for internal use in recursion
+    - str, newline separated list, of the edges in the dot graph describing the
+      dependencies satisifed here
+      (e.g. 'X(1) -> B(1)\nX(1) -> C(1)\nC(1) -> A(3)\nB(1) -> A(3)')
+
 
   """
   logger = depresolve.logging.getLogger('resolvability.backtracking_satisfy')
