@@ -661,15 +661,15 @@ def versions_are_equal(v1, v2):
   pipified1 = None
   pipified2 = None
 
-  if type(v1) is pip._vendor.packaging.version.Version:
+  if isinstance(v1, pip._vendor.packaging.version._BaseVersion):
     pipified1 = v1
   else:
-    pipified1 = pip._vendor.packaging.version.Version(v1)
+    pipified1 = pip._vendor.packaging.version.parse(v1)
 
-  if type(v2) is pip._vendor.packaging.version.Version:
+  if isinstance(v1, pip._vendor.packaging.version._BaseVersion):
     pipified2 = v2
   else:
-    pipified2 = pip._vendor.packaging.version.Version(v2)
+    pipified2 = pip._vendor.packaging.version.parse(v2)
 
   return pipified1 == pipified2
 

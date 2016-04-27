@@ -176,7 +176,7 @@ def conflicts_with(distkey, distkey_set):
   (packname, version) = deptools.get_pack_and_version(distkey)
 
   # For more accurate version equality testing:
-  pipified_version = pip._vendor.packaging.version.Version(version)
+  pipified_version = pip._vendor.packaging.version.parse(version)
 
   # Find all matches for this distkey's package name in the given distkey_set
   # that are not the same literal distkey as this distkey.
@@ -384,43 +384,27 @@ def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package,
 
 
 @timeout.timeout(300) # Timeout after 5 minutes.
-def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
-    _depth=0, _candidates=[], _conflicting_distkeys=[]):
+def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package):
   """
-  (Developed from fully_satisfy_strawman3, which was an exercise.)
-
-  Recurse and list all dists required to satisfy a dependency.
+  Provide a list of distributions to install that will fully satisfy a given
+  distribution's dependencies (and its dependencies' dependencies, and so on),
+  without any conflicting or incompatible versions.
 
   This is a backtracking dependency resolution algorithm.
   
-  strawman2-to-strawman3: This time, before recursing, check to see if the
-  package already has a version in the candidate set. If so, check to see if
-  that version satisfies the current candidate's dependency, and if so,
-  use that version - if NOT, raise a package conflict error. Eliminate circular
-  dependency loop issues.
+  This recursion is extremely inefficient, and would profit from dynamic
+  programming in general.
 
-  strawman1-to-strawman2: Test for any potential conflicts when adding a dist
-  to the satisfying_candidate_set, and only add to the satisfying_candidate_set
-  when there isn't a conflict.
-
-  Additionally, this recursion is extremely inefficient, and would profit from
-  dynamic programming in general.
-
-  TODO Next: Save time by skipping distkeys we've already found a conflict for?
-           conflicting_distkeys, passed around the same way _candidates is.
+  Note that there must be a level of indirection for the timeout decorator to
+  work as it is currently written. (This function can't call itself directly
+  recursively, but must instead call _backtracking_satisfy, which then can
+  recurse.)
 
 
   Arguments:
     - distkey_to_satisfy ('django(1.8.3)'),
     - edeps (dictionary returned by deptools.deps_elaborated; see there.)
     - versions_by_package (dictionary of all distkeys, keyed by package name)
-    - _depth: recursion depth, optionally, for debugging output
-    - _candidates: used in recursion: the list of candidates already
-      chosen, both to avoid circular dependencies and also to select sane
-      choices and force early conflicts (to catch all solutions)
-    - _conflicting_distkeys: similar to _candidates, but lists dists that
-      we've established conflict with accepted members of _candidates. Saves
-      time (minimal dynamic programming)
 
   Returns:
     - list of distkeys needed as direct or indirect dependencies to install
@@ -431,7 +415,27 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
       (e.g. 'X(1) -> B(1)\nX(1) -> C(1)\nC(1) -> A(3)\nB(1) -> A(3)')
 
   """
+  return _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package)
 
+
+
+
+
+def _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
+    _depth=0, _candidates=[], _conflicting_distkeys=[]):
+  """
+  Recursive helper to backtracking_satisfy. See comments there.
+
+  The additional arguments, for recursion state, are:
+    - _depth: recursion depth, optionally, for debugging output
+    - _candidates: used in recursion: the list of candidates already
+      chosen, both to avoid circular dependencies and also to select sane
+      choices and force early conflicts (to catch all solutions)
+    - _conflicting_distkeys: similar to _candidates, but lists dists that
+      we've established conflict with accepted members of _candidates. Saves
+      time (minimal dynamic programming)
+
+  """
   logger = depresolve.logging.getLogger('resolvability.backtracking_satisfy')
 
   # (Not sure this check is necessary yet, but we'll see.)
@@ -542,7 +546,7 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
       # will leave in an assert in case.
       try:
         (candidate_satisfying_candidate_set, new_conflicts, child_dotgraph) = \
-            backtracking_satisfy(candidate_distkey, edeps,
+            _backtracking_satisfy(candidate_distkey, edeps,
             versions_by_package, _depth+1, satisfying_candidate_set)
 
       # I don't know that I should be catching both. Let's see what happens.
@@ -598,13 +602,17 @@ def sort_versions(versions):
   (pip._vendor.packaging.version.Version) and then sort those, then spit back
   the original strings associated with each in the sorted order.
 
+  Note that technically some of the versions may instead be
+  pip._vendor.packaging.version.LegacyVersion if they do not comply with
+  PEP 440.
+
   This is used by backtracking_satisfy to prioritize version selection.
   """
 
   # Construct a list associating version string with pip version object.
   pipified_versions = []
   for v in versions:
-    pipified_versions.append((pip._vendor.packaging.version.Version(v), v))
+    pipified_versions.append((pip._vendor.packaging.version.parse(v), v))
 
   # Sort that list in reverse order. (pip Versions have overriden comparisons,
   # sort keys, etc.)

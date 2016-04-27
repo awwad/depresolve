@@ -101,7 +101,7 @@ def convert_version_into_depsolver(ver_str):
     # Try normalizing here.
     # First, find out if pip can handle it. If not, give up.
     try:
-      pipified_ver = str(pip._vendor.packaging.version.Version(ver_str))
+      pipified_ver = str(pip._vendor.packaging.version.parse(ver_str))
 
     except pip._vendor.packaging.version.InvalidVersion:
       raise DepsolverConversionError('Neither pip nor depsolver can parse this'

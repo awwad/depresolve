@@ -455,7 +455,7 @@ def normalize_version_string(version):
   does. pip employs a regex to handle certain version string components.
   """
   try:
-    normalized = str(pip._vendor.packaging.version.Version(version))
+    normalized = str(pip._vendor.packaging.version.parse(version))
   
   except pip._vendor.packaging.version.InvalidVersion:
     normalized = normalize_version_string(version)
@@ -492,7 +492,7 @@ def old_normalize_version_string(version):
   too much here, so I'll keep this for the next round of commits.
 
   This should normalize the version string the way that pip does it:
-    str(pip._vendor.packaging.version.Version(raw_version_string))
+    str(pip._vendor.packaging.version.parse(raw_version_string))
 
   Obsolete code and comments follow, for now.
 
