@@ -16,8 +16,8 @@ import depresolve # __init__ for errors and logging
 # Moved the code for dealing with dependency data directly into its own module,
 # and should tweak this to use it as a separate module later.
 import depresolve.deptools as deptools
-import depresolve._external.timeout as timeout # to prevent too-slow attempts
-import pip._vendor.packaging.specifiers
+import depresolve._external.timeout as timeout # to kill too-slow resolution
+import pip._vendor.packaging # for pip's specifiers and versions
 
 
 
@@ -413,6 +413,17 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package):
     - str, newline separated list, of the edges in the dot graph describing the
       dependencies satisifed here
       (e.g. 'X(1) -> B(1)\nX(1) -> C(1)\nC(1) -> A(3)\nB(1) -> A(3)')
+
+  Throws:
+    - timeout.TimeoutException if the process takes longer than 5 minutes
+    - depresolve.UnresolvableConflictError if not able to generate a solution
+      that satisfies all dependencies of the given package (and their
+      dependencies, etc.). This suggests that there is an unresolvable
+      conflict.
+    - depresolve.ConflictingVersionError
+      (Should not raise, ideally, but might - requires more testing)
+    - depresolve.NoSatisfyingVersionError
+      (Should not raise, ideally, but might - requires more testing)
 
   """
   return _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package)
