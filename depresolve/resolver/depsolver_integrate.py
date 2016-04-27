@@ -29,10 +29,11 @@
 import depresolve
 import depresolve.deptools as deptools
 import depresolve.resolver.resolvability as ry
+import depresolve._external.timeout as timeout # to kill too-slow resolution
 
 import depsolver # external
 
-import pip._vendor.packaging.specifiers # for SpecifierSet
+import pip._vendor.packaging # for pip's SpecifierSets and versions
 
 import json
 
@@ -207,6 +208,9 @@ def convert_packname_for_depsolver(packname):
 
   TODO: Look into depsolver._package_utils.is_valid_package_name()
   and depsolver._package_utils.parse_package_full_name()
+
+  TODO: Add capability to deal with periods in package names, after
+  looking through the above (may simply be able to say it's okay).
   """
   return packname.replace('-', '_')
 
@@ -221,6 +225,9 @@ def convert_packname_from_depsolver(depsolver_packname):
   convert_distkey_for_depsolver.)
 
   TODO: Look into depsolver._package_utils.parse_package_full_name()
+
+  TODO: Add capability to deal with periods in package names, after
+  looking through the above (may simply be able to say it's okay).
   """
   return depsolver_packname.replace('_', '-')
 
@@ -363,6 +370,41 @@ def convert_packs_to_packageinfo_for_depsolver(deps):
 
 
 
+def pinfos_to_strings_for_json(pinfos):
+  """
+  Given a list of PackageInfo objects (converted from deps), strip them down to
+  strings that can be used to reload those objects. (Can't serialize a
+  PackageInfo object for JSON, but don't want to convert them all over again
+  every time - so will load them from strings, which is faster.)
+
+  repr() of a PackageInfo object, in python 2:
+    PackageInfo(u'couchdbkit-0.1.3; depends (py_restclient >= 1.2.0, simplejson *)')
+
+  repr() of a PackageInfo object, in python 3:
+    PackageInfo('couchdbkit-0.1.3; depends (py_restclient >= 1.2.0, simplejson *)')
+
+  string desirable for creating that PackageInfo object anew:
+    'couchdbkit-0.1.3; depends (py_restclient >= 1.2.0, simplejson *)'
+
+  """
+  import sys
+
+  # In python 2, the repr of the PackageInfo objects will include a "u" to
+  # indicate a unicode string, while in python 3, they will not.
+
+  converted_as_strings = []
+
+  if sys.version_info.major < 3:
+    converted_as_strings = [str(repr(pinfo)[14:-2]) for pinfo in pinfos]
+
+  else:
+    converted_as_strings = [str(repr(pinfo)[13:-2]) for pinfo in pinfos]
+
+  return converted_as_strings
+
+
+
+
 def reload_already_converted_from_json(fname):
   """
   Given a json containing an array of the repr() values from
@@ -418,7 +460,7 @@ def reload_already_converted_from_json(fname):
 
 
 
-
+@timeout.timeout(300) # Timeout after 5 minutes.
 def resolve_via_depsolver(distkey, deps, versions_by_package=None,
     already_converted=False):
   """
@@ -442,6 +484,9 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None,
 
   If optional arg 'already_converted' is set to True, we take deps as depsolver
   compatible deps (PackageInfos), skipping any conversion process.
+
+  Throws:
+   - timeout.TimeoutException if the process takes longer than 5 minutes.
 
   """
   # Convert the dependencies into a format for depsolver, if they are not
