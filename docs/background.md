@@ -26,11 +26,20 @@ The process of finding a set of package versions/dists that satisfies all requir
 
 ## Problem #1: ... Unfortunately, we don't even do THAT in python.
 
-Unfortunately, when you `pip install nifty-webshop`, that simple resolution is not what actually happens, because [pip lacks a real dependency resolver](https://github.com/pypa/pip/issues/988). pip's approach is not a careful one, but rather a first-come-first-served approach that fails to recognize package conflicts like the one above. In the example above, it is likely that pip would grab nifty-webshop(1.2), django(1.9.x), and wheresmydelivery(0.5), install them all, and not even realize that it just broke the package it installed and provided the user a nonfunctioning install set. Thinking they've successfully installed, the user would at some point get arcane errors from wheresmydelivery because the version of django installed is not actually compatible with wheresmydelivery, and would break it. The performance of pip varies in this regard, and approximately 1.6% of dists currently on PyPI are packages with dependency conflicts that pip fails to resolve. (TODO: Link here to data when it's posted.) The number of hours users and developers lose debugging such *foreseeable problems* is not knowable.
+Unfortunately, when you `pip install nifty-webshop`, that simple resolution is not what actually happens, because [pip lacks a real dependency resolver](https://github.com/pypa/pip/issues/988). pip's approach is not a careful one, but rather a first-come-first-served approach that fails to recognize package conflicts like the one above. In the example above, it is likely that pip would grab nifty-webshop(1.2), django(1.9.x), and wheresmydelivery(0.5), install them all, and not even realize that it just broke the package it installed and provided the user a nonfunctioning install set. Thinking they've successfully installed, the user would at some point get arcane errors from wheresmydelivery because the version of django installed is not actually compatible with wheresmydelivery, and would break it. The performance of pip varies in this regard, and approximately 1.6% of dists currently on PyPI are packages with dependency conflicts that pip fails to resolve. (TODO: Link here to data when it's posted.) The number of hours users and developers lose debugging such *foreseeable problems* is not knowable. **It is noteworthy that this struggle would be improved by simply consistently notifying users (and, conditional on environment assumptions, even package uploaders and maintainers) of the existence of a conflict in the selected solution.**
 
-This problem plagues package managers in general, but PyPI is especially vulnerable to it due to the fact that package dependencies are not known until install time, and are not fixed metadata (A package can actually dynamically decide what its dependencies are at install time, based on a user's environment!)
+As for automatic resolution of the dependency conflict problem, common approaches to finding a packaging dependency solution are **backtracking resolution** and **satisfiability (SAT) solving**.
 
-Common approaches to finding a packaging dependency solution are **backtracking resolution** and **satisfiability (SAT) solving**. 
+
+## SAT Solving vs Blind Backtracking
+
+The dependency conflict problem plagues package managers in general, and SAT solving, as the highly optimized and well studied discipline, is automatically the privileged candidate; however, PyPI is slightly special. PyPI package dependencies are not known until install time, i.e. are not fixed metadata; a package can actually dynamically decide what its dependencies are at install time, based on a user's environment (or any other arbitrary reason).
+
+Consequently, for us, there is a substantial problem with a general SAT solver (which may employ backtracking internally in its search of the solution space or not - don't let that confuse you): that a SAT solver requires complete information about the dependency tree to begin. While in most practical cases, dependencies are static, dependency information does not *necessarily* exist independently of user environments. In particular, this means that unless we are willing to dictate or assume static package dependencies (and store them in some central dictionary - about 30MB - that every user would need and which is likely to occasionally diverge from the real dependencies they see), then **in order to SAT solve dependencies with a general SAT solver, a user would have to determine package dependency information for every applicable version of every dependend-on package, acquiring all the possible packages and processing their setup.py files.** That is massive overhead.
+
+ By comparison, a backtracking resolver can simply pull package information as it is needed, and hope that the solution appears readily. What it loses in efficiency is likely to pale in comparison to the gains in not having to obtain and process a large number of distributions (django 1.7.1, 1.7.2, 1.7.3, 1.7......).
+
+ It may be that a hybrid solution may prove worthwhile, with a centrally calculated solution set generated on some common environment and partially recalculated when new packages surface. The solution for a requested package X given to users when they try to install package X, and, if that fails for the user, backtracking can take over.
 
 
 
@@ -42,7 +51,7 @@ Common approaches to finding a packaging dependency solution are **backtracking 
 
 ###Problem #2: Unresolvable Dependency Conflicts
 
-Further complicating matters, not all dependency conflicts even *are* resolvable.
+Further complicating matters, not all dependency conflicts *are* resolvable.
 
 --TODO: Expand on an example of an unresolvable conflict, say motorengine(0.7.4), explaining a few ways these happen. Even if a developer is mindful about the dependencies of her dependencies at dev time, new versions or different platforms can result in etc. etc. etc.--
 
