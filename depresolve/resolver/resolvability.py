@@ -687,8 +687,9 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
     except Exception as e:
 
       unable_to_resolve.append(str(distkey)) # cleansing unicode prefixes (py2)
-      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Could not parse: '
-          + distkey + '. Exception follows:' + str(e.args))
+      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Could not '
+          'parse: ' + distkey + '. Exception of type ' + str(type(e)) +
+          ' follows:' + str(e.args))
 
     else:
       solutions[distkey] = str(solution) # cleansing unicode prefixes (python2)
