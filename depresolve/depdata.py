@@ -155,8 +155,23 @@
       ]
      }
 
+
+
  conflicts_db (dictionary of conflicting distributions)
 
+    A dictionary mapping distkey to boolean indicating whether or not a
+    dependency conflict exists for that distribution.
+
+    Stored as conflicts_1.json, conflicts_2.json, conflicts_3.json,
+    respectively for the associated conflict models (1, 2, or 3), defined in
+    README.md and docs/background.md.
+
+    Example:
+      {
+        'motorengine(0.7.2)': True,
+        'django(1.7.1)': False,
+        'foo(1)': False
+      }
 
 
 """
