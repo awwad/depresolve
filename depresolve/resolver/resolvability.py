@@ -709,7 +709,7 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
           ' follows:' + str(e.args))
 
     else:
-      solutions[distkey] = str(solution) # cleansing unicode prefixes (python2)
+      solutions[distkey] = [str(dist) for dist in solution] # cleansing unicode prefixes (python2)
       print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Resolved: ' +
           distkey)
 
