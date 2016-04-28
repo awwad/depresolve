@@ -20,7 +20,7 @@ Along with these components are a few additional scripts for making use of them.
 ##Installation of scraper and resolver
 1. `git clone https://github.com/awwad/depresolve`
 2. `cd depresolve`
-3. `virtualenv -p python3 --no-site-packages v3`
+3. `virtualenv -p python2 --no-site-packages v2`
 3. `source v3/bin/activate`
 4. `pip install -e .`
 5. `cd ..`
@@ -34,10 +34,13 @@ Along with these components are a few additional scripts for making use of them.
 
 Notes:
 - Those installs must be done in that order for the scraper to work.
+- Python version 2 is suggested above because the external SAT solver has python 3 compatibility issues. The rest of the project is 2/3 compatible, so if you don't intend to use the external SAT solver, feel free to use python 3.
 - `pip install -e` installs a package in editable mode, for development convenience. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs)
 - enthought/depsolver is not necessary if you do not wish to use the SAT solver-based resolver.
-- The awwad/pip installation is not necessary if you will not be using the scraper to harvest dependencies and detect conflicts, but have dependency data from another source.
-
+- The awwad/pip installation is not necessary if you will not be using the scraper to harvest dependencies and detect conflicts, but have dependency data from another source, like:
+- Optionally, **[you can download my data, compiled for you here!](https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=0))**. Dependency data for all PyPI packages, conflict data, and solution data there is calculated from a rough PyPI mirror current in late 2015. What you choose to use should be placed in the data/ directory in the main depresolve directory. The data there was crunched on an Ubuntu machine, generally running python 3 within a minimal virtualenv, from hundreds of thousands of abbreviated package installs. :P You can pull it from dropbox at the link provided or download all of it (52MB zipped) via shell like so:
+  - `curl -L -o dep_data.zip https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=1`
+  - `unzip dep_data.zip`
 
 
 ##Resolver Documentation
@@ -49,9 +52,9 @@ Two dependency resolvers are provided, a backtracking resolver (depresolve.resol
 
 ###Requirements, Resolver
 
-The backtracking resolver currently has no external dependencies.
+The backtracking resolver currently has no external dependencies and has been tested in python 2.7, 3.4, and 3.5.
 
-The SAT-based resolver requires six (pip install six) and package depsolver (available at (https://github.com/enthought/depsolver)).
+The SAT-based resolver requires six (pip install six) and package depsolver (available at (https://github.com/enthought/depsolver)). External package depsolver seems to be python 3 incompatible, but runs on python 2.7.
 
 
 

@@ -5,8 +5,17 @@
 <Purpose>
   This module houses the globals to be used by deptools, resolver, scraper.
 
+  I've made sample data - already crunched in the formats below for all PyPI
+  packages current to late 2015 - available at:
+    https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=0
 
-<Data Formats>
+  You can pull it from dropbox at the link provided or download all of it
+  (52MB zipped) via shell like so:
+    > curl -L -o dep_data.zip https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=1
+    > unzip dep_data.zip
+
+
+<Data Specification>
 
  distkey (distribution key):
 
@@ -53,6 +62,8 @@
 
 
  deps (dependencies dictionary):
+
+    This is often 'deps' or 'dependencies_by_dist' in the code.
 
     The data format we use for dependency info, which I'll generally refer to
     as 'deps', is a dictionary with keys being distkeys (e.g. 'django(1.8.3)').
@@ -144,6 +155,8 @@
       ]
      }
 
+ conflicts_db (dictionary of conflicting distributions)
+
 
 
 """
@@ -163,7 +176,7 @@ import os
 import json
 
 # Filenames
-WORKING_DIRECTORY = os.path.join(os.getcwd()) #'/Users/s/w/git/pypi-depresolve' in my setup
+WORKING_DIRECTORY = os.path.join(os.getcwd()) #'/Users/s/w/git/depresolve' in my setup
 DEPENDENCY_CONFLICTS1_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
     'conflicts_1.json') # db for model 1 conflicts
 DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
@@ -302,7 +315,8 @@ def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3]):
 def set_conflict_model_legacy(CONFLICT_MODEL):
   """
   For my convenience, sticks a reference to the active conflict model's
-  dict in alias "conflict_db"
+  dict in alias "conflict_db". The dependence on such an alias makes me a bit
+  nervous, so we should move away from it by updating scraper code. /:
   """
   global conflicts_db
   global conflicts_1_db
