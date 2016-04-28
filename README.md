@@ -59,12 +59,30 @@ The SAT-based resolver requires six (pip install six) and package depsolver (ava
 
 TODOC
 
+The backtracking resolver in its current form consumes a dictionary of all dependencies of all relevant packages, and, when given the name of a distribution (e.g. 'motorengine(0.7.4)', what I term a distribution key or distkey), will attempt to find a set of distributions to install that fulfills all dependencies without a dependency conflict. It does this by recursing through the tree of dependencies and gradually building up a set of nonconflicting candidates.
+
+In a future revision, the backtracker will determine dependencies dynamically as it goes, not requiring a separate scraping process to already have occurred.
+
+
 ###Instructions for Use, Resolver
 
 TODOC
 
+Assume data/dependencies.json contains a dictionary of all distributions' dependencies, indexed by distribution key, elaborated via `depresolve.deptools.elaborate_dependencies(deps, versions_by_package)`. (For format details, see [depresolve/depdata.py](depresolve/depdata.py).)
 
+```
+>>> import depresolve.deptools as deptools
+>>> import depresolve.resolver.resolvability as ry
+>>> import json
+>>> deps = json.load(open('data/dependencies.json', 'r'))
+>>> versions_by_package = deptools.generate_dict_versions_by_package(deps)
+>>> edeps = deptools.elaborate_dependencies(deps, versions_by_package)
+>>> solution = ry.backtracking_satisfy('motorengine(0.7.4)', edeps,
+      versions_by_package)
 
+```
+
+(Note that dependency elaboration is very slow.)
 
 ##Scraper / Conflict Detector Documentation
 
@@ -97,6 +115,8 @@ The scraper's script, scrape_deps_and_detect_conflicts.py, given a package name 
 Note that all skipping based on blacklisting or data already available on the existence / lack of a conflict for a given package (package name & version) can be avoided by use of argument --noskip.
 
 The scraper is configured to timeout on any given distribution if pip takes longer than 5 minutes to process it. This will not add the distribution to the blacklist.
+
+TL;DR: The primary outputs of the scraper come in the form of dependencies.json and conflicts_3.json. [Formats explained in docstring here](depresolve/depdata.py).
 
 
 ###Instructions for use, Scraper

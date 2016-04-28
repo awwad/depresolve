@@ -4,8 +4,147 @@
 
 <Purpose>
   This module houses the globals to be used by deptools, resolver, scraper.
-  
-  TODO: Move the data descriptions into this docstring.
+
+
+<Data Formats>
+
+ distkey (distribution key):
+
+    A distkey is the unique identifier we use for a distribution, being a
+    particular concatenation of the package name and version string, separated
+    by parentheses.
+
+    Examples:
+      django(1.8.3)   version 1.8.3 of package 'django'
+      foo(1.0b3)      version 1.0b3 (1.0 beta 3) of package 'foo'
+
+    We expect version strings to be compatible with the Version or
+    LegacyVersion classes defined in pip._vendor.packaging.version. In
+    practice, anything that works for pip should work for us. Given a string
+    version_string, pip._vendor.packaging.version.parse(version_string) should
+    not raise pip._vendor.packaging.version.InvalidVersion.
+
+    Package names are less rigorously constrained, but should ideally be all
+    lowercase, and employ '-' rather than '_'. Again, what works in pip should
+    work here.
+    (TODO: Point to pip's specification.)
+
+ 
+
+ dep (dependency):
+
+    A dependency takes the form of the two-member list, the first member being
+    the name of the package depended on, and the second member being a
+    requirement or specifier string. Such strings should match the
+    specifications of pip._vendor.packaging.version.Specifier. The format is
+    also documented here:
+      https://pip.pypa.io/en/stable/reference/pip_install/#requirement-specifiers
+
+    In practice, feeding string x to
+    pip._vendor.packaging.version.SpecifierSet(x) should not result in an
+    error. Generally, if pip understands a specifier string, so should we.
+
+    examples:
+      ['pymongo', '==2.5']           # a dependency on pymongo version 2.5
+      ['six', '']                    # dependency on any version of six
+      ['foo', '<5.0.1']              # dep on any ver of foo under 5.0.1
+      ['bar', '>=6.0,!=6.2.1,<8.0']  # ver >= 6, less than 8, and not 6.2.1
+
+
+
+ deps (dependencies dictionary):
+
+    The data format we use for dependency info, which I'll generally refer to
+    as 'deps', is a dictionary with keys being distkeys (e.g. 'django(1.8.3)').
+    The value associated with each distkey in the dictionary is a list of
+    individual dependencies, each dependency being the length-two list 'dep'
+    format above.
+
+       e.g., here is a deps dictionary:
+
+         {'motorengine(0.7.4)':           # distribution motorengine 0.7.4
+            [  ['pymongo', '==2.5'],      # depends on pymongo version 2.5
+               ['tornado', ''],           # and any version of tornado
+               ['motor', ''],             # and any version of motor
+               ['six', ''],               # and any version of six
+               ['easydict', '']           # and any version of easydict
+            ],
+          'django(1.8.3)':                # version 1.8.3 of package django
+            [],                           # has no dependencies
+          'django(1.6.3)':
+            [],
+          'django(1.7)':
+            [],
+          'chembl-webservices(2.2.11)':
+            [  ['lxml', ''],
+               ['pyyaml', '>=3.10'],
+               ['defusedxml', '>=0.4.1'],
+               ['simplejson', '==2.3.2'],
+               ['pillow', '>=2.1.0'],
+               ['django-tastypie', '==0.10'],
+               ['chembl-core-model', '>=0.6.2'],
+               ['cairocffi', '>=0.5.1'],
+               ['numpy', '>=1.7.1'],
+               ['mimeparse', ''],
+               ['raven', '>=3.5.0],
+               ['chembl-beaker', '>=0.5.34']
+            ],
+          ...
+          ...
+         }
+
+
+
+ edep (elaborated dependency):
+
+    An elaborated dependency is a three-member list, essentially just deps
+    with an additional member between the two original members: the list of
+    available versions satisfying the dependency.
+
+    Example:
+      [
+        'foo',                          # str: depended-on package
+        ['1.0', '1.1', '1.2', '1.2.5'], # list: all satisfying versions
+        '>=1,<1.3'                      # str: the specifier/requirement string
+      ]
+
+    The additional list identifies a list of every specific version of a
+    depended-on package that would satisfy the depending package's dependency
+    on the depended-on package. (Mouthful!)
+
+    The specifier string is redundant but provided for convenience.
+
+
+
+ edeps (elaborated dependencies dictionary):
+
+    The similarly augmented version of deps.
+
+    Example:
+     {
+      'django(1.7)': [],       # django 1.7 has no dependencies
+
+      'foo(1)': [                        # version 1 of foo
+        'bar',                           # depends on package bar,
+        ['1.0', '1.1', '3', '4.2.5b4'],  # any of these available versions
+        ''                               # specifier was any version
+      ],
+
+      'X(1.0)': [                 # distribution X-1.0
+        ['B', ['2.5'], '==2.5'],  # depends on package B, version 2.5,
+                                  # which exists
+        
+        ['C', ['1', '2'], ''],  # and version 1 or 2 of package C
+                                # those being the only available versions of C
+
+        ['D', ['1.9', '1.10'], '>=1.9,<1.10.3'] # and versions 1.9 or 1.10 of
+                                                # package D, as those are the
+                                                # only available versions that
+                                                # fit '>=1.9,<1.10.3'.
+      ]
+     }
+
+
 
 """
 
