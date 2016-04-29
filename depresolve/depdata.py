@@ -321,8 +321,6 @@ def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3]):
 
   assert type(blacklist) is dict
 
-  print('depresolve globals have been imported.')
-
 
 
 
