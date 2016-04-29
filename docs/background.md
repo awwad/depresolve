@@ -86,7 +86,7 @@ This may be the most useful figure when discussing how to improve pip, but it is
 
 ###Problem #2: Unresolvable Dependency Conflicts
 
-Further complicating matters, not all dependency conflicts *are* resolvable.
+Further complicating matters, not all dependency conflicts *are* resolvable. Data crunched with the resolver tools provided here on the full set of packages / source distributions on PyPI indicates that of the 1.3% that have model 3 conflicts, fewer than 35% are unresolvable. Better data will be forthcoming after resolver improvements. ([Issue 12](https://github.com/awwad/depresolve/issues/12))
 
 --TODO: Expand on a real example of an unresolvable conflict, explaining a few ways these happen. Even if a developer is mindful about the dependencies of her dependencies at dev time, new versions or different platforms can result in etc. etc. etc.--
 
