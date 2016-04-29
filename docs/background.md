@@ -45,7 +45,7 @@ As for automatic resolution of the dependency conflict problem, common approache
 
 The dependency conflict problem plagues package managers in general, and SAT solving, as the highly optimized and well studied discipline, is automatically the privileged candidate; however, PyPI is slightly special. PyPI package dependencies are not known until install time, i.e. are not fixed metadata; a package can actually dynamically decide what its dependencies are at install time, based on a user's environment (or any other arbitrary reason). *In order to determine what a given version of a package's dependencies are, pip downloads that package and processes it.*
 
-Consequently, for us, there is a substantial problem with a general SAT solver (which may employ backtracking internally in its search of the solution space or not - don't let that confuse you): that a SAT solver requires complete information about the dependency tree to begin. While in most practical cases, dependencies are static, dependency information does not *necessarily* exist independently of user environments. In particular, this means that unless we are willing to dictate or assume static package dependencies (and store them in some central dictionary - about 30MB - that every user would need and which is likely to occasionally diverge from the real dependencies they see), then **in order to SAT solve dependencies with a general SAT solver, a user would have to determine package dependency information for every applicable version of every dependend-on package, acquiring all the possible packages and processing their setup.py files.** That is massive overhead.
+Consequently, for us, there is a substantial problem with a general SAT solver: that a SAT solver requires complete information about the dependency tree to begin. While in most practical cases, dependencies are static, dependency information does not *necessarily* exist independently of user environments. In particular, this means that unless we are willing to dictate or assume static package dependencies (and store them in some central dictionary - about 30MB - that every user would need and which is likely to occasionally diverge from the real dependencies they see), then **in order to SAT solve dependencies with a general SAT solver, a user would have to determine package dependency information for every applicable version of every dependend-on package, acquiring all the possible packages and processing their setup.py files.** That is massive overhead.
 
  By comparison, a backtracking resolver can simply pull package information as it is needed, and hope that the solution appears readily. What it loses in efficiency is likely to pale in comparison to the gains in not having to obtain and process a large number of distributions (django 1.7.1, 1.7.2, 1.7.3, 1.7......).
 
@@ -57,13 +57,6 @@ Consequently, for us, there is a substantial problem with a general SAT solver (
 
 
 ##Addenda
-
-###Problem #2: Unresolvable Dependency Conflicts
-
-Further complicating matters, not all dependency conflicts *are* resolvable.
-
---TODO: Expand on a real example of an unresolvable conflict, explaining a few ways these happen. Even if a developer is mindful about the dependencies of her dependencies at dev time, new versions or different platforms can result in etc. etc. etc.--
-
 
 ###Conflict Prevalence and Models
 
@@ -91,8 +84,17 @@ The most pragmatic (and somewhat limited) conflict model I use is in effect "Doe
 This may be the most useful figure when discussing how to improve pip, but it is good to remember that this ignores other cases like those in conflict model 2, where any new release could result in a conflict. That pip doesn't run into the conflict is not an assurance that it is doing the right thing - it is often just lucky, or a result of developers doing extra work before uploading a package to pin versions so that things at least install for now.
 
 
+###Problem #2: Unresolvable Dependency Conflicts
+
+Further complicating matters, not all dependency conflicts *are* resolvable.
+
+--TODO: Expand on a real example of an unresolvable conflict, explaining a few ways these happen. Even if a developer is mindful about the dependencies of her dependencies at dev time, new versions or different platforms can result in etc. etc. etc.--
+
+
+
+
 ###Further background
-<sup>1</sup>Pip has long had issues with dependency resolution. See for example:
+<sup>1</sup>The lack of dependency resolution for pip is established. See for example:
 * [Pip doesn't spot conflicting versions](https://github.com/pypa/pip/issues/775#issuecomment-12748095)
 * [Pip needs a dependency resolver](https://github.com/pypa/pip/issues/988)
 * [pip install -r does not respect package dependencies](https://github.com/pypa/pip/issues/3183)
