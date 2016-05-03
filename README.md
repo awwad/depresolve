@@ -44,7 +44,7 @@ Notes:
 
 
 ##Resolver Documentation
-**The resolver subpackage is a later addition NOT YET DOCUMENTED HERE (TODO) that provides package dependency conflict resolution and assessments of resolvability, also primarily for experimental purposes.**
+The resolver subpackage provides package dependency conflict resolution and assessments of resolvability of conflicts, primarily for experimental purposes.
 
 Two dependency resolvers are provided, a backtracking resolver (depresolve.resolver.resolvability), and a SAT solver (integrating external package enthought/depsolver). Documentation here will refer primarily to the internal backtracking resolver.
 
