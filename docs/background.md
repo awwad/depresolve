@@ -81,7 +81,7 @@ The most pragmatic (and somewhat limited) conflict model I use is in effect "Doe
 
 (** This constituted a test of every version of every package available on a local mirror of PyPI that pip was able to parse on my testing rig.)
 
-This may be the most useful figure when discussing how to improve pip, but it is good to remember that this ignores other cases like those in conflict model 2, where any new release could result in a conflict. That pip doesn't run into the conflict is not an assurance that it is doing the right thing - it is often just lucky, or a result of developers doing extra work before uploading a package to pin versions so that things at least install for now.
+This may be the most useful figure when discussing how to improve pip, but it is good to remember that this ignores other cases like those in conflict model 2, where any new release could result in a conflict. That pip doesn't run into the conflict is not an assurance that it is doing the right thing - it is often just lucky, or a result of developers doing extra work before uploading a package to pin versions so that things at least install for now (a way of doing things that takes more time and results in more arbitrary and stagnant pinned dependencies).
 
 
 ###Problem #2: Unresolvable Dependency Conflicts
