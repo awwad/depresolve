@@ -388,7 +388,7 @@ def is_sdist(fname):
 
 
 
-def get_distkey_from_full_filename(tarfilename_full):
+def get_distkey_from_full_filename(fname_full):
   """
   Given a full filename of an sdist (a .tar.gz in a bandersnatch mirror, say,
   of the form e.g. /srv/.../packagename/packagename-1.0.0.tar.gz), return the
