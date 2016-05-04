@@ -429,7 +429,7 @@ def get_pack_and_version(distkey):
 
 def get_packname(distkey):
   """The package name ends with the first open parenthesis."""
-  return distkey[:distkey.find('(')]
+  return distkey[:distkey.find('(')].lower() # prophylactic lower
 
 
 
@@ -441,7 +441,7 @@ def get_version(distkey):
   So it's just every character after the first '(' until the last
   character, which must be ')'.
   """
-  return distkey[distkey.find('(') + 1 : -1]
+  return distkey[distkey.find('(') + 1 : -1].lower() # paranoid lower
 
 
 
@@ -454,7 +454,7 @@ def distkey_format(package_name, version_string):
 
   Reverse: get_pack_and_version()
   """
-  return package_name + '(' + version_string + ')'
+  return package_name.lower() + '(' + version_string.lower() + ')'
 
 
 

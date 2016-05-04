@@ -414,7 +414,7 @@ def get_distkey_from_full_filename(fname_full):
 
   # Subtract the unnormalized packagename to get the unnormalized version str.
   unnormalized_version = \
-      unnormalized_package_and_version[len(unnormalized_package) + 1 :]
+      unnormalized_package_and_version[len(unnormalized_packagename) + 1 :]
 
   # Now normalize them both and combine them into a normalized distkey.
 
