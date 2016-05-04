@@ -238,10 +238,10 @@ def main():
     if not NO_SKIP:
       if distkey in keys_in_conflicts_db_lower:
         n_inspected += 1
-        logger.info("---    SKIP -- Already have " + distkey + " in db of " +
-          "type " + str(CONFLICT_MODEL) + " conflicts. Skipping. (Now at " +
-          str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) +
-          ")")
+        print('---    SKIP -- Already have ' + distkey + ' in db of ' +
+          'type ' + str(CONFLICT_MODEL) + ' conflicts. Skipping. (Finished ' +
+          str(n_inspected) + ' out of ' + str(len(list_of_sdists_to_inspect)) +
+          ')')
         continue
 
       # Else if the dist is listed in the blacklist along with this python
@@ -249,9 +249,9 @@ def main():
       elif distkey in depdata.blacklist and \
         sys.version_info.major in depdata.blacklist[distkey]:
         n_inspected += 1
-        logger.info("---    SKIP -- Blacklist includes " + distkey +
-          ". Skipping. (Now at " + str(n_inspected) + " out of " +
-          str(len(list_of_sdists_to_inspect)) + ")")
+        print('---    SKIP -- Blacklist includes ' + distkey +
+          '. Skipping. (Finished ' + str(n_inspected) + ' out of ' +
+          str(len(list_of_sdists_to_inspect)) + ')')
         continue
 
       logger.debug(distkey + ' not found in conflicts or blacklist dbs. '
@@ -311,20 +311,20 @@ def main():
     
     # Process the output of the pip command.
     if exitcode == 2:
-      logger.info("--- X  SDist " + distkey + " : pip errored out (code=" +
-        str(exitcode) + "). Possible DEPENDENCY CONFLICT. Result recorded in "
-        "conflicts_<...>.json. (Finished with " +
-        str(n_inspected) + " out of " + str(len(list_of_sdists_to_inspect)) +
-        ")")
+      print('--- X  SDist ' + distkey + ' : pip errored out (code=' +
+        str(exitcode) + '). Possible DEPENDENCY CONFLICT. Result recorded in '
+        'conflicts_<...>.json. (Finished ' +
+        str(n_inspected) + ' out of ' + str(len(list_of_sdists_to_inspect)) +
+        ')')
     elif exitcode == 0:
-      logger.info("--- .  SDist " + distkey + " : pip completed successfully. "
-        "No dependency conflicts observed. (Finished with " + str(n_inspected)
-        + " out of " + str(len(list_of_sdists_to_inspect)) + ")")
+      print('--- .  SDist ' + distkey + ' : pip completed successfully. '
+        'No dependency conflicts observed. (Finished ' + str(n_inspected)
+        + ' out of ' + str(len(list_of_sdists_to_inspect)) + ')')
     else:
-      logger.debug("--- .  SDist " + distkey + ": pip errored out (code=" +
-        str(exitcode) + "), but it seems to have been unrelated to any dep "
-        "conflict.... (Finished with " + str(n_inspected) + " out of " +
-        str(len(list_of_sdists_to_inspect)) + ")")
+      print('--- .  SDist ' + distkey + ': pip errored out (code=' +
+        str(exitcode) + '), but it seems to have been unrelated to any dep '
+        'conflict.... (Finished ' + str(n_inspected) + ' out of ' +
+        str(len(list_of_sdists_to_inspect)) + ')')
       # Store in the list of failing packages along with the python version
       # we're running. (sys.version_info.major yields int 2 or 3)
       # Contents are to eventually be a list of the major versions in which it
