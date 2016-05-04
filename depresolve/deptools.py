@@ -688,3 +688,23 @@ def validate_deps(deps):
 
 
 
+
+def fix_deps_case(deps):
+  """
+  Lowercase all package names in deps (dependers and depended-on).
+  Onetime fix.
+  """
+  newdeps = dict()
+
+  for distkey in deps:
+
+    newdeps[distkey.lower()] = []
+
+    for dep in deps[distkey]:
+      packname = dep[0].lower()
+      # '>=9.0DEV' is handled by the pip classes and identical to '>=9.0dev'
+      specstring = dep[1] # not lower
+      newdeps[distkey.lower()].append([packname, specstring])
+
+  return newdeps
+
