@@ -229,9 +229,9 @@ def load_json_db(fname):
     print('  Directed to load ' + fname + ' but file does not exist. Will '
         'CREATE A NEW FILE AND LOAD AN EMPTY DICTIONARY. ')
 
-    input('  PRESS ENTER TO CONTINUE, CONTROL-C TO KILL AND MANUALLY HANDLE.')
+    input_('  PRESS ENTER TO CONTINUE, CONTROL-C TO KILL AND MANUALLY HANDLE.')
 
-    dirname = os.path.dirname(fname)
+    dirname = os.path.dirname(os.path.abspath(fname))
     if not os.path.exists(dirname):
       print("Directory check: " + dirname + " does not exist. Making it.")
       os.makedirs(dirname)
@@ -255,7 +255,7 @@ def load_json_db(fname):
       print('  Directed to load ' + fname + '; able to open file, but '
           'UNABLE TO PARSE JSON DATA from that file. Will load an empty dict '
           'and ultimately EXPECT TO OVERWRITE UNREADABLE JSON.')
-      input('  PRESS ENTER TO CONTINUE, CONTROL-C TO KILL AND AVOID '
+      input_('  PRESS ENTER TO CONTINUE, CONTROL-C TO KILL AND AVOID '
           'POTENTIALLY OVERWRITING SALVAGEABLE DATA.')
       db = dict() # If it was invalid or the file didn't exist, load empty.
 
