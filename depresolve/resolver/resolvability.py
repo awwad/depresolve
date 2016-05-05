@@ -226,6 +226,83 @@ def detect_direct_conflict(candidates):
   return False
 
 
+
+
+
+def is_dep_satisfied(edep, candidates):
+  """
+  Returns True if the given dependency (in the form of an elaborated
+  dependency, or edep (See depresolve/depdata.py.)) is satisfied by the given
+  list of candidate distkeys, else returns False.
+  """
+  logger = depresolve.logging.getLogger('resolvability.is_dep_satisfied')
+
+  packname = edep[0]
+  list_of_acceptable_versions = edep[1]
+
+  same_package_dist = find_dists_matching_packname(packname, candidates)
+  if not same_package_dist:
+    logger.info('Not satisfied: No version of ' + packname + ' in candidate '
+        'list.')
+    return False
+  assert len(same_package_dist) == 1, 'Programming error. Multiple dists of '\
+      'the same package provided in a candidate list. N=' + \
+      str(len(same_package_dist))
+  same_package_dist = same_package_dist[0]
+
+  version_of_satisfying_package = deptools.get_version(same_package_dist)
+  
+  # Slight shortcut to save time in the majority case:
+  if version_of_satisfying_package in list_of_acceptable_versions:
+    return True
+
+  else:
+    version_match = False
+    # Doing it this way catches matches like 2.0 to 2.0.0. (Match same versions
+    # even if string isn't exactly the same.)
+    for acceptable_version in list_of_acceptable_versions:
+      if versions_are_equal(version_of_satisfying_package, acceptable_version):
+        version_match = True
+        break
+
+    return version_match
+
+  assert False, 'Coding error. Should not be possible to reach this point.'
+
+
+
+
+
+def are_fully_satisfied(candidates, edeps, versions_by_package):
+  """
+  Validates the results of a resolver solution.
+  Given a set of distkeys, determines whether or not all dependencies of all
+  given dists are satisfied by the set (and all dependencies of their
+  dependencies, etc.).
+  Returns True if that is so, else returns False.
+
+  Note that this depends on the provided dependency information in edeps.
+  If those dependencies were harvested on a system that's different from the
+  one that generated the given candidates (e.g. if even the python versions
+  used are different), there's a chance the dependencies won't actually match
+  since, as we know, PyPI dependencies are not static..............
+  """
+  logger = depresolve.logging.getLogger('resolvability.are_fully_satisfied')
+
+  for distkey in candidates:
+    for edep in edeps[distkey]:
+      if not is_dep_satisfied(edep, candidates):
+        logger.info(distkey + ' dependency ' + edep[0] + str(edep[2]) + ' is '
+            'not satisfied by candidate set: ' + str(candidates) +
+            '. Acceptable versions were: ' + str(edep[1]))
+        return False
+
+  return True
+
+
+
+
+
 def combine_candidate_sets(orig_candidates, addl_candidates):
   """
   Given a set of distkeys to install and a second set to add to the first set,
@@ -605,6 +682,104 @@ def _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
 
   return satisfying_candidate_set, my_conflicting_distkeys, dotgraph
 
+
+
+
+
+@timeout.timeout(300) # Timeout after 5 minutes.
+def satisfy2(distkey_to_satisfy, edeps, versions_by_package):
+  """
+  Provide a list of distributions to install that will fully satisfy a given
+  distribution's dependencies (and its dependencies' dependencies, and so on),
+  without any conflicting or incompatible versions.
+
+  This is a backtracking dependency resolution algorithm.
+  
+  Note that there must be a level of indirection for the timeout decorator to
+  work as it is currently written. (This function can't call itself directly
+  recursively, but must instead call _backtracking_satisfy, which then can
+  recurse.)
+
+  Note that this is not efficient.
+  (Example: Queues are best implemented by collections.deque rather than list.)
+
+  Arguments:
+    - distkey_to_satisfy ('django(1.8.3)'),
+    - edeps (dictionary returned by deptools.deps_elaborated; see there.)
+    - versions_by_package (dictionary of all distkeys, keyed by package name)
+
+  Returns:
+    - list of distkeys needed as direct or indirect dependencies to install
+      distkey_to_satisfy, including distkey_to_satisfy
+
+  Throws:
+
+  """
+  logger = depresolve.logging.getLogger('resolvability.satisfy2')
+
+  solution = [] # current solution 
+  inclQ = [] # queue of dists to process for inclusion in solution set
+  calcQ = [] # queue of version constraints to process
+
+  # Algorithm
+  #
+  # Invariants:
+  #   Include queue contains distributions that were selected to satisfy
+  #   dependency constraints. They have their dependencies processed in turn,
+  #   resulting in additions to the calc queue, and then they're added to the
+  #   solution list (the current working solution).
+  #
+  #   Calc queue contains constraints like (conceptually) 'django < 1.8'. These
+  #   are processed and items are added as a result to the include queue.
+  #   If conflicts are observed in the processing of the calc queue, items can
+  #   be removed from the solution and include queue, and additional
+  #   constriants will be added to the calc queue. Once a constraint in the
+  #   calc queue is processed, it is removed and we move on to the next one.
+  #
+  #   Once one of the queues is empty, we switch to the next queue, and we keep
+  #   going until both are simultaneously empty, at which point we should have
+  #   a nonconflicting solution.
+  #
+
+  # Add given distkey to the include queue.
+  inclQ.append(distkey_to_satisfy)
+
+  # Iterate until both queues are empty.
+  while iQ or cQ:
+
+    # Iterate until the include queue is empty.
+    while iQ:
+      assert False, 'Still writing this.'
+
+
+    # Iterate until the calc queue is empty.
+    while cQ: 
+      assert False, 'Still writing this.'
+
+
+
+
+
+#   solution = \
+#       _satisfy2(distkey_to_satisfy, edeps, versions_by_package, incl, inclQ,
+#       calcQ)
+
+
+
+#   assert False, 'Still writing this.'
+
+
+# def _satisfy2(distkey_to_satisfy, edeps, versions_by_package, _incl, _inclQ,
+#     calcQ):
+#   """
+#   Helper for satisfy2's recursion. (Must be separate in order for the timeout
+#   to work, plus probably easier to understand this way.)
+#   """
+#   logger = depresolve.logging.getLogger('resolvability.satisfy2')
+
+
+
+#   assert False, 'Still writing this.'
 
 
 
