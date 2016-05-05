@@ -20,7 +20,7 @@ import depresolve._external.timeout as timeout
 def rbttest(distkey):
   """
   Steps:
-  1. Runs scraper for a distkey (from a specific pre-configured virtual environment, using seb pip)
+  1. (NEVERMIND THIS STEP - just using full dependency data that I already have) Runs scraper for a distkey (from a specific pre-configured virtual environment, using seb pip)
   2. Sets up a random-name new virtual environment
   3. Installs rbtcollins' pip patch on that virtual environment
   4. Installs the given distribution using rbt pip
@@ -30,22 +30,36 @@ def rbttest(distkey):
 
   # Constants
   dir_rbt_pip = '/Users/s/w/pipcollins'
-  dir_seb_pip = '/Users/s/w/pipdevelop'
-  dir_depresolve = '/Users/s/w/depresolve'
-  dir_seb_venv = '/Users/s/w/depresolve/v3p'
+  #dir_seb_pip = '/Users/s/w/pipdevelop'
+  #dir_depresolve = '/Users/s/w/depresolve'
+  #dir_seb_venv = '/Users/s/w/depresolve/v3p'
+
+
+  # Gotta skip this for now: scraper as it stands does not climb down every
+  # possible dependency version, only the ones that pip normally touches, so
+  # it won't provide all the dependency information we need if it's blank to
+  # begin with and we only feed it one distkey. /:
+  # I need, therefore, to use the full dictionary collected from the full runs,
+  # even though that's going to be somewhat flawed.
+  # ###############
+  # # Step 1: Collect the dependencies for the given distkey by running my
+  # # scraper n a virtualenv already set up for depresolve.
+  # # Yes, this is going from python into a shell into another python instance.
+  # # I'm not going to figure out how to essentially employ a separate virtualenv
+  # # from within a python instance right now.
+  # cmd_source_seb_venv = 'source ' + dir_seb_venv + '/bin/activate'
+  # cmd_scrape = cmd_source_seb_venv + \
+  #     '; cd ' + dir_depresolve + \
+  #     '; python depresolve/scrape_deps_and_detect_conflicts.py ' + \
+  #     "'" + distkey + "'"
+  # popen_wrapper(cmd_scrape)
 
 
   ###############
-  # Step 1: Collect the dependencies for the given distkey by running my
-  # scraper n a virtualenv already set up for depresolve.
-  # Yes, this is going from python into a shell into another python instance.
-  # I'm not going to figure out how to essentially employ a separate virtualenv
-  # from within a python instance right now.
-  cmd_source_seb_venv = 'source ' + dir_seb_venv + '/bin/activate'
-  cmd_scrape = cmd_source_seb_venv + \
-      '; cd ' + dir_depresolve + \
-      '; python depresolve/scrape_deps_and_detect_conflicts.py ' + \
-      ''
+  # Step 1 Alternative: Load dependency data.
+  # I'll do this down within step 6 instead.
+
+
 
   ###############
   # Steps 2 and 3: Create venv and install rbt pip.
@@ -54,7 +68,7 @@ def rbttest(distkey):
     venv_name += random.choice(string.ascii_lowercase + string.digits)
 
   cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + venv_name
-  cmd_sourcevenv = 'source' + venv_name + '/bin/activate'
+  cmd_sourcevenv = 'source ' + venv_name + '/bin/activate'
   cmd_pipfreeze = cmd_sourcevenv + '; pip freeze'
   cmd_install_rbt_pip = cmd_sourcevenv + '; cd ' + dir_rbt_pip + '; pip install -e .'
   cmd_check_pip_ver = cmd_sourcevenv + '; pip --version'
@@ -149,22 +163,34 @@ def rbttest(distkey):
   # Step 6: Run resolvability.are_fully_satisfied to test the solution set for
   # consistency.
 
-  # Load dependencies from the json file that the scraper wrote to in Step 1.
+
+
+
+  # Load dependencies from their json file (either written to in step 1 or just
+  # standard and already in place.)
+  depdata.ensure_data_loaded()
   deps = depdata.dependencies_by_dist
   # Make catalog of versions by package from deps info.
   versions = deptools.generate_dict_versions_by_package(deps)
   # Elaborate the dependencies using information about available versions.
-  edeps = deptools.elaborate_dependencies(deps, versions)
+  #edeps = deptools.elaborate_dependencies(deps, versions)
+  # EDIT: this is very time consuming and we may be dealing with the full
+  # dependency data, so instead I'm going to load already-elaborated
+  # dependencies. NOTE THAT THIS IS NOT AUTOMATICALLY REFRESHED AND SO IF THERE
+  # IS MORE DEPENDENCY DATA ADDED, ELABORATION SHOULD BE DONE OVER. (The full
+  # data set may take 30 minutes to elaborate!)
+  edeps = json.load(open('data/elaborated_dependencies.json','r')) # potentially STALE!
+
 
   # Test the solution.
   success = ry.are_fully_satisfied(solution, edeps, versions)
 
   print('Successful in solving ' + distkey + ' using rbtcollins pip patch? '
-      + str(success))
+      + str(success) + '. virtualenv used: ' + venv_name)
 
   
   # Save solution to json.
-  solution_dict = json.load(open('data/solutions_via_rbtpip.json','r'))
+  solution_dict = depdata.load_json_db('data/solutions_via_rbtpip.json')
   solution_dict[distkey] = solution
   json.dump(solution_dict, open('data/solutions_via_rbtpip.json','w'))
 
