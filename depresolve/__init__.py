@@ -11,3 +11,5 @@ class ConflictingVersionError(Exception):
 class UnresolvableConflictError(Exception):
   pass
 
+class MissingDependencyInfoError(Exception):
+  pass

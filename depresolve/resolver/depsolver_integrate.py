@@ -260,6 +260,8 @@ def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
   # Convert the dependencies.....
   my_ds_deps = ''
 
+  deptools.assume_dep_data_exists_for(distkey, deps)
+
   for dep in deps[distkey]:
     # dep is e.g. ['A', '>=2,<4']
     satisfying_packname = convert_packname_for_depsolver(dep[0])

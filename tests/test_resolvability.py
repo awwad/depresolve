@@ -51,18 +51,18 @@ def main():
   # to failure. May skip fixing. Have moved on to SAT via depsolver.)
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE_SOLUTION, 'X(1)', data.DEPS_SIMPLE))
+      data.DEPS_SIMPLE_SOLUTION, 'x(1)', data.DEPS_SIMPLE))
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE2_SOLUTION, 'X(1)', data.DEPS_SIMPLE2,
+      data.DEPS_SIMPLE2_SOLUTION, 'x(1)', data.DEPS_SIMPLE2,
       expected_exception=depresolve.UnresolvableConflictError))
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE3_SOLUTION, 'X(1)', data.DEPS_SIMPLE3,
+      data.DEPS_SIMPLE3_SOLUTION, 'x(1)', data.DEPS_SIMPLE3,
       expected_exception=depresolve.UnresolvableConflictError))
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE4_SOLUTION, 'X(1)', data.DEPS_SIMPLE4,
+      data.DEPS_SIMPLE4_SOLUTION, 'x(1)', data.DEPS_SIMPLE4,
       expected_exception=depresolve.UnresolvableConflictError))
 
   assert False not in [success for success in successes], \
@@ -112,18 +112,18 @@ def test_conflicts_with():
   test_sets = [
     (
       [],                  # Expect this result
-      'A(1.5)',            # from checking for conflicts between this distkey
-      ['A(1.5)', 'B(2)'],  # and this list of distkeys
+      'a(1.5)',            # from checking for conflicts between this distkey
+      ['a(1.5)', 'b(2)'],  # and this list of distkeys
     ),
-    ( ['A(2)'], 'A(1)', ['A(2)'] ),
-    ( [], 'Z(5.5.1)', [] ),
+    ( ['a(2)'], 'a(1)', ['a(2)'] ),
+    ( [], 'z(5.5.1)', [] ),
     ( [], 'bat(2.6)', ['foo(1.0.0)', 'bar(2.0)'] ),
-    ( [], 'D(1)', ['D(1.0)'] ),
-    ( [], 'D(1)', ['D(1.0.0)'] ),
-    ( [], 'D(1.0.0)', ['D(1.0)'] ),
-    ( [], 'D(1.0.0)', ['D(1)'] ),
-    ( [], 'D(1.0.0)', ['D(1.0.0)'] ),
-    ( ['D(1)'], 'D(1.0.1)', ['D(1)'] ),
+    ( [], 'd(1)', ['d(1.0)'] ),
+    ( [], 'd(1)', ['d(1.0.0)'] ),
+    ( [], 'd(1.0.0)', ['d(1.0)'] ),
+    ( [], 'd(1.0.0)', ['d(1)'] ),
+    ( [], 'd(1.0.0)', ['d(1.0.0)'] ),
+    ( ['d(1)'], 'd(1.0.1)', ['d(1)'] ),
     ( ['g(3.4.1)', 'g(3.2)'], 'g(1.04.3)',
       ['g(1.04.3)', 'g(3.4.1)', 'g(3.2)'] ),
 
@@ -180,7 +180,8 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
   solution = None
 
   try:
-    (solution, _junk_, dotstrings) = \
+    #(solution, _junk_, dotstrings) = \
+    solution = \
         resolver_func(distkey, edeps, versions_by_package)
 
   except Exception as e:
@@ -197,11 +198,11 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
 
   else:
     logger.info('Resolved ' + distkey + '. Solution: ' + str(solution))
-    if dotstrings is not None: # If the func provides dotstrings
-      fobj = open('data/resolver/test_resolver_' + resolver_func.__name__ +
-          '_' + distkey + '.dot', 'w')
-      fobj.write('digraph G {\n' + dotstrings + '}\n')
-      fobj.close()
+    #if dotstrings is not None: # If the func provides dotstrings
+    #  fobj = open('data/resolver/test_resolver_' + resolver_func.__name__ +
+    #      '_' + distkey + '.dot', 'w')
+    #  fobj.write('digraph G {\n' + dotstrings + '}\n')
+    #  fobj.close()
 
     # Is the solution set as expected?
     if ry.dist_lists_are_equal(solution, expected_result):
@@ -232,9 +233,9 @@ def test_old_resolver_suite():
   successes.append(res_test7())
   successes.append(res_test8())
   if False not in successes:
-    logger.info("test_resolver_suite(): All resolvability tests OK. (:")
+    logger.info("test_old_resolver_suite(): All resolvability tests OK. (:")
   else:
-    logger.error('test_resolver_suite() has failures.')
+    logger.error('test_old_resolver_suite() has failures.')
   return successes
 
 
@@ -274,9 +275,9 @@ def res_test2():
       deptools.elaborate_dependencies(deps, versions_by_package)
 
   satisfying_set = \
-      ry.fully_satisfy_strawman1('X(1)', edeps, versions_by_package)
+      ry.fully_satisfy_strawman1('x(1)', edeps, versions_by_package)
 
-  expected_result = ['A(3)', 'A(3)', 'B(1)', 'C(1)']
+  expected_result = ['a(3)', 'a(3)', 'b(1)', 'c(1)']
   
   success = expected_result == sorted(satisfying_set)
 
@@ -318,9 +319,9 @@ def res_test4():
       deptools.elaborate_dependencies(deps, versions_by_package)
 
   satisfying_set = \
-      ry.fully_satisfy_strawman2('X(1)', edeps, versions_by_package)
+      ry.fully_satisfy_strawman2('x(1)', edeps, versions_by_package)
 
-  expected_result = ['A(3)', 'B(1)', 'C(1)', 'X(1)']
+  expected_result = ['a(3)', 'b(1)', 'c(1)', 'x(1)']
   
   success = expected_result == sorted(satisfying_set)
 
@@ -350,7 +351,7 @@ def res_test5():
           versions_by_package)
 
   expected_result = [
-      'backports-abc(0.4)',
+      #'backports-abc(0.4)',
       'easydict(1.6)',
       'greenlet(0.4.9)',
       'motor(0.1.2)',
@@ -413,7 +414,8 @@ def res_test7():
   edeps = data.EDEPS_SERIOUS
   versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
-  (satisfying_set, _junk_, dotstrings) = \
+  #(satisfying_set, _junk_, dotstrings) = \
+  satisfying_set = \
       ry.backtracking_satisfy('metasort(0.3.6)', edeps, versions_by_package)
 
   expected_result = [
@@ -446,7 +448,7 @@ def res_test8():
   versions_by_package = data.VERSIONS_BY_PACKAGE
 
   solutions = dict()
-  dotstrings = dict()
+  #dotstrings = dict()
 
   artificial_set = [ # These come from the type 3 conflict results. (:
       'metasort(0.3.6)',
@@ -458,12 +460,13 @@ def res_test8():
 
   for distkey in artificial_set:
     try:
-      (solutions[distkey], _junk_, dotstrings[distkey]) = \
+      #(solutions[distkey], _junk_, dotstrings[distkey]) = \
+      solutions[distkey] = \
           ry.backtracking_satisfy(distkey, edeps, versions_by_package)
       logger.debug('Resolved: ' + distkey)
     except depresolve.UnresolvableConflictError:
       solutions[distkey] = -1
-      dotstrings[distkey] = ''
+      #dotstrings[distkey] = ''
       logger.debug('Unresolvable: ' + distkey)
 
   n_unresolvable = len(
@@ -474,12 +477,12 @@ def res_test8():
   fobj.close()
 
   # Write the dot graphs.
-  for distkey in artificial_set:
-    fobj = open('data/resolver/test8_dotgraph_' + distkey + '.dot', 'w')
-    fobj.write('digraph G {\n')
-    fobj.write(dotstrings[distkey])
-    fobj.write('}\n')
-    fobj.close()
+  #for distkey in artificial_set:
+  #  fobj = open('data/resolver/test8_dotgraph_' + distkey + '.dot', 'w')
+  #  fobj.write('digraph G {\n')
+  #  fobj.write(dotstrings[distkey])
+  #  fobj.write('}\n')
+  #  fobj.close()
 
 
   success = 0 == n_unresolvable
@@ -504,7 +507,7 @@ def res_test9():
   edeps = data.EDEPS_SERIOUS
   versions_by_package = data.VERSIONS_BY_PACKAGE
   solutions = dict()
-  dotstrings = dict()
+  #dotstrings = dict()
 
   artificial_set = [ # These come from the type 3 conflict results. (:
       'gerritbot(0.2.0)',
@@ -513,12 +516,13 @@ def res_test9():
 
   for distkey in artificial_set:
     try:
-      (solutions[distkey], _junk_, dotstrings[distkey]) = \
+      #(solutions[distkey], _junk_, dotstrings[distkey]) = \
+      solutions[distkey] = \
           ry.backtracking_satisfy(distkey, edeps, versions_by_package)
       logger.debug('Resolved: ' + distkey)
     except depresolve.UnresolvableConflictError:
       solutions[distkey] = -1
-      dotstrings[distkey] = ''
+      #dotstrings[distkey] = ''
       logger.debug('Unresolvable: ' + distkey)
 
   n_unresolvable = len(
@@ -529,12 +533,12 @@ def res_test9():
   fobj.close()
 
   # Write the dot graphs.
-  for distkey in artificial_set:
-    fobj = open('data/resolver/test9_dotgraph_' + distkey + '.dot', 'w')
-    fobj.write('digraph G {\n')
-    fobj.write(dotstrings[distkey])
-    fobj.write('}\n')
-    fobj.close()
+  #for distkey in artificial_set:
+  #  fobj = open('data/resolver/test9_dotgraph_' + distkey + '.dot', 'w')
+  #  fobj.write('digraph G {\n')
+  #  fobj.write(dotstrings[distkey])
+  #  fobj.write('}\n')
+  #  fobj.close()
 
 
   success = 0 == n_unresolvable

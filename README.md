@@ -38,7 +38,7 @@ Notes:
 - `pip install -e` installs a package in editable mode, for development convenience. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs)
 - enthought/depsolver is not necessary if you do not wish to use the SAT solver-based resolver.
 - The awwad/pip installation is not necessary if you will not be using the scraper to harvest dependencies and detect conflicts, but have dependency data from another source, like:
-- **[You can download my data, compiled for you here!](https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=0))**. Dependency data for all PyPI packages, conflict data, and solution data there is calculated from a rough PyPI mirror current in late 2015. What you choose to use should be placed in the data/ directory in the main depresolve directory. The data there was crunched on an Ubuntu machine, generally running python 3 within a minimal virtualenv, from hundreds of thousands of abbreviated package installs. :P You can pull it from dropbox at the link provided or download all of it (52MB zipped) via shell like so:
+- **[You can download my data, compiled for you here.](https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=0)**. Dependency data for all PyPI packages, conflict data, and solution data there is calculated from a rough PyPI mirror current in late 2015. What you choose to use should be placed in the data/ directory in the main depresolve directory. The data there was crunched on an Ubuntu machine, generally running python 3 within a minimal virtualenv, from hundreds of thousands of abbreviated package installs. You can pull it from dropbox at the link provided or download all of it (52MB zipped) via shell like so:
   - `curl -L -o dep_data.zip https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=1`
   - `unzip dep_data.zip`
 
@@ -70,17 +70,14 @@ In a future revision, the backtracker will determine dependencies dynamically as
 Assume data/dependencies.json contains a dictionary of all distributions' dependencies, indexed by distribution key, elaborated via `depresolve.deptools.elaborate_dependencies(deps, versions_by_package)`. (For format details, see [depresolve/depdata.py](depresolve/depdata.py). To download, see [above](#installation-of-scraper-and-resolver).)
 
 ```
->>> import depresolve.deptools as deptools
+>>> import depresolve.depdata as data
 >>> import depresolve.resolver.resolvability as ry
->>> import json
->>> edeps = json.load(open('data/elaborated_dependencies.json', 'r'))
->>> versions_by_package = deptools.generate_dict_versions_by_package(edeps)
->>> solution = ry.backtracking_satisfy('motorengine(0.7.4)', edeps,
-      versions_by_package)
+>>> edeps = data.load_json_db('data/elaborated_dependencies.json')
+>>> solution = ry.backtracking_satisfy('motorengine(0.7.4)', edeps)
 
 ```
 
-`solution` should then be: `['pymongo(2.5)', 'motor(0.1.2)', 'backports-abc(0.4)', 'tornado(4.3)', 'six(1.10.0)', 'greenlet(0.4.9)', 'motorengine(0.7.4)', 'easydict(1.6)']`
+`solution` should then be: `['easydict(1.6)', 'greenlet(0.4.9)', 'motor(0.1.2)', 'six(1.10.0)', 'motorengine(0.7.4)', 'tornado(4.3)', 'pymongo(2.5)']`
 
 This is a list of the distributions to install in order to have a fully satisfied (all dependencies fulfilled) install of motorengine version 0.7.4, with no dependency conflicts.
 
@@ -217,4 +214,4 @@ After that run, this would be added to `dependencies.json`, if the data isn't al
 And this is added to conflicts_3.json:
 `motorengine(0.7.4): True`
 
-(This particular conflict can be resolved with the backtracking resolver included in depresolve. That example is in the [Resolver Instructions](#instructions-for-use-resolve) section above.)
+(This particular conflict can be resolved with the backtracking resolver included in depresolve. That example is in the [Resolver Instructions](#instructions-for-use-resolver) section above.)

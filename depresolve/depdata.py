@@ -33,9 +33,14 @@
     version_string, pip._vendor.packaging.version.parse(version_string) should
     not raise pip._vendor.packaging.version.InvalidVersion.
 
-    Package names are less rigorously constrained, but should ideally be all
-    lowercase, and employ '-' rather than '_'. Again, what works in pip should
-    work here.
+    Package names are less rigorously constrained, but should be all lowercase
+    and employ '-' rather than '_'. Again, what works in pip should work here,
+    except for casing, where we are stricter (all lowercase for package names
+    and version numbers.
+
+    I'm also less thorough about not accepting special characters in distkeys
+    than pip likely is.
+
     (TODO: Point to pip's specification.)
 
  
@@ -175,6 +180,9 @@
 
 
 """
+
+from depresolve import MissingDependencyInfoError
+import pip._vendor.packaging.version # for distkey validation
 
 dependencies_by_dist = None
 conflicts_db = None  # ALIAS to conflict db in use. For convenience/legacy. /:
@@ -429,7 +437,19 @@ def get_pack_and_version(distkey):
 
 def get_packname(distkey):
   """The package name ends with the first open parenthesis."""
-  return distkey[:distkey.find('(')].lower() # prophylactic lower
+  outs = None
+  try:
+    outs = distkey[:distkey.find('(')].lower() 
+  except AttributeError:
+    print('Problematic distkey: ' + str(distkey))
+    import ipdb
+    ipdb.set_trace()
+    raise Exception('POTATO')
+
+  finally:
+    return outs
+
+  #return distkey[:distkey.find('(')].lower() # prophylactic lower
 
 
 
@@ -455,6 +475,40 @@ def distkey_format(package_name, version_string):
   Reverse: get_pack_and_version()
   """
   return package_name.lower() + '(' + version_string.lower() + ')'
+
+
+
+
+
+def is_valid_distkey(distkey, thorough=True):
+  """
+  Returns True if distkey is a valid distkey, else False.
+  Data specifications in module docstring.
+  If thorough is True (default), validates the version in the distkey by
+  trying to create a pip version object with it.
+  """
+
+  try:
+    packname = get_packname(distkey)
+    version = get_version(distkey)
+    
+    # The first case here is a little strange because islower() returns False
+    # if given a pure numeric string like '2112', which is actually legal for
+    # package names.
+    if not (distkey.islower() or distkey.lower() == distkey) or \
+        distkey_format(packname, version) != distkey or \
+        not distkey.find('(') + 1 < distkey.find(')') or \
+        distkey[-1] != ')' or \
+        '_' in packname:
+      return False
+
+    if thorough:
+      pipified_version = pip._vendor.packaging.version.parse(version)
+
+  except Exception:
+    return False
+
+  return True
 
 
 

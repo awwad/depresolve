@@ -84,7 +84,7 @@ import pip._vendor.packaging.specifiers # for SpecifierSet for version parsing
 
 import depresolve.sql_i as sqli # depresolve's sqlite3 interface
 
-from depresolve.depdata import distkey_format
+from depresolve.depdata import distkey_format, is_valid_distkey
 from depresolve.depdata import get_version, get_packname, get_pack_and_version
 
 # Local resources for the resolver package.
@@ -135,8 +135,12 @@ def populate_sql_with_dependency_specifiers(
 
   for distkey in deps:
     log.info("Working through " + distkey + "'s dependencies.")
+
+    assume_dep_data_exists_for(distkey, deps)
+
     if not deps[distkey]:
       log.info(distkey + ' has no dependencies. Adding to that table.')
+
     for dep in deps[distkey]: # for every one of its dependencies,
       satisfying_packagename = dep[0]
       spectuples = dep[1]
@@ -144,7 +148,6 @@ def populate_sql_with_dependency_specifiers(
 
       log.info("  satisfying_packagename:" + satisfying_packagename)
       log.info("  specstring: " + specstring)
-
 
       sqli.add_to_table(
           sqli.SQL_DEP_SPECIFIER_TABLE,
@@ -587,7 +590,7 @@ def spectuples_to_specstring(list_of_spectuples):
 
 # Toy
 def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
-    versions_by_package):
+    versions_by_package=None):
   """
   Just a toy function for debugging, not likely to be of use in the module
   itself.
@@ -613,12 +616,29 @@ def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
        'motor(0.1.1): ==2.5.0',
        'motor(0.1): >=2.4.2',
        'motor(0.0-): >=2.4.2']
+
+  Throws:
+    - MissingDependencyInfoError if the given package names do not appear in
+      the given deps (/ versions_by_package) info.
+
   """
+  if versions_by_package is None:
+    versions_by_package = deptools.generate_dict_versions_by_package(deps)
 
   dependencies = []
+  if depender_pack not in versions_by_package or satisfying_pack not in \
+      versions_by_package:
+    raise depresolve.MissingDependencyInfoError('Given package names ' + 
+        depender_pack + ' and ' + satisfying_pack + ' do not both appear in '
+        'the dependency info provided.')
+
   for version in sorted(versions_by_package[depender_pack], reverse=True):
     depender_distkey = distkey_format(depender_pack, version)
+
+    assume_dep_data_exists_for(depender_distkey, deps)
+
     depstring_for_v_x_on_pack_y = None
+
     for dep in deps[depender_distkey]:
       if dep[0] == satisfying_pack:
         depstring_for_v_x_on_pack_y = dep[1]
@@ -631,13 +651,6 @@ def get_dependencies_of_all_X_on_Y(depender_pack, satisfying_pack, deps,
           depender_distkey + ' does not depend on ' + satisfying_pack)
 
   return dependencies
-
-  # Old version below has a bug: breaks if one of the versions of X does not
-  # depend on Y.
-  # return [distkey + ": " + [dep[1] for \
-  #     dep in deps[distkey] if dep[0] == satisfying_pack][0] for \
-  #     distkey in [distkey_format(depender_pack, version) for \
-  #     version in versions_by_package[depender_pack]]]
 
 
 
@@ -677,18 +690,6 @@ def versions_are_equal(v1, v2):
 
 
 
-def validate_deps(deps):
-  """
-  TODO: Validate dependency dictionary for formatting and generate informative
-  errors.
-  """
-  assert False, "Not yet implemented."
-
-
-
-
-
-
 def fix_deps_case(deps):
   """
   Lowercase all package names in deps (dependers and depended-on).
@@ -708,3 +709,136 @@ def fix_deps_case(deps):
 
   return newdeps
 
+
+
+
+
+def assume_dep_data_exists_for(distkey, deps):
+  """
+  Raises depresolve.MissingDependencyInfoError if the given deps (or edeps)
+  dictionary does not have an entry for the given distkey.
+  """
+  try:
+    deps[distkey]
+  except KeyError:
+    raise depresolve.MissingDependencyInfoError('No dependency data for ' +
+        distkey + ' in the dependencies dictionary.')
+
+
+
+
+
+def is_dep_valid(dep, is_elaborated=False, thorough=False):
+  """
+  Returns False if the given dependency does not match the requirements
+  specified in depdata.py for 'dep'.
+  Else True.
+
+  If is_elaborated is passed in as True, treats the dependency as an edep
+  (see depdata.py for dep vs edep). Defaults to dep.
+
+  If thorough is passed in as True and is_elaborated is True, checks every
+  single version string provided to make sure they're valid, by creating
+  pip versions with them all.
+
+  """
+
+  log = depresolve.logging.getLogger('is_dep_valid')
+
+  if thorough and not is_elaborated:
+    raise ValueError('Calling with thorough on and is_elaborated off makes '
+        'no sense. The thorough option is only for elaborated dependencies.')
+
+
+  if (is_elaborated and len(dep) != 3) or \
+      (not is_elaborated and len(dep) != 2):
+    log.debug('dep not valid: dependency has wrong length '
+        'for type: ' + 'not '*(not is_elaborated) + 'elaborated and len' +
+        str(len(dep)))
+    return False
+
+  satisfying_packname = dep[0]
+  specstring = dep[2] if is_elaborated else dep[1]
+  satisfying_versions = dep[1] if is_elaborated else None
+
+  if satisfying_packname.lower() != satisfying_packname:
+    log.debug('dep not valid: package name ' + satisfying_packname + ' is not '
+        'lowercase')
+    return False
+
+  # Could do another test here for validity of package names using safe_name
+  # or something.
+
+  try:
+    specset = pip._vendor.packaging.specifiers.SpecifierSet(specstring)
+  except:
+    log.debug('dep not valid: specifier string ' + specstring + ' not valid '
+        '(raised exception on attempt to create SpecifierSet with it).')
+    return False
+
+
+  if is_elaborated:
+    if not isinstance(dep[1], list):
+      log.debug('dep not valid: edep but 2nd item in a dep is not list.' +
+          ' dep at issue: ' + str(dep))
+      return False
+
+    # If thorough is on, check every single version string in the elaborated
+    # dependency. This is extremely slow for the entire set of dependencies!
+    if thorough:
+      for version in satisfying_versions: # Mind the None if you change this.
+        try:
+          pipified_version = pip._vendor.packaging.version.parse(version)
+        except:
+          log.debug('dep not valid: thorough: version ' + version +
+              ' provided in dependency on ' + satisfying_packname + ' is  not '
+              'a valid version.')
+          return False
+
+  return True
+
+
+
+
+
+def are_deps_valid(deps, is_elaborated=False, thorough=False):
+  """
+  Returns False if the given dependencies dictionary does not match the
+  following requirements:
+
+   - deps must be a dependencies dictionary or elaborated dependencies
+     dictionary as specified in depdata.py.
+
+   - lowercase: all package names and distkeys must be lowercase. version
+     specifiers are allowed to have any case.
+      e.g. {'foo': ['bar', '>=1.0_A']} is fine
+           {'Foo': ['bar', '']} is not OK because of the capitalization.
+
+   - Each dep is a 2-length list (or, if edeps, a 3-length list).
+
+  Running this on the full dependency data for PyPI takes about 8 seconds if
+  thorough is off. With thorough on, this takes about 5 minutes!
+
+  """
+  log = depresolve.logging.getLogger('are_deps_valid')
+
+  if not isinstance(deps, dict):
+    log.debug('deps not valid: not a dictionary (or dict subclass)')
+    return False
+
+  for distkey in deps:
+
+    if not is_valid_distkey(distkey, thorough):
+      log.debug('deps not valid: invalid distkey: ' + distkey)
+      return False
+
+    if not isinstance(deps[distkey], list):
+      log.debug('deps not valid: invalid dependency in deps (non-list) value')
+      return False
+
+    for dep in deps[distkey]:
+
+      if not is_dep_valid(dep, is_elaborated, thorough):
+        return False
+
+  return True

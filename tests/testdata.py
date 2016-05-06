@@ -44,74 +44,74 @@ def ensure_full_data_loaded():
 
 
 DEPS_SIMPLE = {
-    'X(1)': [  ['B', ''], ['C', '']  ],
-    'B(1)': [  ['A', '>=2,<4']  ],
-    'C(1)': [  ['A', '==3']  ],
-    'A(1)': [],
-    'A(2)': [],
-    'A(3)': [],
-    'A(4)': [],
+    'x(1)': [  ['b', ''], ['c', '']  ],
+    'b(1)': [  ['a', '>=2,<4']  ],
+    'c(1)': [  ['a', '==3']  ],
+    'a(1)': [],
+    'a(2)': [],
+    'a(3)': [],
+    'a(4)': [],
 }
-DEPS_SIMPLE_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'A(3)'])
+DEPS_SIMPLE_SOLUTION = sorted(['x(1)', 'b(1)', 'c(1)', 'a(3)'])
 
 
 # If B is handled before C, we must backtrack to solve this
 # dependency conflict, as B2 will be chosen.
 DEPS_SIMPLE2 = {
-    'X(1)': [  ['B', ''], ['C', '']  ],
-    'B(2)': [],
-    'B(1)': [],
-    'C(1)': [  ['B', '<=1']  ],
+    'x(1)': [  ['b', ''], ['c', '']  ],
+    'b(2)': [],
+    'b(1)': [],
+    'c(1)': [  ['b', '<=1']  ],
 }
-DEPS_SIMPLE2_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)'])
+DEPS_SIMPLE2_SOLUTION = sorted(['x(1)', 'b(1)', 'c(1)'])
 
 
 DEPS_SIMPLE3 = {
-    'X(1)': [  ['B', ''], ['C', '']  ],
-    'B(2)': [],
-    'B(1)': [],
-    'C(1)': [  ['D', '' ]  ],
-    'D(1)': [  ['B', '==1']  ]
+    'x(1)': [  ['b', ''], ['c', '']  ],
+    'b(2)': [],
+    'b(1)': [],
+    'c(1)': [  ['d', '' ]  ],
+    'd(1)': [  ['b', '==1']  ]
 }
-DEPS_SIMPLE3_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'D(1)'])
+DEPS_SIMPLE3_SOLUTION = sorted(['x(1)', 'b(1)', 'c(1)', 'd(1)'])
 
 DEPS_SIMPLE4 = {
-    'X(1)': [  ['B', ''], ['C', '']  ],
-    'B(1)': [  ['E', '']  ],
-    'C(1)': [  ['D', '']  ],
-    'D(1)': [  ['E', '==1']  ],
-    'E(1)': [],
-    'E(2)': []
+    'x(1)': [  ['b', ''], ['c', '']  ],
+    'b(1)': [  ['e', '']  ],
+    'c(1)': [  ['d', '']  ],
+    'd(1)': [  ['e', '==1']  ],
+    'e(1)': [],
+    'e(2)': []
 }
-DEPS_SIMPLE4_SOLUTION = sorted(['X(1)', 'B(1)', 'C(1)', 'D(1)', 'E(1)'])
+DEPS_SIMPLE4_SOLUTION = sorted(['x(1)', 'b(1)', 'c(1)', 'd(1)', 'e(1)'])
 
 
 # Same as DEPS_SIMPLE2, but with slightly diverse version strings.
 # (for depsolver_integrate testing)
 DEPS_SIMPLE5 = {
-    'X(1)': [  ['B', ''], ['C', '']  ],
-    'B(2.0)': [],
-    'B(1.0.0)': [],
-    'C(1)': [  ['B', '<=1.0.1']  ],
+    'x(1)': [  ['b', ''], ['c', '']  ],
+    'b(2.0)': [],
+    'b(1.0.0)': [],
+    'c(1)': [  ['b', '<=1.0.1']  ],
 }
-DEPS_SIMPLE5_SOLUTION = sorted(['X(1)', 'B(1.0.0)', 'C(1)'])
+DEPS_SIMPLE5_SOLUTION = sorted(['x(1)', 'b(1.0.0)', 'c(1)'])
 
 # Same as DEPS_SIMPLE2, but with very diverse version strings.
 DEPS_SIMPLE6 = {
-    'X(1.0)': [  ['B', ''], ['C', '']  ],
-    'B(2.0b)': [],
-    'B(1.0.0alpha)': [],
-    'C(1-neg)': [  ['B', '<=1.0.1beta']  ],
+    'x(1.0)': [  ['b', ''], ['c', '']  ],
+    'b(2.0b)': [],
+    'b(1.0.0alpha)': [],
+    'c(1-neg)': [  ['b', '<=1.0.1beta']  ],
 }
-DEPS_SIMPLE6_SOLUTION = sorted(['X(1.0)', 'B(1.0.0alpha)', 'C(1-neg)'])
+DEPS_SIMPLE6_SOLUTION = sorted(['x(1.0)', 'b(1.0.0alpha)', 'c(1-neg)'])
 
 
 # This is an unresolvable conflict.
 DEPS_UNRESOLVABLE = {
-    'X(1)': [  ['B', '>=2'], ['C', '']  ],
-    'B(2)': [],
-    'B(1)': [],
-    'C(1)': [  ['B', '<=1']  ],
+    'x(1)': [  ['b', '>=2'], ['c', '']  ],
+    'b(2)': [],
+    'b(1)': [],
+    'c(1)': [  ['b', '<=1']  ],
 }
 DEPS_UNRESOLVABLE_SOLUTION = None
 
@@ -142,13 +142,13 @@ DEPS_MODEL2 = {
 }
 
 DEPS_MODERATE = {
-    'X(1)': [  ['B', ''], ['C', '']],
-    'B(1)': [  ['A', '>=2,<4']  ],
-    'C(1)': [  ['A', '==3']  ],
-    'A(1)': [],
-    'A(2)': [],
-    'A(3)': [],
-    'A(4)': [],
+    'x(1)': [  ['b', ''], ['c', '']],
+    'b(1)': [  ['a', '>=2,<4']  ],
+    'c(1)': [  ['a', '==3']  ],
+    'a(1)': [],
+    'a(2)': [],
+    'a(3)': [],
+    'a(4)': [],
     'pip-accel(0.9.10)': [
         ['coloredlogs', '==0.4.3'],
         ['pip', '>=1.3']

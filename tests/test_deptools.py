@@ -77,6 +77,9 @@ def test_deptools():
       ",[satisfying_version] pair. Instead, got " + \
       str(n_dependencies_elaborated)
 
+  assert deptools.are_deps_valid(DEPS_MODERATE) and \
+      deptools.are_deps_valid(DEPS_SIMPLE), \
+      'The test dependencies are coming up as invalid for some reason....'
 
   # Clear any pre-existing test database.
   deptools.sqli.initialize(db_fname='data/test_dependencies.db')
