@@ -192,3 +192,14 @@ DEPS_MODERATE = {
     'humanfriendly(1.5)': [],
 }
 
+CONFLICT_MODEL_3_SAMPLES = [
+      'metasort(0.3.6)',
+      'pillowtop(0.1.3)',
+      'os-collect-config(0.1.8)',
+      'openstack-doc-tools(0.7.1)',
+      'python-magnetodbclient(1.0.1)']
+
+UNRESOLVABLE_SAMPLES = [
+      'gerritbot(0.2.0)',
+      'exoline(0.2.3)',
+      'openstack-doc-tools(0.21.1)']

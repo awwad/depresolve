@@ -22,6 +22,7 @@ import pip._vendor.packaging # for pip's specifiers and versions
 
 
 
+
 def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
   """
   Directly pull model 2 conflicts from the elaborated dependency data.
@@ -133,6 +134,7 @@ def dist_lists_are_equal(distlist1, distlist2):
       # else continue to the next dist to check a match for in thislist.
 
   return True # Unable to find mismatch
+
 
 
 
@@ -342,6 +344,8 @@ def combine_candidate_sets(orig_candidates, addl_candidates):
 
 
 
+
+
 def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package=None):
   """
   An exercise. Recurse and list all dists required to satisfy a dependency.
@@ -392,6 +396,8 @@ def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package=None):
         fully_satisfy_strawman1(chosen_distkey, edeps, versions_by_package))
 
   return satisfying_candidate_set
+
+
 
 
 
@@ -490,6 +496,7 @@ def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package=None,
 
 
 
+
 @timeout.timeout(300) # Timeout after 5 minutes.
 def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package=None):
   """
@@ -533,10 +540,17 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package=None):
   if versions_by_package is None:
     versions_by_package = deptools.generate_dict_versions_by_package(edeps)
 
-  (satisfying_candidate_set, new_conflicts, child_dotgraph) = \
-      _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package)
+  try:
+    (satisfying_candidate_set, new_conflicts, child_dotgraph) = \
+        _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package)
 
-  return satisfying_candidate_set
+  except depresolve.ConflictingVersionError as e:
+    raise depresolve.UnresolvableConflictError('Unable to find solution to '
+        'conflict with one of ' + distkey_to_satisfy + "'s immediate "
+        'dependencies. Lower level conflict exception follows: ' + str(e))
+
+  else:
+    return satisfying_candidate_set
 
 
 
