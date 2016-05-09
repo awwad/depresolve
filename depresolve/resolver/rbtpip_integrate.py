@@ -17,8 +17,12 @@ import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout
 #import depresolve.scrape_deps_and_detect_conflicts as scraper
 
-def rbttest(distkeys):
+def rbttest(distkeys, local=False):
   """
+
+  Accepts a list of distkeys indicating what distributions to try to install
+  using rbtcollins' issue-988 pip branch as a way to solve conflicts.
+
   Steps:
     1. Load dependency data.
 
@@ -31,6 +35,18 @@ def rbttest(distkeys):
        consistency.
 
     4. Write all the solution sets to a json file.
+
+
+  Arguments:
+    - distkeys: a list of distkeys indicating what distributions to solve for
+    - local (optional):
+        - if not provided, we connect to PyPI
+        - if simply set to 'True', we use the default local bandersnatch
+          location for the simple listing of packages,
+          'file:///srv/pypi/web/simple'.
+        - if another value is provided, we interpret it as a string indicating
+          the location of the simple index listing of packages on the mirror
+          to use.
 
   """
 
@@ -71,7 +87,7 @@ def rbttest(distkeys):
   for distkey in distkeys:
 
     # Run rbtcollins' pip branch to find the solution, with some acrobatics.
-    solution = rbt_backtracking_satisfy(distkey, edeps, versions)
+    solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
 
     # Save the solution rbt generates for this distkey.
     solution_dict[distkey] = solution
@@ -115,7 +131,6 @@ def rbttest(distkeys):
 
 
 
-
   ###############
   # Step 4: Dump solutions to file.
   
@@ -126,11 +141,13 @@ def rbttest(distkeys):
   # json.dump(solution_dict, open('data/solutions_via_rbtpip.json','w'))
 
 
+  return solution_dict
 
 
 
 
-def rbt_backtracking_satisfy(distkey, edeps, versions_by_package):
+
+def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False):
   """
   Determine correct install candidates by using rbtcollins' pip branch
   issue-988.
@@ -142,6 +159,17 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package):
     4. Runs pip freeze and harvests the solution set
 
   Args & output modeled after resolver.resolvability.backtracking_satisfy().
+
+  Additional, optional argument:
+   - local (optional):
+        - if not provided, we connect to PyPI
+        - if simply set to 'True', we use the default local bandersnatch
+          location for the simple listing of packages,
+          'file:///srv/pypi/web/simple'.
+        - if another value is provided, we interpret it as a string indicating
+          the location of the simple index listing of packages on the mirror
+          to use.
+
 
   """
 
@@ -194,18 +222,23 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package):
 
   # Put together the pip command.
 
-  # Nope: can't do it this way because I need to use the virtual environment.
-  ## pip_arglist = [
-  ##   'install',
-  ##   requirement,
-  ##   '--disable-pip-version-check',
-  ##   '--quiet']
-  ### Call pip with a 5 minute timeout.
-  ##exitcode = scraper._call_pip_with_timeout(pip_arglist)
+  # First, are we using PyPI or a specified (local) mirror?
+  index_optional_args = ''
+  if local == True: # If local is just the value True, use default local mirror
+    index_optional_args = '-i file:///srv/pypi/web/simple'
 
-  # Have to do it this way instead:
+  elif local: # If local is a specific string, assume it's the index location.
+    index_optional_args = '-i ' + local
+
+  else:
+    pass # Proceed normally, using PyPI, not adding index arguments.
+
+  # Would love to be able to just call
+  # scraper._call_pip_with_timeout(pip_arglist), but can't because we have to
+  # do this in a virtual environment, so doing it this way instead:
   cmd_install_dist = cmd_sourcevenv + \
-      '; pip install --disable-pip-version-check --quiet ' + requirement
+      '; pip install --disable-pip-version-check --quiet ' + \
+      index_optional_args + ' ' + requirement
 
   popen_wrapper(cmd_install_dist) # have incorporated 5 min timeout
 
