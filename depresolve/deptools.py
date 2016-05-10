@@ -722,7 +722,7 @@ def assume_dep_data_exists_for(distkey, deps):
     deps[distkey]
   except KeyError:
     raise depresolve.MissingDependencyInfoError('No dependency data for ' +
-        distkey + ' in the dependencies dictionary.')
+        distkey + ' in the dependencies dictionary.', distkey)
 
 
 

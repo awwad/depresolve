@@ -87,6 +87,8 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
   # For every distkey we're given, figure out the install candidate solution.
   for distkey in distkeys:
 
+    logger.info('Starting rbt resolve of ' + distkey)
+
     # Run rbtcollins' pip branch to find the solution, with some acrobatics.
     solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
 
@@ -114,7 +116,13 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
     else:
       # If it's in there, then we check to see if the solution is fully
       # satisfied.
-      satisfied = ry.are_fully_satisfied(solution, edeps, versions)
+      try:
+        satisfied = ry.are_fully_satisfied(solution, edeps, versions)
+      except depresolve.MissingDependencyInfoError as e:
+        logger.error('Unable to find dependency info while checking solution '
+            'for distkey ' + distkey + '. Missing dependency info was from '
+            'distkey ' + e.args[1] + '. Full exception:' + str(e))
+        satisfied = 'Unknown'
 
     venv_catalog = depdata.load_json_db('data/rbtpip_venv_catalog.json')
 
