@@ -34,7 +34,7 @@ def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
   False.
 
   """
-  logger = depresolve.logging.getLogger( \
+  logger = depresolve.logging.getLogger(
       'resolvability.detect_model_2_conflict_from_distkey')
 
   candidates = fully_satisfy_strawman1(distkey, edeps, versions_by_package)
@@ -76,8 +76,10 @@ def dist_lists_are_equal(distlist1, distlist2):
   Runtime: O(N^2)
   """
 
+  logger = depresolve.logging.getLogger('resolvability.dist_lists_are_equal')
+
   if len(distlist1) != len(distlist2):
-    print('dist lists do not have the same length and so are not equal.')
+    logger.debug('dist lists do not have the same length, thus are not equal.')
     return False
 
 
@@ -110,8 +112,10 @@ def dist_lists_are_equal(distlist1, distlist2):
       # Easy case negative, where there's no dist of the same pack name in the
       # other set:
       if not possible_matches:
-        print('This list contains "' + pack + '(' + ver + ')", but other list '
-            'contains no dists of pack "' + pack + '". Lists not equal.')
+
+        logger.debug('This list contains "' + pack + '(' + ver + ')", but '
+            'other list contains no dists of pack "' + pack + '". Lists not '
+            'equal.')
         return False
 
       # Okay, we're in the harder case. There's at least one possible match,
@@ -878,18 +882,20 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
 
   """
 
+  logger = depresolve.logging.getLogger(
+      'resolvability.resolve_all_via_backtracking')
+
+
   def _write_data_out(solutions, unable_to_resolve, unresolvables):
     """THIS IS AN INNER FUNCTION WITHIN resolve_all_via_depsolver!"""
     import json
-    print('')
-    print('------------------------')
-    print('--- Progress So Far: ---')
-    print('Solved: ' + str(len(solutions)))
-    print('Error while resolving: ' + str(len(unable_to_resolve)))
-    print('Unresolvable conflicts: ' + str(len(unresolvables)))
-    print('Saving progress to json.')
-    print('------------------------')
-    print('')
+    logger.info('------------------------')
+    logger.info('--- Progress So Far: ---')
+    logger.info('Solved: ' + str(len(solutions)))
+    logger.info('Error while resolving: ' + str(len(unable_to_resolve)))
+    logger.info('Unresolvable conflicts: ' + str(len(unresolvables)))
+    logger.info('Saving progress to json.')
+    logger.info('------------------------')
     json.dump(solutions, open(fname_solutions, 'w'))
     json.dump(unable_to_resolve, open(fname_errors, 'w'))
     json.dump(unresolvables, open(fname_unresolvables, 'w'))
@@ -909,7 +915,7 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
     # errors) so as not to skew the numbers. Currently, they should show up as
     # resolver errors.
 
-    print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Starting ' + 
+    logger.info(str(i) + '/' + str(len(dists_to_solve_for)) + ': Starting ' + 
         distkey + '....')
 
     try:
@@ -921,21 +927,21 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
         depresolve.UnresolvableConflictError) as e:
 
       unresolvables.append(str(distkey)) # cleansing unicode prefixes (python2)
-      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Unresolvable: ' +
-          distkey + '. (Error was: ' + str(e.args[0]))
+      logger.info(str(i) + '/' + str(len(dists_to_solve_for)) + ': '
+          'Unresolvable: ' + distkey + '. (Error was: ' + str(e.args[0]))
 
     # Other potential causes of failure, including TimeoutException
     except Exception as e:
 
       unable_to_resolve.append(str(distkey)) # cleansing unicode prefixes (py2)
-      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Could not '
+      logger.info(str(i) + '/' + str(len(dists_to_solve_for)) + ': Could not '
           'parse: ' + distkey + '. Exception of type ' + str(type(e)) +
           ' follows:' + str(e.args))
 
     else:
       solutions[distkey] = [str(dist) for dist in solution] # cleansing unicode prefixes (python2)
-      print(str(i) + '/' + str(len(dists_to_solve_for)) + ': Resolved: ' +
-          distkey)
+      logger.info(str(i) + '/' + str(len(dists_to_solve_for)) +
+          ': Resolved: ' + distkey)
 
     # Write early for my testing convenience.
     if i % 40 == 39:
