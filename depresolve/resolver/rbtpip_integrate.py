@@ -303,7 +303,7 @@ def popen_wrapper(cmd):
   Just runs subprocess.popen with the given command and prints the output to
   the screen. Times out after 5 minutes.
   """
-  print(subprocess.Popen(cmd, shell=True, executable='/bin/bash'
+  print(subprocess.Popen(cmd, shell=True, executable='/bin/bash',
       stdout=subprocess.PIPE).stdout.readlines())
 
 
