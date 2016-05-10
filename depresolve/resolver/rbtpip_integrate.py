@@ -1,6 +1,6 @@
 """
 <Program Name>
-  test_rbtpip.py
+  rbtpip_integrate.py
 
 <Purpose>
   A script to test rbtcollins' backtracking resolver patch for pip, using
@@ -9,6 +9,7 @@
 
 import subprocess # shell commands to create and use virtual environments
 import random, string # randomized naming for virtual environments
+import sys # for arguments to main
 import json
 import depresolve
 import depresolve.deptools as deptools
@@ -17,7 +18,7 @@ import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout
 #import depresolve.scrape_deps_and_detect_conflicts as scraper
 
-def rbttest(distkeys, local=False):
+def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
   """
 
   Accepts a list of distkeys indicating what distributions to try to install
@@ -51,7 +52,7 @@ def rbttest(distkeys, local=False):
   """
 
 
-
+  logger = depresolve.logging.getLogger('rbtpip_integrate.rbttest')
 
   ###############
   # Step 1 Alternative: Load dependency data.
@@ -98,36 +99,41 @@ def rbttest(distkeys, local=False):
     # for consistency.
 
     # Test the solution.
-    success = False
-    if distkey not in solution:
-      # If the given solution doesn't even include the distribution to install
-      # itself, it's obviously not been successful.
-      print('rbt pip failed to install the indicated distkey.')
-      assert not solution, 'Programming error. If ' + distkey + ' itself ' + \
-          'is not in solution, and something else is, that makes no ' + \
-          'sense. Solution was: ' + str(solution)
+    # If the given solution doesn't even include the distribution to install
+    # itself, it's obviously not been successful.
+
+    satisfied = False
+    installed = distkey in solution
+
+    if not installed:
+      assert not solution, 'Programming error. If ' + distkey + \
+          ' itself is not in solution, and something else is, that makes ' + \
+          'no sense. Solution was: ' + str(solution)
+      logger.info('rbt pip failed to install the indicated distkey.')
 
     else:
       # If it's in there, then we check to see if the solution is fully
       # satisfied.
-      success = ry.are_fully_satisfied(solution, edeps, versions)
+      satisfied = ry.are_fully_satisfied(solution, edeps, versions)
 
     venv_catalog = depdata.load_json_db('data/rbtpip_venv_catalog.json')
 
-    print('Successful in solving ' + distkey + ' using rbtcollins pip patch? '
-        + str(success) + '. virtualenv used: ' + venv_catalog[distkey])
+    logger.info('Tried solving ' + distkey + ' using rbtcollins pip patch. '
+        'Installed: ' + str(installed) + '. Satisfied: ' + str(satisfied) +
+        ' virtualenv used: ' + venv_catalog[distkey])
 
-    # Save success as whether or not a conflict was detected.
-    solution_conflicts[distkey] = not success
+    # Save the solution:
+    #  - whether or not the distkey itself was installed
+    #  - whether or not the install set is fully satisfied and conflict-less
+    #  - what the solution set is
+    solution_dict[distkey] = (installed, satisfied, solution)
 
 
     ###############
     # Step 4: Dump solutions to file.
 
     # Until this is stable, write after every solution so as not to lose data.
-    json.dump(solution_dict, open('data/solutions_via_rbtpip.json','w'))
-    json.dump(solution_conflicts, open(
-        'data/solutions_via_rbtpip_conflicts.json','w'))
+    json.dump(solution_dict, open('data/resolved_via_rbtpip.json','w'))
 
 
 
@@ -147,7 +153,8 @@ def rbttest(distkeys, local=False):
 
 
 
-def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False):
+def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
+    dir_rbt_pip='../pipcollins'):
   """
   Determine correct install candidates by using rbtcollins' pip branch
   issue-988.
@@ -172,9 +179,6 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False):
 
 
   """
-
-  # Constants
-  dir_rbt_pip = '/Users/s/w/pipcollins'
 
   ###############
   # Steps 1 and 2: Create venv and install rbt pip.
@@ -249,7 +253,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False):
   # Step 4: Run pip freeze and harvest the solution set
   # Initial snapshot of installed packages
   freeze_output = subprocess.Popen(cmd_pipfreeze, shell=True,
-      stdout=subprocess.PIPE).stdout.readlines()
+      executable='/bin/bash', stdout=subprocess.PIPE).stdout.readlines()
 
   # Now I have to parse out the actual installs from the output... /:
   # It looks like this, for example, in python3:
@@ -281,8 +285,8 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False):
     # Put it together into a distkey.
     installed_distkey = depdata.distkey_format(name, ver)
 
-    # These virtual environments start with wheel 0.26.0, so ignore it.
-    if installed_distkey == 'wheel(0.26.0)':
+    # These virtual environments start with wheel, so ignore it. (Not ideal)
+    if installed_distkey.startswith('wheel('):
       continue
 
     solution.append(installed_distkey)
@@ -299,7 +303,7 @@ def popen_wrapper(cmd):
   Just runs subprocess.popen with the given command and prints the output to
   the screen. Times out after 5 minutes.
   """
-  print(subprocess.Popen(cmd, shell=True,
+  print(subprocess.Popen(cmd, shell=True, executable='/bin/bash'
       stdout=subprocess.PIPE).stdout.readlines())
 
 
@@ -310,12 +314,40 @@ def main():
   """
   Randomly choose some conflicting dists to test rbtcollins solver on.
   """
-  con3 = depdata.load_json_db('data/conflicts_3.json')
-  conflicting = [p for p in con3 if con3[p]]
-  import random
   distkeys_to_solve = []
-  for i in range(0,10):
-    distkeys_to_solve.append(random.choice(conflicting))
+
+  n_distkeys = 3 # default 3, overriden by argument --n=, or specific distkeys
+
+  args = sys.argv[1:]
+  local = False
+
+  if args:
+    for arg in args:
+      if arg == '--local':
+        local = True
+      elif arg.startswith('--local='):
+        local = arg[8:]
+      elif arg.startswith('--n='):
+        n_distkeys = int(arg[4:])
+      else:
+        distkeys_to_solve.append(arg)
+
+  # If we didn't get any specific distkeys to solve for from the args, then
+  # pick randomly:
+
+  if distkeys_to_solve:
+    n_distkeys = len(distkeys_to_solve)
+
+  if not distkeys_to_solve:
+    # Randomize from the model 3 conflict list.
+
+    con3 = depdata.load_json_db('data/conflicts_3.json')
+    conflicting = [p for p in con3 if con3[p]]
+    import random
+    distkeys_to_solve = []
+    for i in range(0, n_distkeys):
+      distkeys_to_solve.append(random.choice(conflicting))
+
 
   rbttest(distkeys_to_solve)
 
