@@ -85,7 +85,7 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
 
 
   # Prepare solution dictionary.
-  solution_dict = depdata.load_json_db(SOLUTIONS_JSON_FILE)
+  solution_dict = depdata.load_json_db(SOLUTIONS_JSON_FNAME)
 
 
   ###############
@@ -147,7 +147,7 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
     # Step 4: Dump solutions to file.
 
     # Until this is stable, write after every solution so as not to lose data.
-    json.dump(solution_dict, open(SOLUTIONS_JSON_FILE, 'w'))
+    json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
 
 
 
@@ -158,7 +158,7 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
 
   # # Write all gathered solutions to json at end.
   # # Save gathered solutions to json.
-  # json.dump(solution_dict, open(SOLUTIONS_JSON_FILE, 'w'))
+  # json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
 
 
   return solution_dict
