@@ -18,6 +18,15 @@ import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout
 #import depresolve.scrape_deps_and_detect_conflicts as scraper
 
+SOLUTIONS_JSON_FNAME = 'data/resolved_via_rbtpip.json'
+VENV_CATALOG_JSON_FNAME = 'data/rbtpip_venv_catalog.json'
+ELABORATED_DEPS_JSON_FNAME = 'data/elaborated_dependencies.json'
+# This one shouldn't be used directly, but it's faster than
+# depdata.ensure_...
+CONFLICTS_3_JSON_FNAME = 'data/conflicts_3.json'
+
+
+
 def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
   """
 
@@ -72,14 +81,11 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
   # dependencies. NOTE THAT THIS IS NOT AUTOMATICALLY REFRESHED AND SO IF THERE
   # IS MORE DEPENDENCY DATA ADDED, ELABORATION SHOULD BE DONE OVER. (The full
   # data set may take 30 minutes to elaborate!)
-  edeps = depdata.load_json_db('data/elaborated_dependencies.json') # potentially STALE!
+  edeps = depdata.load_json_db(ELABORATED_DEPS_JSON_FNAME) # potentially STALE!
 
 
   # Prepare solution dictionary.
-  solution_dict = depdata.load_json_db('data/solutions_via_rbtpip.json')
-
-  solution_conflicts = depdata.load_json_db(
-      'data/solutions_via_rbtpip_conflicts.json')
+  solution_dict = depdata.load_json_db(SOLUTIONS_JSON_FILE)
 
 
   ###############
@@ -124,7 +130,7 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
             'distkey ' + e.args[1] + '. Full exception:' + str(e))
         satisfied = 'Unknown'
 
-    venv_catalog = depdata.load_json_db('data/rbtpip_venv_catalog.json')
+    venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
 
     logger.info('Tried solving ' + distkey + ' using rbtcollins pip patch. '
         'Installed: ' + str(installed) + '. Satisfied: ' + str(satisfied) +
@@ -141,7 +147,7 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
     # Step 4: Dump solutions to file.
 
     # Until this is stable, write after every solution so as not to lose data.
-    json.dump(solution_dict, open('data/resolved_via_rbtpip.json','w'))
+    json.dump(solution_dict, open(SOLUTIONS_JSON_FILE, 'w'))
 
 
 
@@ -152,7 +158,7 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
 
   # # Write all gathered solutions to json at end.
   # # Save gathered solutions to json.
-  # json.dump(solution_dict, open('data/solutions_via_rbtpip.json','w'))
+  # json.dump(solution_dict, open(SOLUTIONS_JSON_FILE, 'w'))
 
 
   return solution_dict
@@ -196,9 +202,9 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   # Save a map of this virtual environment name to distkey for later auditing
   # if interesting things happen.
-  venv_catalog = depdata.load_json_db('data/rbtpip_venv_catalog.json')
+  venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
   venv_catalog[distkey] = venv_name
-  json.dump(venv_catalog, open('data/rbtpip_venv_catalog.json','w'))
+  json.dump(venv_catalog, open(VENV_CATALOG_JSON_FNAME, 'w'))
 
 
   cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + venv_name
@@ -348,8 +354,11 @@ def main():
 
   if not distkeys_to_solve:
     # Randomize from the model 3 conflict list.
+    
+    depdata.ensure_data_loaded()
 
-    con3 = depdata.load_json_db('data/conflicts_3.json')
+    con3 = depdata.conflicts_3_db
+
     conflicting = [p for p in con3 if con3[p]]
     import random
     distkeys_to_solve = []
