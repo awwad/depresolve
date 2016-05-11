@@ -69,6 +69,8 @@ def rbttest(distkey, edeps, versions, local=False,
   # Figure out the install candidate solution.
   logger.info('Starting rbt resolve of ' + distkey)
 
+  solution = [] # try-scoping paranoia
+
   # Run rbtcollins' pip branch to find the solution, with some acrobatics.
   try:
     solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
@@ -92,10 +94,12 @@ def rbttest(distkey, edeps, versions, local=False,
   installed = distkey in solution
 
   if not installed:
-    assert not solution, 'Programming error. If ' + distkey + \
-        ' itself is not in solution, and something else is, that makes ' + \
-        'no sense. Solution was: ' + str(solution)
-    logger.info('rbt pip failed to install the indicated distkey.')
+    logger.error('Unable to install ' + distkey + ' using rbt pip: solution '
+        'does not contain ' + distkey + '. Presume failure; unclear why '
+        'anything was installed at all - possibly failure in middle of '
+        'installations, after some dependencies were installed? Returning: ' +
+        '(False, "Unknown-Failure", ' + str(solution) + ').'
+    return (installed, 'Unknown-Failure', solution)
 
   else:
     # If it's in there, then we check to see if the solution is fully
