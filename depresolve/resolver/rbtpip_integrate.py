@@ -148,6 +148,9 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   """
 
+  logger = depresolve.logging.getLogger(
+      'rbtpip_integrate.rbt_backtracking_satisfy')
+
   ###############
   # Steps 1 and 2: Create venv and install rbt pip.
   venv_name = 'v3_'
@@ -165,11 +168,12 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
   cmd_sourcevenv = 'source ' + venv_name + '/bin/activate'
   cmd_pipfreeze = cmd_sourcevenv + '; pip freeze'
   cmd_install_rbt_pip = cmd_sourcevenv + '; cd ' + dir_rbt_pip + '; pip install -e .'
-  cmd_check_pip_ver = cmd_sourcevenv + '; pip --version'
+  #cmd_check_pip_ver = cmd_sourcevenv + '; pip --version'
   #cmd_install_seb_pip = cmd_sourcevenv + '; cd ' + dir_seb_pip + '; pip install -e .'
   #cmd_install_depresolve = cmd_sourcevenv + '; cd ' + dir_depresolve + '; pip install -e .'
 
   # Create venv
+  logger.info('For ' + distkey + ', creating virtual environment ' + venv_name)
   popen_wrapper(cmd_venvcreate)
 
   # Initial snapshot of installed packages
@@ -177,8 +181,9 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   # Install rbtcollins' issue_988 pip branch and display pip version
   # (should then be 8.0.0dev0)
+  logger.info('For ' + distkey + ', installing rbt_pip in ' + venv_name)
   popen_wrapper(cmd_install_rbt_pip)
-  popen_wrapper(cmd_check_pip_ver)
+  #popen_wrapper(cmd_check_pip_ver)
 
 
 
@@ -212,6 +217,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
       '; pip install --disable-pip-version-check --quiet ' + \
       index_optional_args + ' ' + requirement
 
+  logger.info('For ' + distkey + ', using rbtpip to install in ' + venv_name)
   popen_wrapper(cmd_install_dist) # have incorporated 5 min timeout
 
 
