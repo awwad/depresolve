@@ -58,11 +58,21 @@ def rbttest(distkey, edeps, versions, local=False,
           the location of the simple index listing of packages on the mirror
           to use.
 
+  Returns:
+    - Installed: True if distkey was able to be installed with rbt pip
+    - Satisfied: True if the solution set rbt pip generated was fully
+      satisfied, i.e. all dependencies of the given dist were satisfied, along
+      with all of their dependencies, and so on, with no dependency conflicts.
+    - Solution: the solution set (all distkeys installed)
+    - errstring: a string describing the error encountered if any was
+      encountered.
+
   """
 
 
   logger = depresolve.logging.getLogger('rbtpip_integrate.rbttest')
 
+  errstring = ''
 
   ###############
   # Step 1
@@ -76,9 +86,10 @@ def rbttest(distkey, edeps, versions, local=False,
     solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
 
   except depresolve._external.timeout.TimeoutException as e:
-    logger.error('Unable to install ' + distkey + ' using rbt pip: exceeded'
-        ' 5 minute timeout. Returning False,Unknown-Timeout,[].')
-    return (False, 'Unknown-Timeout', [])
+    errstring = 'Timed out during install'
+    logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
+        errstring)
+    return (False, False, [], errstring)
 
 
 
@@ -95,18 +106,17 @@ def rbttest(distkey, edeps, versions, local=False,
 
   if not installed:
     if solution:
-      logger.error('Unable to install ' + distkey + ' using rbt pip: solution '
-          'does not contain ' + distkey + '. Presume failure; unclear why '
-          'anything was installed at all - possibly failure in middle of '
-          'installations, after some dependencies were installed? Returning:' +
-          ' (False, "Unknown-Failure", ' + str(solution) + ').')
-      return (installed, False, solution)
+      errstring = 'Non-empty solution without target distkey'
+      logger.error('Unable to install ' + distkey + ' using rbt pip. ' + 
+          errstring + '. Solution does not contain ' + distkey + '. Presume '
+          'failure; unclear why anything was installed at all - possibly '
+          'failure in middle of installations, after some dependencies were '
+          'installed? Solution was: ' + str(solution))
     
     else:
-      logger.error('Unable to install ' + distkey + ' using rbt pip: solution '
-          'is empty. Presume pip failure. Returning:' +
-          ' (False, "Unknown-Failure", ' + str(solution) + ').')
-      return (installed, False, solution)
+      errstring = 'Empty solution'
+      logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
+          errstring '. Presume pip failure.')
 
   else:
     # If it's in there, then we check to see if the solution is fully
@@ -118,10 +128,12 @@ def rbttest(distkey, edeps, versions, local=False,
       satisfied = ry.are_fully_satisfied(solution, edeps, versions,
           disregard_setuptools=True)
     except depresolve.MissingDependencyInfoError as e:
-      logger.error('Unable to find dependency info while checking solution '
-          'for distkey ' + distkey + '. Missing dependency info was from '
-          'distkey ' + e.args[1] + '. Full exception:' + str(e))
-      satisfied = 'Unknown'
+      errstring = 'Unable to determine if satisfied: missing dep info for ' + \
+          str(e.args[1])
+      satisfied = ''   # evaluates False but is not False
+      logger.error(errstring + '. Resolution for ' + distkey + ' unknown. ' +
+          ' Full exception:' + str(e))
+
 
   # Load venv catalog to print debug info. Clunky.
   venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
@@ -134,7 +146,8 @@ def rbttest(distkey, edeps, versions, local=False,
   #  - whether or not the distkey itself was installed
   #  - whether or not the install set is fully satisfied and conflict-less
   #  - what the solution set is
-  return (installed, satisfied, solution)
+  #  - error string if there was an error
+  return (installed, satisfied, solution, errstring)
 
 
 
@@ -411,8 +424,9 @@ def main():
   for distkey in distkeys_to_solve:
     logger.info('Starting rbt solve for ' + distkey)
     # Explicit with multiple variables for clarity for the reader.
-    (installed, satisfied, solution) = rbttest(distkey, edeps, versions, local)
-    solution_dict[distkey] = (installed, satisfied, solution)
+    (installed, satisfied, solution, errstring) = \
+        rbttest(distkey, edeps, versions, local)
+    solution_dict[distkey] = (installed, satisfied, solution, errstring)
 
     ###############
     # Step 3: Dump solutions and solution correctness info to file.
