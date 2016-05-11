@@ -98,7 +98,7 @@ def rbttest(distkey, edeps, versions, local=False,
         'does not contain ' + distkey + '. Presume failure; unclear why '
         'anything was installed at all - possibly failure in middle of '
         'installations, after some dependencies were installed? Returning: ' +
-        '(False, "Unknown-Failure", ' + str(solution) + ').'
+        '(False, "Unknown-Failure", ' + str(solution) + ').')
     return (installed, 'Unknown-Failure', solution)
 
   else:
