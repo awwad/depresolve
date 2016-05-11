@@ -93,9 +93,11 @@ def rbttest(distkey, edeps, versions, local=False,
 
   else:
     # If it's in there, then we check to see if the solution is fully
-    # satisfied.
+    # satisfied. (Note that because pip freeze doesn't list setuptools, we
+    # disregard dependencies on setuptools.... /: )
     try:
-      satisfied = ry.are_fully_satisfied(solution, edeps, versions)
+      satisfied = ry.are_fully_satisfied(solution, edeps, versions,
+          disregard_setuptools=True)
     except depresolve.MissingDependencyInfoError as e:
       logger.error('Unable to find dependency info while checking solution '
           'for distkey ' + distkey + '. Missing dependency info was from '
@@ -361,6 +363,7 @@ def main():
   ###############
   # Step 2: Run rbttest to solve and test solution.
   for distkey in distkeys_to_solve:
+    logger.info('Starting rbt solve for ' + distkey)
     # Explicit with multiple variables for clarity for the reader.
     (installed, satisfied, solution) = rbttest(distkey, edeps, versions, local)
     solution_dict[distkey] = (installed, satisfied, solution)
@@ -368,6 +371,7 @@ def main():
     ###############
     # Step 3: Dump solutions and solution correctness info to file.
     # Until this is stable, write after every solution so as not to lose data.
+    logger.info('Writing results for ' + distkey)
     json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
 
 
