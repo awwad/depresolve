@@ -27,28 +27,28 @@ CONFLICTS_3_JSON_FNAME = 'data/conflicts_3.json'
 
 
 
-def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
+def rbttest(distkey, edeps, versions, local=False,
+    dir_rbt_pip='../pipcollins'):
   """
 
-  Accepts a list of distkeys indicating what distributions to try to install
-  using rbtcollins' issue-988 pip branch as a way to solve conflicts.
+  Accepts a distkey indicating what distribution to try to install using
+  rbtcollins' issue-988 pip branch as a way to solve conflicts.
 
   Steps:
-    1. Load dependency data.
-
-    2. Solve using rbtcollins' pip branch issue-988:
+    1. Solve using rbtcollins' pip branch issue-988:
        For each distkey, create a new virtual environment, install rbtcollins'
        pip version within it, use it to install the dist indicated, and use
        pip freeze to determine what it installed.    
 
-    3. Run resolvability.are_fully_satisfied to test the solution set for
+    2. Run resolvability.are_fully_satisfied to test the solution set for
        consistency.
-
-    4. Write all the solution sets to a json file.
 
 
   Arguments:
     - distkeys: a list of distkeys indicating what distributions to solve for
+    - edeps: elaborated dependency data (see depdata.py)
+    - versions: versions by package (dict mapping package name to the available
+      versions for that package)
     - local (optional):
         - if not provided, we connect to PyPI
         - if simply set to 'True', we use the default local bandersnatch
@@ -63,105 +63,57 @@ def rbttest(distkeys, local=False, dir_rbt_pip='../pipcollins'):
 
   logger = depresolve.logging.getLogger('rbtpip_integrate.rbttest')
 
-  ###############
-  # Step 1 Alternative: Load dependency data.
-
-  # Load dependencies from their json file, harvested in prior full run of
-  # scraper.
-  depdata.ensure_data_loaded()
-  deps = depdata.dependencies_by_dist
-
-  # Make catalog of versions by package from deps info.
-  versions = deptools.generate_dict_versions_by_package(deps)
-
-  # Elaborate the dependencies using information about available versions.
-  #edeps = deptools.elaborate_dependencies(deps, versions)
-  # EDIT: this is very time consuming and we may be dealing with the full
-  # dependency data, so instead I'm going to load already-elaborated
-  # dependencies. NOTE THAT THIS IS NOT AUTOMATICALLY REFRESHED AND SO IF THERE
-  # IS MORE DEPENDENCY DATA ADDED, ELABORATION SHOULD BE DONE OVER. (The full
-  # data set may take 30 minutes to elaborate!)
-  edeps = depdata.load_json_db(ELABORATED_DEPS_JSON_FNAME) # potentially STALE!
-
-
-  # Prepare solution dictionary.
-  solution_dict = depdata.load_json_db(SOLUTIONS_JSON_FNAME)
-
 
   ###############
-  # Step 2
-  # For every distkey we're given, figure out the install candidate solution.
-  for distkey in distkeys:
+  # Step 1
+  # Figure out the install candidate solution.
+  logger.info('Starting rbt resolve of ' + distkey)
 
-    logger.info('Starting rbt resolve of ' + distkey)
-
-    # Run rbtcollins' pip branch to find the solution, with some acrobatics.
-    solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
-
-    # Save the solution rbt generates for this distkey.
-    solution_dict[distkey] = solution
-
-
-    ###############
-    # Step 3: Run resolvability.are_fully_satisfied to test the solution set
-    # for consistency.
-
-    # Test the solution.
-    # If the given solution doesn't even include the distribution to install
-    # itself, it's obviously not been successful.
-
-    satisfied = False
-    installed = distkey in solution
-
-    if not installed:
-      assert not solution, 'Programming error. If ' + distkey + \
-          ' itself is not in solution, and something else is, that makes ' + \
-          'no sense. Solution was: ' + str(solution)
-      logger.info('rbt pip failed to install the indicated distkey.')
-
-    else:
-      # If it's in there, then we check to see if the solution is fully
-      # satisfied.
-      try:
-        satisfied = ry.are_fully_satisfied(solution, edeps, versions)
-      except depresolve.MissingDependencyInfoError as e:
-        logger.error('Unable to find dependency info while checking solution '
-            'for distkey ' + distkey + '. Missing dependency info was from '
-            'distkey ' + e.args[1] + '. Full exception:' + str(e))
-        satisfied = 'Unknown'
-
-    venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
-
-    logger.info('Tried solving ' + distkey + ' using rbtcollins pip patch. '
-        'Installed: ' + str(installed) + '. Satisfied: ' + str(satisfied) +
-        ' virtualenv used: ' + venv_catalog[distkey])
-
-    # Save the solution:
-    #  - whether or not the distkey itself was installed
-    #  - whether or not the install set is fully satisfied and conflict-less
-    #  - what the solution set is
-    solution_dict[distkey] = (installed, satisfied, solution)
-
-
-    ###############
-    # Step 4: Dump solutions to file.
-
-    # Until this is stable, write after every solution so as not to lose data.
-    json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
+  # Run rbtcollins' pip branch to find the solution, with some acrobatics.
+  solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
 
 
 
   ###############
-  # Step 4: Dump solutions to file.
-  
-  # Currently writing after every solution instead.
+  # Step 2: Run resolvability.are_fully_satisfied to test the solution set
+  # for consistency.
 
-  # # Write all gathered solutions to json at end.
-  # # Save gathered solutions to json.
-  # json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
+  # Test the solution.
+  # If the given solution doesn't even include the distribution to install
+  # itself, it's obviously not been successful.
 
+  satisfied = False
+  installed = distkey in solution
 
-  return solution_dict
+  if not installed:
+    assert not solution, 'Programming error. If ' + distkey + \
+        ' itself is not in solution, and something else is, that makes ' + \
+        'no sense. Solution was: ' + str(solution)
+    logger.info('rbt pip failed to install the indicated distkey.')
+
+  else:
+    # If it's in there, then we check to see if the solution is fully
+    # satisfied.
+    try:
+      satisfied = ry.are_fully_satisfied(solution, edeps, versions)
+    except depresolve.MissingDependencyInfoError as e:
+      logger.error('Unable to find dependency info while checking solution '
+          'for distkey ' + distkey + '. Missing dependency info was from '
+          'distkey ' + e.args[1] + '. Full exception:' + str(e))
+      satisfied = 'Unknown'
+
+  # Load venv catalog to print debug info. Clunky.
+  venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
+
+  logger.info('Tried solving ' + distkey + ' using rbtcollins pip patch. '
+      'Installed: ' + str(installed) + '. Satisfied: ' + str(satisfied) +
+      ' virtualenv used: ' + venv_catalog[distkey])
+
+  # Return the solution that rbt generates for this distkey:
+  #  - whether or not the distkey itself was installed
+  #  - whether or not the install set is fully satisfied and conflict-less
+  #  - what the solution set is
+  return (installed, satisfied, solution)
 
 
 
@@ -327,7 +279,20 @@ def popen_wrapper(cmd):
 def main():
   """
   Randomly choose some conflicting dists to test rbtcollins solver on.
+
+    Steps:
+    1. Load dependency data.
+
+    2. Call rbttest to solve using rbtcollins' pip branch issue-988 and
+       determine the correctness of that solution.
+
+    3. Write all the solution sets and correctness info to a json file.
+
   """
+
+  logger = depresolve.logging.getLogger('rbtpip_integrate.main')
+
+
   distkeys_to_solve = []
 
   n_distkeys = 3 # default 3, overriden by argument --n=, or specific distkeys
@@ -366,7 +331,47 @@ def main():
       distkeys_to_solve.append(random.choice(conflicting))
 
 
-  rbttest(distkeys_to_solve)
+
+  ###############
+  # Step 1: Load dependency data.
+
+  # Load dependencies from their json file, harvested in prior full run of
+  # scraper.
+  depdata.ensure_data_loaded()
+  deps = depdata.dependencies_by_dist
+
+  # Make catalog of versions by package from deps info.
+  versions = deptools.generate_dict_versions_by_package(deps)
+
+  # Elaborate the dependencies using information about available versions.
+  #edeps = deptools.elaborate_dependencies(deps, versions)
+  # EDIT: this is very time consuming and we may be dealing with the full
+  # dependency data, so instead I'm going to load already-elaborated
+  # dependencies. NOTE THAT THIS IS NOT AUTOMATICALLY REFRESHED AND SO IF THERE
+  # IS MORE DEPENDENCY DATA ADDED, ELABORATION SHOULD BE DONE OVER. (The full
+  # data set may take 30 minutes to elaborate!)
+  edeps = depdata.load_json_db(ELABORATED_DEPS_JSON_FNAME) # potentially STALE!
+
+
+  # Prepare solution dictionary.
+  solution_dict = depdata.load_json_db(SOLUTIONS_JSON_FNAME)
+
+
+
+  ###############
+  # Step 2: Run rbttest to solve and test solution.
+  for distkey in distkeys_to_solve:
+    # Explicit with multiple variables for clarity for the reader.
+    (installed, satisfied, solution) = rbttest(distkey, edeps, versions, local)
+    solution_dict[distkey] = (installed, satisfied, solution)
+
+    ###############
+    # Step 3: Dump solutions and solution correctness info to file.
+    # Until this is stable, write after every solution so as not to lose data.
+    json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
+
+
+
 
 
 
