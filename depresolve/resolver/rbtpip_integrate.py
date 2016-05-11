@@ -38,7 +38,7 @@ def rbttest(distkey, edeps, versions, local=False,
     1. Solve using rbtcollins' pip branch issue-988:
        For each distkey, create a new virtual environment, install rbtcollins'
        pip version within it, use it to install the dist indicated, and use
-       pip freeze to determine what it installed.    
+       `pip list` to determine what it installed.    
 
     2. Run resolvability.are_fully_satisfied to test the solution set for
        consistency.
@@ -103,8 +103,10 @@ def rbttest(distkey, edeps, versions, local=False,
 
   else:
     # If it's in there, then we check to see if the solution is fully
-    # satisfied. (Note that because pip freeze doesn't list setuptools, we
-    # disregard dependencies on setuptools.... /: )
+    # satisfied. (Note that because virtual environments start off with pip,
+    # wheel, and setuptools, we can't tell when a solution includes them,
+    # don't store those as part of the solution, and so disregard them in this
+    # dependency check. ):
     try:
       satisfied = ry.are_fully_satisfied(solution, edeps, versions,
           disregard_setuptools=True)
@@ -141,7 +143,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
     1. Sets up a random-name new virtual environment
     2. Installs rbtcollins' pip patch on that virtual environment
     3. Installs the given distribution using rbt pip
-    4. Runs pip freeze and harvests the solution set
+    4. Runs `pip list` and harvests the solution set
 
   Args & output modeled after resolver.resolvability.backtracking_satisfy().
 
@@ -176,7 +178,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + venv_name
   cmd_sourcevenv = 'source ' + venv_name + '/bin/activate'
-  cmd_pipfreeze = cmd_sourcevenv + '; pip freeze'
+  cmd_piplist = cmd_sourcevenv + '; pip list'
   cmd_install_rbt_pip = cmd_sourcevenv + '; cd ' + dir_rbt_pip + '; pip install -e .'
   #cmd_check_pip_ver = cmd_sourcevenv + '; pip --version'
   #cmd_install_seb_pip = cmd_sourcevenv + '; cd ' + dir_seb_pip + '; pip install -e .'
@@ -187,7 +189,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
   popen_wrapper(cmd_venvcreate)
 
   # Initial snapshot of installed packages
-  popen_wrapper(cmd_pipfreeze)
+  popen_wrapper(cmd_piplist)
 
   # Install rbtcollins' issue_988 pip branch and display pip version
   # (should then be 8.0.0dev0)
@@ -234,9 +236,9 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
 
   ###############
-  # Step 4: Run pip freeze and harvest the solution set
+  # Step 4: Run `pip list` and harvest the solution set
   # Initial snapshot of installed packages
-  freeze_output = subprocess.Popen(cmd_pipfreeze, shell=True,
+  piplist_output = subprocess.Popen(cmd_piplist, shell=True,
       executable='/bin/bash', stdout=subprocess.PIPE).stdout.readlines()
 
   # Now I have to parse out the actual installs from the output... /:
@@ -255,22 +257,34 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   solution = []
 
-  # Convert freeze_output into solution set here.
+  # Convert list_output into solution set here.
 
   # Yeah, this isn't really kosher, and it probably breaks in python2.
   # Principle for this week: first, get it to work.
-  for line in freeze_output:
+  for line in piplist_output:
 
     installed_package = line.decode()[:-1] # decode and cut off \n at end (assumption: actual newline)
 
-    # Split it into package name and version:
-    (name, ver) = installed_package.split('==')
+    # pip list outputs almost-distkeys, like: 'pbr (0.11.1)'.
+    # We cut out the space and pray they work. /:
+    installed_distkey = installed_distkey.replace(' ', '')
 
-    # Put it together into a distkey.
-    installed_distkey = depdata.distkey_format(name, ver)
+    ## Old way, using `pip freeze`.
+    ## # Split it into package name and version:
+    ## (name, ver) = installed_package.split('==')
+    ##
+    ## # Put it together into a distkey.
+    ## installed_distkey = depdata.distkey_format(name, ver)
+    
 
-    # These virtual environments start with wheel, so ignore it. (Not ideal)
-    if installed_distkey.startswith('wheel('):
+    # These distributions are installed when a new virtual environment is
+    # created, so ignore them. This is an unpleasant hack: some packages
+    # actually declare dependencies on these, and so the stored solutions may
+    # be incomplete, and there's a hack in is_dep_satisfied to disregard these
+    # when given disregard_setuptools=True.
+    if installed_distkey.startswith('wheel(') or \
+        installed_distkey.startswith('pip(') or \
+        installed_distkey.startswith('setuptools('):
       continue
 
     solution.append(installed_distkey)

@@ -246,7 +246,7 @@ def is_dep_satisfied(edep, candidates, disregard_setuptools=False):
   packname = edep[0]
   list_of_acceptable_versions = edep[1]
 
-  if disregard_setuptools and packname == 'setuptools':
+  if disregard_setuptools and packname in ['setuptools', 'pip', 'wheel']:
     return True
 
   same_package_dist = find_dists_matching_packname(packname, candidates)
