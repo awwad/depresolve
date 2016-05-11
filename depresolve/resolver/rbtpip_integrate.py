@@ -339,6 +339,7 @@ def main():
 
   args = sys.argv[1:]
   local = False
+  all_conflicting = False
 
   if args:
     for arg in args:
@@ -348,6 +349,9 @@ def main():
         local = arg[8:]
       elif arg.startswith('--n='):
         n_distkeys = int(arg[4:])
+      elif arg == '--all':
+        local = True
+        all_conflicting = True
       else:
         distkeys_to_solve.append(arg)
 
@@ -365,10 +369,14 @@ def main():
     con3 = depdata.conflicts_3_db
 
     conflicting = [p for p in con3 if con3[p]]
-    import random
-    distkeys_to_solve = []
-    for i in range(0, n_distkeys):
-      distkeys_to_solve.append(random.choice(conflicting))
+
+    if all_conflicting:
+      distkeys_to_solve = conflicting
+
+    else:
+      import random
+      for i in range(0, n_distkeys):
+        distkeys_to_solve.append(random.choice(conflicting))
 
 
 
