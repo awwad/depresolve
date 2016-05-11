@@ -116,7 +116,7 @@ def rbttest(distkey, edeps, versions, local=False,
     else:
       errstring = 'Empty solution'
       logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
-          errstring '. Presume pip failure.')
+          errstring + '. Presume pip failure.')
 
   else:
     # If it's in there, then we check to see if the solution is fully
