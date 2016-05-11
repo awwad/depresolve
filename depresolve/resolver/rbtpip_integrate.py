@@ -184,8 +184,9 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + venv_name
   cmd_sourcevenv = 'source ' + venv_name + '/bin/activate'
-  cmd_piplist = cmd_sourcevenv + '; pip list'
-  cmd_install_rbt_pip = cmd_sourcevenv + '; cd ' + dir_rbt_pip + '; pip install -e .'
+  cmd_piplist = cmd_sourcevenv + '; pip list --disable-pip-version-check'
+  cmd_install_rbt_pip = cmd_sourcevenv + '; cd ' + dir_rbt_pip + \
+      '; pip install -e . --disable-pip-version-check'
   #cmd_check_pip_ver = cmd_sourcevenv + '; pip --version'
   #cmd_install_seb_pip = cmd_sourcevenv + '; cd ' + dir_seb_pip + '; pip install -e .'
   #cmd_install_depresolve = cmd_sourcevenv + '; cd ' + dir_depresolve + '; pip install -e .'
