@@ -70,7 +70,13 @@ def rbttest(distkey, edeps, versions, local=False,
   logger.info('Starting rbt resolve of ' + distkey)
 
   # Run rbtcollins' pip branch to find the solution, with some acrobatics.
-  solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
+  try:
+    solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
+
+  except depresolve._external.timeout.TimeoutException as e:
+    logger.error('Unable to install ' + distkey + ' using rbt pip: exceeded'
+        ' 5 minute timeout. Returning False,Unknown-Timeout,[].')
+    return (False, 'Unknown-Timeout', [])
 
 
 
