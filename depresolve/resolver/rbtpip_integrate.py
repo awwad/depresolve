@@ -263,7 +263,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
   # Principle for this week: first, get it to work.
   for line in piplist_output:
 
-    installed_package = line.decode()[:-1] # decode and cut off \n at end (assumption: actual newline)
+    installed_distkey = line.decode()[:-1] # decode and cut off \n at end (assumption: actual newline)
 
     # pip list outputs almost-distkeys, like: 'pbr (0.11.1)'.
     # We cut out the space and pray they work. /:
