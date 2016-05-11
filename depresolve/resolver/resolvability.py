@@ -270,7 +270,8 @@ def is_dep_satisfied(edep, candidates, disregard_setuptools=False):
     # Doing it this way catches matches like 2.0 to 2.0.0. (Match same versions
     # even if string isn't exactly the same.)
     for acceptable_version in list_of_acceptable_versions:
-      if versions_are_equal(version_of_satisfying_package, acceptable_version):
+      if deptools.versions_are_equal(version_of_satisfying_package,
+          acceptable_version):
         version_match = True
         break
 
