@@ -100,12 +100,13 @@ def rbttest(distkey, edeps, versions, local=False,
           'anything was installed at all - possibly failure in middle of '
           'installations, after some dependencies were installed? Returning:' +
           ' (False, "Unknown-Failure", ' + str(solution) + ').')
-      return (installed, 'Unknown-Failure', solution)
+      return (installed, False, solution)
     
     else:
       logger.error('Unable to install ' + distkey + ' using rbt pip: solution '
           'is empty. Presume pip failure. Returning:' +
           ' (False, "Unknown-Failure", ' + str(solution) + ').')
+      return (installed, False, solution)
 
   else:
     # If it's in there, then we check to see if the solution is fully
