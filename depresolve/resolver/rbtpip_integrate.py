@@ -94,12 +94,18 @@ def rbttest(distkey, edeps, versions, local=False,
   installed = distkey in solution
 
   if not installed:
-    logger.error('Unable to install ' + distkey + ' using rbt pip: solution '
-        'does not contain ' + distkey + '. Presume failure; unclear why '
-        'anything was installed at all - possibly failure in middle of '
-        'installations, after some dependencies were installed? Returning: ' +
-        '(False, "Unknown-Failure", ' + str(solution) + ').')
-    return (installed, 'Unknown-Failure', solution)
+    if solution:
+      logger.error('Unable to install ' + distkey + ' using rbt pip: solution '
+          'does not contain ' + distkey + '. Presume failure; unclear why '
+          'anything was installed at all - possibly failure in middle of '
+          'installations, after some dependencies were installed? Returning:' +
+          ' (False, "Unknown-Failure", ' + str(solution) + ').')
+      return (installed, 'Unknown-Failure', solution)
+    
+    else:
+      logger.error('Unable to install ' + distkey + ' using rbt pip: solution '
+          'is empty. Presume pip failure. Returning:' +
+          ' (False, "Unknown-Failure", ' + str(solution) + ').')
 
   else:
     # If it's in there, then we check to see if the solution is fully
@@ -275,7 +281,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
     ##
     ## # Put it together into a distkey.
     ## installed_distkey = depdata.distkey_format(name, ver)
-    
+
 
     # These distributions are installed when a new virtual environment is
     # created, so ignore them. This is an unpleasant hack: some packages
