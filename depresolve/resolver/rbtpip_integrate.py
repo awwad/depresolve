@@ -38,7 +38,7 @@ def rbttest(distkey, edeps, versions, local=False,
     1. Solve using rbtcollins' pip branch issue-988:
        For each distkey, create a new virtual environment, install rbtcollins'
        pip version within it, use it to install the dist indicated, and use
-       `pip list` to determine what it installed.    
+       `pip list` to determine what it installed.
 
     2. Run resolvability.are_fully_satisfied to test the solution set for
        consistency.
@@ -331,7 +331,7 @@ def popen_wrapper(cmd):
 
 def main():
   """
-  Randomly choose some conflicting dists to test rbtcollins solver on.
+  Choose some conflicting dists to test rbtcollins solver on.
 
     Steps:
     1. Load dependency data.
@@ -422,6 +422,12 @@ def main():
   ###############
   # Step 2: Run rbttest to solve and test solution.
   for distkey in distkeys_to_solve:
+
+    if distkey in solution_dict:
+      logger.info('Skipping rbt solve for ' + distkey + ' (already have '
+          'results).')
+      continue
+
     logger.info('Starting rbt solve for ' + distkey)
     # Explicit with multiple variables for clarity for the reader.
     (installed, satisfied, solution, errstring) = \
