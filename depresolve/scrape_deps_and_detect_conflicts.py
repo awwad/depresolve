@@ -49,6 +49,9 @@ SDIST_FILE_EXTENSION = '.tar.gz'
 #  GENERAL ARGUMENTS:
 #   --noskip Don't skip packages in the blacklist or packages for which
 #            information on whether or not a conflict occurs is already stored.
+#   --carefulskip  Don't skip packages if we don't have dependency info for
+#                  them, even if they're in the blacklist or we already have
+#                  conflict info.
 #
 #  REMOTE OPERATION:   (DEFAULT!)
 #    ANY ARGS NOT MATCHING the other patterns are interpreted as what I will
@@ -116,6 +119,7 @@ def main():
   DEBUG__N_SDISTS_TO_PROCESS = 0 # debug; max packages to explore during debug - overriden by --n=N argument.
   CONFLICT_MODEL = 3
   NO_SKIP = False
+  CAREFUL_SKIP = False
   USE_BANDERSNATCH_MIRROR = False
 
 
@@ -151,6 +155,8 @@ def main():
         CONFLICT_MODEL = 3
       elif arg == "--noskip":
         NO_SKIP = True
+      elif arg == '--carefulskip':
+        CAREFUL_SKIP = True
       elif arg == "--local":
       # without ='<some file>' means we pull alphabetically from local PyPI mirror at /srv/pypi/
         USE_BANDERSNATCH_MIRROR = True
@@ -196,13 +202,6 @@ def main():
   depdata.set_conflict_model_legacy(CONFLICT_MODEL)
 
 
-  # Probably not necessary anymore. Verify and remove. TODO.
-  # For backward compatibility (before casing fixes for certain package names):
-  #   Determine a lower-cased set of the keys in the conflicts db.
-  keys_in_conflicts_db_lower = set(k.lower() for k in depdata.conflicts_db)
-
-
-
   n_inspected = 0
   n_successfully_processed = 0
 
@@ -233,31 +232,40 @@ def main():
       depdata.write_data_to_files([CONFLICT_MODEL])
 
 
-    # Check to see if we already have conflict info for this package.
-    # If so, don't run for it.
-    if not NO_SKIP:
-      if distkey in keys_in_conflicts_db_lower:
+    # The skip conditions.
+
+    # If dist is in the blacklist for the same version of python we're running.
+    blacklisted = distkey in depdata.blacklist \
+        and sys.version_info.major in depdata.blacklist[distkey]
+
+    # If dist has conflict info saved already
+    already_in_conflicts = distkey in depdata.conflicts_db
+
+    # Do we have dep info for the dist? Not a skip condition, but part of
+    # CAREFUL_SKIP tests.
+    already_in_dependencies = distkey in depdata.dependencies_by_dist
+
+
+    # If we're not in NO_SKIP mode, perform the skip checks.
+    # Skip checks. If the dist is blacklisted or we already have dependency
+    # data, then skip it - unless we're in careful skip mode and we don't
+    # have dependency data for the dist.
+    if not NO_SKIP and (blacklisted or already_in_conflicts):
+
+      if CAREFUL_SKIP and not already_in_dependencies:
+        print('---    Not skipping ' + distkey + ': need dependency info.')
+
+      else: # Skip, since we don't have a reason not to.
         n_inspected += 1
-        print('---    SKIP -- Already have ' + distkey + ' in db of ' +
-          'type ' + str(CONFLICT_MODEL) + ' conflicts. Skipping. (Finished ' +
-          str(n_inspected) + ' out of ' + str(len(list_of_sdists_to_inspect)) +
-          ')')
+        print('---    SKIP -- ' + distkey + ': ' +
+            'Blacklisted. '*blacklisted +
+            'Already have conflict data. '*already_in_conflicts +
+            '(Finished ' + str(n_inspected) + ' out of ' +
+            str(len(list_of_sdists_to_inspect)) + ')')
         continue
 
-      # Else if the dist is listed in the blacklist along with this python
-      # major version (2 or 3), skip.
-      elif distkey in depdata.blacklist and \
-        sys.version_info.major in depdata.blacklist[distkey]:
-        n_inspected += 1
-        print('---    SKIP -- Blacklist includes ' + distkey +
-          '. Skipping. (Finished ' + str(n_inspected) + ' out of ' +
-          str(len(list_of_sdists_to_inspect)) + ')')
-        continue
 
-      logger.debug(distkey + ' not found in conflicts or blacklist dbs. '
-        'Sending to pip.\n')
-
-    # Else, process the dist.
+    # If we didn't skip, process the dist.
 
     packagename = get_packname(distkey)
     version_string = get_version(distkey)
@@ -285,6 +293,7 @@ def main():
     # With arg list constructed, call pip.main with it to run a modified pip
     # install attempt (will not install).
     # This assumes that we're dealing with my pip fork version 8.0.0.dev0seb).
+    print('---    Sending ' + distkey + ' to pip.')
     logger.debug('Scraper says: before pip call, len(deps) is ' +
         str(len(depdata.dependencies_by_dist)))
 
