@@ -258,7 +258,7 @@ def main():
         print('---    Not skipping ' + distkey + ': ' +
             'Already have conflict data, however there is no dependency info '
             'for the dist, the dist is not blacklisted, and we are in '
-            'CAREUL_SKIP mode.')
+            'CAREFUL_SKIP mode.')
 
       else: # Skip, since we don't have a reason not to.
         n_inspected += 1
