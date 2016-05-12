@@ -252,8 +252,13 @@ def main():
     # have dependency data for the dist.
     if not NO_SKIP and (blacklisted or already_in_conflicts):
 
-      if CAREFUL_SKIP and not already_in_dependencies:
-        print('---    Not skipping ' + distkey + ': need dependency info.')
+      # If dist isn't blacklisted, we already have conflict info, there's no
+      # dependency info, and careful skip is on, don't actually skip.
+      if CAREFUL_SKIP and not already_in_dependencies and not blacklisted:
+        print('---    Not skipping ' + distkey + ': ' +
+            'Already have conflict data, however there is no dependency info '
+            'for the dist, the dist is not blacklisted, and we are in '
+            'CAREUL_SKIP mode.')
 
       else: # Skip, since we don't have a reason not to.
         n_inspected += 1
