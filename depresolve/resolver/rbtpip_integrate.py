@@ -102,7 +102,7 @@ def rbttest(distkey, edeps, versions, local=False,
   # itself, it's obviously not been successful.
 
   satisfied = False
-  installed = distkey in solution
+  installed = distkey in [d.lower() for d in solution] # sanitize old data
 
   if not installed:
     if solution:
@@ -182,6 +182,9 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   logger = depresolve.logging.getLogger(
       'rbtpip_integrate.rbt_backtracking_satisfy')
+
+  assert distkey == distkey.lower(), 'distkeys should always be lowercase!' + \
+      distkey + ' is not!'  # Remember not to use distkey.islower(). Bug.
 
   ###############
   # Steps 1 and 2: Create venv and install rbt pip.
@@ -287,8 +290,8 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
     installed_distkey = line.decode()[:-1] # decode and cut off \n at end (assumption: actual newline)
 
     # pip list outputs almost-distkeys, like: 'pbr (0.11.1)'.
-    # We cut out the space and pray they work. /:
-    installed_distkey = installed_distkey.replace(' ', '')
+    # We cut out the space, lowercase, and pray they work. /:
+    installed_distkey = installed_distkey.replace(' ', '').lower()
 
     ## Old way, using `pip freeze`.
     ## # Split it into package name and version:

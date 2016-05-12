@@ -322,6 +322,9 @@ def are_fully_satisfied(candidates, edeps, versions_by_package,
   """
   logger = depresolve.logging.getLogger('resolvability.are_fully_satisfied')
 
+  # Lowercase the distkeys for our all-lowercase data, just in case.
+  candidates = [distkey.lower() for distkey in candidates]
+
   for distkey in candidates:
 
     deptools.assume_dep_data_exists_for(distkey, edeps)
