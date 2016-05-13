@@ -611,7 +611,7 @@ def resolve_all_via_depsolver(dists_to_solve_for, pinfos, fname_solutions, fname
     # resolver errors.
 
     try:
-      solution = \
+      (solution, _junk, _junk) = \
           resolve_via_depsolver(distkey, pinfos, already_converted=True)
 
     # This is what the unresolvables look like:
