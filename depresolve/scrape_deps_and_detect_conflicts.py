@@ -472,7 +472,7 @@ def normalize_version_string(version):
     normalized = str(pip._vendor.packaging.version.parse(version))
   
   except pip._vendor.packaging.version.InvalidVersion:
-    normalized = normalize_version_string(version)
+    normalized = old_normalize_version_string(version)
     logger.debug('converting ' + version + ' via pip version class failed. '
       'using bandaid normalization: ' + old_normalize_version_string(version))
 
