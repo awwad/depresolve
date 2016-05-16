@@ -1107,7 +1107,7 @@ def generate_dict_versions_by_package(deps):
 
 
 
-def elaborate_dependencies(deps, versions_by_package):
+def elaborate_dependencies(deps, versions_by_package, allow_prerelease=False):
   """
   Converts deps (see description of deps in previous docstrings) into a
   dictionary of all possible means of satisfying each dependency, by using
@@ -1152,6 +1152,10 @@ def elaborate_dependencies(deps, versions_by_package):
 
     2. versions_by_package, a dictionary of all dists keyed by package name.
        Please see docstrings above for details.
+
+    3. allow_prerelease (default False): in the determination of which versions
+       would satisfy a given dependency, allow pre-release versions (e.g.
+       1.1.0a0) to satisfy dependencies (e.g. >1.0).
 
 
   Returns:
@@ -1227,7 +1231,8 @@ def elaborate_dependencies(deps, versions_by_package):
       #    "dependency of " + distkey + ": on package " + dep[0])
       # END OF DEBUG SECTION
 
-      e_dep = _elaborate_dependency(dep, versions_by_package)
+      e_dep = _elaborate_dependency(dep, versions_by_package,
+          allow_prerelease=allow_prerelease)
 
       deps_elaborated[distkey].append(e_dep)
 
@@ -1245,7 +1250,7 @@ def elaborate_dependencies(deps, versions_by_package):
 
 
 
-def _elaborate_dependency(dep, versions_by_package):
+def _elaborate_dependency(dep, versions_by_package, allow_prerelease=False):
   """
   Given a single dependency in post-pip format, return its specifier string,
   SpecifierSet, and the full set of elaborated dependencies (a list of every
@@ -1270,6 +1275,9 @@ def _elaborate_dependency(dep, versions_by_package):
 
     2. versions_by_package, a dictionary with keys equal to all package names,
        and values equal to lists of all versions available for those packages.
+
+    3. allow_prerelease: optional. see allow_prerelease argument for
+       elaborate_dependencies function.
 
   Returns:
     Returns None if a list of package versions could not be found in
@@ -1299,6 +1307,8 @@ def _elaborate_dependency(dep, versions_by_package):
   satisfying_packagename = dep[0]
   specstring = dep[1]
   specset = pip._vendor.packaging.specifiers.SpecifierSet(specstring)
+  if allow_prerelease:
+    specset.prereleases = True
   # Now we have a SpecifierSet for this dependency.
 
   # One of the capabilities of pip's SpecifierSet is to filter a list of
