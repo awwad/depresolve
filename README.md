@@ -11,7 +11,7 @@ The primary components of the project are:
  - [***scraper***](#overview-scraper), a script combined with a pip plugin/branch ([awwad/pip:develop](https://github.com/awwad/pip/)) that serves both to harvest dependency information from pip's processing of packages and to detect package dependency conflicts for those packages, also determining when pip would fail to install the correct package versions in a conflict situation (something that pip is prone to do without notifying the user).
  - [***backtracker***](#overview-resolver) (resolver.resolvability), a module that categorizes and solves package dependency conflicts through a backtracking algorithm, providing a list of the distributions to install that would fulfill package dependency requirements without causing a conflict
  - ***SAT solver*** (resolver.depsolver_integrate), a module that pulls in external project [depsolver](https://github.com/enthought/depsolver) to provide alternative conflict resolution via SAT solving. (Currently out-of-order due to integration bugs)
- - ***deptools*** & ***depdata***, modules that provide a variety of functions for handling package dependency data, upon which the others depend
+ - ***depdata***, a module that provides data specification, global data, and a variety of functions for handling package dependency data, upon which the others depend
 
 Along with these components are a few additional scripts for making use of them.
 
@@ -67,7 +67,7 @@ In a future revision, the backtracker will determine dependencies dynamically as
 
 ###Instructions for Use, Resolver
 
-Assume data/dependencies.json contains a dictionary of all distributions' dependencies, indexed by distribution key, elaborated via `depresolve.deptools.elaborate_dependencies(deps, versions_by_package)`. (For format details, see [depresolve/depdata.py](depresolve/depdata.py). To download, see [above](#installation-of-scraper-and-resolver).)
+Assume data/dependencies.json contains a dictionary of all distributions' dependencies, indexed by distribution key, elaborated via `depresolve.depdata.elaborate_dependencies(deps, versions_by_package)`. (For format details, see [depresolve/depdata.py](depresolve/depdata.py). To download, see [above](#installation-of-scraper-and-resolver).)
 
 ```
 >>> import depresolve.depdata as data
