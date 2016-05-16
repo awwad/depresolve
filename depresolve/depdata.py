@@ -271,7 +271,7 @@ def load_json_db(fname):
   # Python 2/3 compatibility.
   try:
     input_ = raw_input # if python 2, override input to be raw_input
-  except NameError:  # if python 3, there's no raw_input - but then we're OK
+  except NameError:  # if python 3, input changed to replace raw_input
     input_ = input
 
 

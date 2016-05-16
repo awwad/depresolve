@@ -73,22 +73,38 @@ def rbttest(distkey, edeps, versions, local=False,
 
   errstring = ''
 
+  # Sanitize distkey:
+  unsanitized_distkey = distkey # storing only for debug
+  distkey = depdata.normalize_distkey(distkey)
+  logger.debug('Sanitizing distkey: from ' + unsanitized_distkey + ' to ' +
+      distkey)
+
+
   ###############
   # Step 1
   # Figure out the install candidate solution.
   logger.info('Starting rbt resolve of ' + distkey)
 
-  solution = [] # try-scoping paranoia
+  # declaring here for try/except scope reasons;
+  # declaring two for distkey normalization & debug
+  unsanitized_solution = []
+  solution = []
 
   # Run rbtcollins' pip branch to find the solution, with some acrobatics.
   try:
-    solution = rbt_backtracking_satisfy(distkey, edeps, versions, local)
+    unsanitized_solution = \
+        rbt_backtracking_satisfy(distkey, edeps, versions, local)
 
   except depresolve._external.timeout.TimeoutException as e:
     errstring = 'Timed out during install'
     logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
         errstring)
     return (False, False, [], errstring)
+
+  
+  # Sanitize solution, which may in particular have non-lowercase names:
+  for sol_distkey in unsanitized_solution:
+    solution.append(depdata.normalize_distkey(sol_distkey))
 
 
 
@@ -353,12 +369,15 @@ def main():
   n_distkeys = 3 # default 3, overriden by argument --n=, or specific distkeys
 
   args = sys.argv[1:]
+  noskip = False
   local = False
   all_conflicting = False
 
   if args:
     for arg in args:
-      if arg == '--local':
+      if arg == '--noskip':
+        noskip = True
+      elif arg == '--local':
         local = True
       elif arg.startswith('--local='):
         local = arg[8:]
@@ -368,7 +387,13 @@ def main():
         local = True
         all_conflicting = True
       else:
-        distkeys_to_solve.append(arg)
+        try:
+          distkeys_to_solve.append(depdata.normalize_distkey(arg))
+        except Exception as e:
+          print('Unable to normalize provided argument as distkey: ' +
+              str(arg) + '. Please provide correct arguments.')
+          raise
+
 
   # If we didn't get any specific distkeys to solve for from the args, then
   # pick randomly:
@@ -376,14 +401,14 @@ def main():
   if distkeys_to_solve:
     n_distkeys = len(distkeys_to_solve)
 
-  if not distkeys_to_solve:
+  else: # not distkeys_to_solve:
     # Randomize from the model 3 conflict list.
     
     depdata.ensure_data_loaded()
 
     con3 = depdata.conflicts_3_db
 
-    conflicting = [p for p in con3 if con3[p]]
+    conflicting = [depdata.normalize_distkey(d) for d in con3 if con3[d]]
 
     if all_conflicting:
       distkeys_to_solve = conflicting
@@ -400,20 +425,10 @@ def main():
 
   # Load dependencies from their json file, harvested in prior full run of
   # scraper.
-  depdata.ensure_data_loaded()
+  depdata.ensure_data_loaded(include_edeps=True)
   deps = depdata.dependencies_by_dist
-
-  # Make catalog of versions by package from deps info.
-  versions = depdata.generate_dict_versions_by_package(deps)
-
-  # Elaborate the dependencies using information about available versions.
-  #edeps = depdata.elaborate_dependencies(deps, versions)
-  # EDIT: this is very time consuming and we may be dealing with the full
-  # dependency data, so instead I'm going to load already-elaborated
-  # dependencies. NOTE THAT THIS IS NOT AUTOMATICALLY REFRESHED AND SO IF THERE
-  # IS MORE DEPENDENCY DATA ADDED, ELABORATION SHOULD BE DONE OVER. (The full
-  # data set may take 30 minutes to elaborate!)
-  edeps = depdata.load_json_db(ELABORATED_DEPS_JSON_FNAME) # potentially STALE!
+  edeps = depdata.elaborated_dependencies # potentially stale!
+  versions = depdata.versions_by_package # potentially stale!
 
 
   # Prepare solution dictionary.
@@ -425,7 +440,7 @@ def main():
   # Step 2: Run rbttest to solve and test solution.
   for distkey in distkeys_to_solve:
 
-    if distkey in solution_dict:
+    if not noskip and distkey in solution_dict:
       logger.info('Skipping rbt solve for ' + distkey + ' (already have '
           'results).')
       continue
