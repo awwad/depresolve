@@ -26,16 +26,16 @@
 
 
 import depresolve
+import depresolve.depdata as depdata
 import depresolve.resolver.depsolver_integrate as di
-import json
 
 def main():
 
-  # Get the model 3 conflict data. (:
-  con3_data = json.load(open('data/conflicts_3.json', 'r'))
+  # Load data, including conflict model 3 db.
+  depdata.ensure_data_loaded(CONFLICT_MODELS=[3])
 
-  # All dists with model 3 conflicts.
-  con3_dists = [dist for dist in con3_data if con3_data[dist]]
+  con3_dists = [dist for dist in depdata.conflicts_3_db if
+      depdata.conflicts_3_db[dist]]
 
   # Reload the package information formatted for depsolver.
   pinfos = di.reload_already_converted_from_json(

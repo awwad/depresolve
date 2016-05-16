@@ -20,29 +20,23 @@
 
 import depresolve
 import depresolve.resolver.resolvability as ry
-import depresolve.deptools as deptools
+import depresolve.depdata as depdata
 import json
 
 def main():
 
-  # Get the model 3 conflict data. (:
-  con3_data = json.load(open('data/conflicts_3.json', 'r'))
+  # Load data, including full elaborated dependencies and conflict model 3 db.
+  depdata.ensure_data_loaded(CONFLICT_MODELS=[3], include_edeps=True)
 
-  # All dists with model 3 conflicts.
-  con3_dists = [dist for dist in con3_data if con3_data[dist]]
-
-  # Load the package information, expanded into elaborated dependencies.
-  edeps = json.load(open('data/elaborated_dependencies.json', 'r'))
-
-  versions_by_package = deptools.generate_dict_versions_by_package(edeps)
-
+  con3_dists = [dist for dist in depdata.conflicts_3_db if
+      depdata.conflicts_3_db[dist]]
 
   # Solve all the conflicts! (Store data in the filenames listed.)
   # This is very slow.
   ry.resolve_all_via_backtracking(
       con3_dists,
-      edeps,
-      versions_by_package,
+      depdata.elaborated_dependencies,
+      depdata.versions_by_package,
       'data/backtracker_solutions.json',
       'data/backtracker_errors.json',
       'data/backtracker_unresolvables.json')
