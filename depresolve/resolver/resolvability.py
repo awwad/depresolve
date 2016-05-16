@@ -331,7 +331,8 @@ def are_fully_satisfied(candidates, edeps, versions_by_package,
     depdata.assume_dep_data_exists_for(distkey, edeps)
 
     for edep in edeps[distkey]:
-      if not is_dep_satisfied(edep, candidates):
+      if not is_dep_satisfied(edep, candidates,
+          disregard_setuptools=disregard_setuptools):
         logger.info(distkey + ' dependency ' + edep[0] + str(edep[2]) + ' is '
             'not satisfied by candidate set: ' + str(candidates) +
             '. Acceptable versions were: ' + str(edep[1]))
