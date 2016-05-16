@@ -12,7 +12,6 @@ import random, string # randomized naming for virtual environments
 import sys # for arguments to main
 import json
 import depresolve
-import depresolve.deptools as deptools
 import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout
@@ -405,10 +404,10 @@ def main():
   deps = depdata.dependencies_by_dist
 
   # Make catalog of versions by package from deps info.
-  versions = deptools.generate_dict_versions_by_package(deps)
+  versions = depdata.generate_dict_versions_by_package(deps)
 
   # Elaborate the dependencies using information about available versions.
-  #edeps = deptools.elaborate_dependencies(deps, versions)
+  #edeps = depdata.elaborate_dependencies(deps, versions)
   # EDIT: this is very time consuming and we may be dealing with the full
   # dependency data, so instead I'm going to load already-elaborated
   # dependencies. NOTE THAT THIS IS NOT AUTOMATICALLY REFRESHED AND SO IF THERE

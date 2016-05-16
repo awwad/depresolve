@@ -18,12 +18,8 @@ import json
 import depresolve # for logging
 
 # Globals for modified pip code to use.
-# These have to be before the imports below, to avoid circular issues.
 import depresolve.depdata as depdata
 import depresolve._external.timeout as timeout # to prevent endless pip calls
-
-from depresolve.depdata import get_version, get_packname
-from depresolve.depdata import distkey_format, get_pack_and_version
 
 
 # Local resources
@@ -272,8 +268,8 @@ def main():
 
     # If we didn't skip, process the dist.
 
-    packagename = get_packname(distkey)
-    version_string = get_version(distkey)
+    packagename = depdata.get_packname(distkey)
+    version_string = depdata.get_version(distkey)
     #assert(distkey.rfind(')') == len(distkey) - 1)
     formatted_requirement = packagename + "==" + version_string
     exitcode = None
@@ -432,215 +428,12 @@ def get_distkey_from_full_filename(fname_full):
 
   # Now normalize them both and combine them into a normalized distkey.
 
-  packname = normalize_package_name(unnormalized_packagename)
-  version = normalize_version_string(unnormalized_version)
+  packname = depdata.normalize_package_name(unnormalized_packagename)
+  version = depdata.normalize_version_string(unnormalized_version)
 
-  distkey = distkey_format(packname, version)
+  distkey = depdata.distkey_format(packname, version)
 
   return distkey
-
-
-
-
-
-def normalize_distkey(distkey):
-  """
-  Break apart the distkey and normalize its components before combining and
-  returning the normalized key. (Unproven)
-  """
-  (packname, version) = get_pack_and_version(distkey)
-
-  packname = normalize_package_name(packname)
-  version = normalize_version_string(version)
-
-  return distkey_format(packname, version)
-
-
-
-
-
-def normalize_version_string(version):
-  """
-  Normalize version strings in the way that pip does.
-  This must be tested against old normalization and data (blacklist, 
-  conflicts?) must probably be converted.
-
-  Note that pip._vendor.pkg_resources.safe_version does much less than pip
-  does. pip employs a regex to handle certain version string components.
-  """
-  try:
-    normalized = str(pip._vendor.packaging.version.parse(version))
-  
-  except pip._vendor.packaging.version.InvalidVersion:
-    normalized = old_normalize_version_string(version)
-    logger.debug('converting ' + version + ' via pip version class failed. '
-      'using bandaid normalization: ' + old_normalize_version_string(version))
-
-  finally:
-    return normalized
-
-
-
-
-
-def normalize_package_name(packname):
-  """
-  I am not confident that safe_name does adequate normalization of package
-  names. It seems to me that the canonical names are lowercase, and safe_name
-  doesn't do this. I could be wrong about that, but because safe_version very
-  clearly does NOT normalize versions the way that pip does (pip does much
-  more), I don't have a lot of confidence in safe_name either. Instead, I've
-  just been replacing _ with - and calling lower. I hope the switch to using
-  safe_name doesn't break things..... >.<
-  """
-  return packname.replace('_', '-').lower()
-  #return pip._vendor.pkg_resources.safe_name(packname).lower()
-
-
-
-
-
-def old_normalize_version_string(version):
-  """
-  EDIT: I believe I can now remove all of the below, but I'm already changing
-  too much here, so I'll keep this for the next round of commits.
-
-  This should normalize the version string the way that pip does it:
-    str(pip._vendor.packaging.version.parse(raw_version_string))
-
-  Obsolete code and comments follow, for now.
-
-  # Simulate most of the normalization of version strings that occurs in pip.
-  #from pip._vendor.pkg_resources import safe_name, safe_version #These don't quite do what I need, alas. Pip is doing more than just this. Ugh.
-  #distutils.version.StrictVersion might match what I'm getting from within pip....
-  # Nope. It helps in one case (1.01 -> 1.1), but hurts in many others.
-    # Perform a variety of fixes to match pip's normalized package and version names,
-    #   which are what my code inside pip spit out to the dbs.
-    # So that our lookups work properly (and also to prevent continual reproduction
-    #   of work), we'll account for these.
-    # There are a few normalizations that pip appears to do.
-    # The data being logged by my code within pip is being fed package names and versions
-    #   normalized by some pip code, so we need to match our checks here to that
-    #   normalization (which is unfortunately not entirely contained in safe_name or
-    #   safe_version).
-    #   pip can be expected to do:
-    #   - underscores replaced by dashes
-    #   - version string normalization via distutils.version.StrictVersion,
-    #       which seems to match the information available to my code inside
-    #       pip that's detecting the errors.
-    #   Additionally, I'm going to work case-insensitive, and without assuming
-    #     that existing data is all lowercase.
-    # Some dist filenames have "_" where the package name has "-".
-    # Versioning is slightly stricter inside pip. distutils.version.StrictVersion
-    #   covers some of this normalization, but unfortunately not all of it. /:
-    
-    # Nevermind on the below: StrictVersion breaks other things, too. See daily notes (1.0.0 -> 1.0, unlike in pip)
-    #try:
-    #  # Example: AnyFilter-0.01 is treated as AnyFilter-0.1 in the pip code.
-    #  # StrictVersion handles this category of correction for us.
-    #  deduced_version_string = str(StrictVersion(deduced_version_string))
-    #except ValueError:
-    #  # If StrictVersion doesn't accept the string (e.g. if there's "dev" or "beta" in it, etc.), well,
-    #  #   all we can do is some hackery for some cases in order to match what I see inside pip for now.
-    #  # Maybe I can find the rest of the normalization somewhere, but it has already consumed time.
-    #  # About 1/100 of my sample set has versions ending in "dev" that are then treated as "dev0" by pip.
-    #  if deduced_version_string.endswith('dev)'): # Example: acted.projects(0.10.dev) is treated as acted.projects(0.10.dev0)
-    #    deduced_version_string += "0"
-    #  elif '-beta' in deduced_version_string: # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
-    #    deduced_version_string = deduced_version_string.replace('-beta','b')
-  """
-  # Example: about(0.1.0-alpha.1) is reported as about(0.1.0a1)
-  # Dash removed, alpha to a, period after removed.    
-  
-  # 'dev' should always be preceded by a '.', not a '-'
-  if '-dev' in version:
-    version = version.replace('-dev', '.dev')
-  elif '.dev' in version:
-    pass
-  elif 'dev' in version:
-    version = version.replace('dev', '.dev')
-
-  # 'dev' should not be followed by a '-'.
-  # Example: abl.util-0.1.5dev-20111031 is treated as
-  # abl.util(0.1.5.dev20111031), the dash removed and a '.' before dev.
-  if 'dev-' in version:  
-    version = version.replace('dev-', 'dev')
-
-
-    # Remove preceding - or . from beta or alpha.
-  # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
-  if '-beta' in version:  
-    version = version.replace('-beta', 'beta')
-  # Example: 2.0-beta5 is reported as 2.0b5 in the case of archgenxml
-  if '.beta' in version:
-    version = version.replace('.beta', 'beta')
-  # Example: about(0.1.0-alpha.1) is reported as about(0.1.0a1)
-  # Dash removed, alpha to a, period after removed.
-  if '-alpha' in version:
-    version = version.replace('-alpha', 'alpha')
-  # Example: 'adpy(0.12.alpha0)' is treated as 'adpy(0.12a0)'
-  if '.alpha' in version:
-    version = version.replace('.alpha', 'alpha')
-
-  # Remove . or ' following alpha or beta.
-  # Example: about(0.1.0-alpha.1) is treated as about(0.1.0a1) by pip.
-  if 'alpha.' in version:
-    version = version.replace('alpha.', 'alpha')
-  if 'alpha-' in version:
-    version = version.replace('alpha-', 'alpha')
-  if 'beta.' in version:
-    version = version.replace('beta.', 'beta')
-  if 'alpha-' in version:
-    version = version.replace('beta-', 'beta')
-
-
-  if version.endswith('dev') or version.endswith('beta') or \
-    version.endswith('alpha'):
-    # beta or alpha should always be followed by a number.
-    # pip defaults to 0 in this case.
-    # Example: acted.projects(0.10.dev) is treated as acted.projects(0.10.dev0)
-    version += "0"
-
-
-  # beta and alpha should be b and a
-  # Doing this at the end may cause us to miss some cases in which (e.g.)
-  # version strings already had a in place of alpha, but it also avoids us
-  # messing up any hex strings with 'a's or 'b's in them NOT representing alpha
-  # or beta....
-  # For example, if the version string is '1.2a', code above will not have
-  # correctly turned it into '1.2a0', unfortunately. But then we won't mess
-  # with a version string (e.g. with commit hash in it) ending with 'a351b8a'
-  # by incorrectly adding a 0 to it.
-  # Compromises....
-  if 'beta' in version: # beta should always be b instead.
-    version = version.replace('beta', 'b')
-  if 'alpha' in version: # beta should always be b instead.
-    version = version.replace('alpha', 'a')
-
-  # This is awkward, but it covers a sizeable number of cases.
-  if '.00' in version:
-    version = version.replace('.00', '.0')
-  if '.01' in version:
-    version = version.replace('.01', '.1')
-  if '.02' in version:
-    version = version.replace('.02', '.2')
-  if '.03' in version:
-    version = version.replace('.03', '.3')
-  if '.04' in version:
-    version = version.replace('.04', '.4')
-  if '.05' in version:
-    version = version.replace('.05', '.5')
-  if '.06' in version:
-    version = version.replace('.06', '.6')
-  if '.07' in version:
-    version = version.replace('.07', '.7')
-  if '.08' in version:
-    version = version.replace('.08', '.8')
-  if '.09' in version:
-    version = version.replace('.09', '.9')
-
-
-    return version
 
 
 

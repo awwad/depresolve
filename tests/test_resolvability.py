@@ -13,14 +13,14 @@
 import json
 
 import depresolve
-import depresolve.deptools as deptools
+import depresolve.depdata as depdata
 
 import depresolve.resolver.resolvability as ry # backtracking solver
 
 # Don't from-import dynamic global variables, or target module globals don't
 # stay bound if the aliases are rebound.
 #from tests.testdata import *
-import tests.testdata as data
+import tests.testdata as testdata
 
 logger = depresolve.logging.getLogger('test_resolvability')
 
@@ -30,8 +30,8 @@ def main():
   """
   successes = []
 
-  # Load the giant dictionary of scraped dependencies for DEPS_SERIOUS etc.
-  data.ensure_full_data_loaded()
+  # Load the giant dictionary of scraped dependencies for heavy testing.
+  depdata.ensure_data_loaded(include_edeps=True)
 
   # Test resolvability.conflicts_with, which is used in the resolver.
   successes.append(test_conflicts_with()) #0
@@ -53,18 +53,18 @@ def main():
   # to failure. New backtracking algorithm will handle these, later.)
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE_SOLUTION, 'x(1)', data.DEPS_SIMPLE)) #4
+      testdata.DEPS_SIMPLE_SOLUTION, 'x(1)', testdata.DEPS_SIMPLE)) #4
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE2_SOLUTION, 'x(1)', data.DEPS_SIMPLE2,
+      testdata.DEPS_SIMPLE2_SOLUTION, 'x(1)', testdata.DEPS_SIMPLE2,
       expected_exception=depresolve.UnresolvableConflictError)) #5
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE3_SOLUTION, 'x(1)', data.DEPS_SIMPLE3,
+      testdata.DEPS_SIMPLE3_SOLUTION, 'x(1)', testdata.DEPS_SIMPLE3,
       expected_exception=depresolve.UnresolvableConflictError)) #6
 
   successes.append(test_resolver(ry.backtracking_satisfy,
-      data.DEPS_SIMPLE4_SOLUTION, 'x(1)', data.DEPS_SIMPLE4,
+      testdata.DEPS_SIMPLE4_SOLUTION, 'x(1)', testdata.DEPS_SIMPLE4,
       expected_exception=depresolve.UnresolvableConflictError)) #7
 
 
@@ -73,24 +73,28 @@ def main():
       'biopython(1.66)', 'metasort(0.3.6)', 'onecodex(0.0.9)',
       'requests(2.5.3)', 'requests-toolbelt(0.6.0)']
   successes.append(test_resolver(ry.backtracking_satisfy, #8
-      expected_metasort_result, 'metasort(0.3.6)', data.DEPS_SERIOUS, 
-      versions_by_package=data.VERSIONS_BY_PACKAGE, edeps=data.EDEPS_SERIOUS))
+      expected_metasort_result, 'metasort(0.3.6)',
+      depdata.dependencies_by_dist, 
+      versions_by_package=depdata.versions_by_package,
+      edeps=depdata.elaborated_dependencies))
 
 
   # Test the backtracking resolver on a few model 3 conflicts (pip
   # failures). Expect these conflicts to resolve. Formerly test 8. #9-13
-  for distkey in data.CONFLICT_MODEL_3_SAMPLES:
+  for distkey in testdata.CONFLICT_MODEL_3_SAMPLES:
     successes.append(test_resolver(ry.backtracking_satisfy, None, distkey,
-        data.DEPS_SERIOUS, versions_by_package=data.VERSIONS_BY_PACKAGE,
-        edeps=data.EDEPS_SERIOUS))
+        depdata.dependencies_by_dist,
+        versions_by_package=depdata.versions_by_package,
+        edeps=depdata.elaborated_dependencies))
 
 
   # Test the backtracking resolver on some conflicts we know to be
   # unresolvable. Formerly test 9. #14-16
-  for distkey in data.UNRESOLVABLE_SAMPLES:
+  for distkey in testdata.UNRESOLVABLE_SAMPLES:
     successes.append(test_resolver(ry.backtracking_satisfy, None, distkey,
-        data.DEPS_SERIOUS, versions_by_package=data.VERSIONS_BY_PACKAGE,
-        edeps=data.EDEPS_SERIOUS,
+        depdata.dependencies_by_dist,
+        versions_by_package=depdata.versions_by_package,
+        edeps=depdata.elaborated_dependencies,
         expected_exception=depresolve.UnresolvableConflictError))
 
 
@@ -244,14 +248,14 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
   """
 
   if versions_by_package is None:
-    versions_by_package = deptools.generate_dict_versions_by_package(deps)
+    versions_by_package = depdata.generate_dict_versions_by_package(deps)
 
   if use_raw_deps:
     edeps = deps
 
   elif edeps is None:
     (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-      deptools.elaborate_dependencies(deps, versions_by_package)
+      depdata.elaborate_dependencies(deps, versions_by_package)
 
   solution = None
 
@@ -312,10 +316,10 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
 
 def test_detect_model_2_conflicts():
   """TEST 3: Detection of model 2 conflicts."""
-  deps = data.DEPS_MODEL2
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
+  deps = testdata.DEPS_MODEL2
+  versions_by_package = depdata.generate_dict_versions_by_package(deps)
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-      deptools.elaborate_dependencies(deps, versions_by_package)
+      depdata.elaborate_dependencies(deps, versions_by_package)
 
   success = ry.detect_model_2_conflict_from_distkey(
       'motorengine(0.7.4)', edeps, versions_by_package)

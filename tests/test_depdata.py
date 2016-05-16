@@ -1,9 +1,9 @@
 """
 <Program>
-  test_deptools.py
+  test_depdata.py
 
 <Purpose>
-  Some unit tests for the dep tools and resolvability assesser.
+  Some unit tests for the depdata module's dependency tools.
   (Can restructure to be more standard later.)
 
 """
@@ -12,36 +12,34 @@ import json
 import os
 
 import depresolve # __init__ for errors
-
-import depresolve.deptools as deptools
-
-from tests.testdata import *
+import depresolve.depdata as depdata
+import tests.testdata as testdata
 
 
 def main():
   """
   """
-  test_deptools()
+  test_depdata()
 
-  print("All tests in main() OK (:")
+  print("All tests in main() OK")
 
 
-def test_deptools():
+def test_depdata():
   """
   """
-  assert 41 == len(DEPS_MODERATE), \
-      "Set changed: should be len 41 but is len " + str(len(DEPS_MODERATE)) + \
-      " - reconfigure tests"
+  assert 41 == len(testdata.DEPS_MODERATE), \
+      "Set changed: should be len 41 but is len " + \
+      str(len(testdata.DEPS_MODERATE)) + " - reconfigure tests"
 
-  json.dump(DEPS_MODERATE, open('data/test_deps_set.json', 'w'))
+  json.dump(testdata.DEPS_MODERATE, open('data/test_deps_set.json', 'w'))
 
-  deps = deptools.load_raw_deps_from_json('data/test_deps_set.json')
+  deps = depdata.load_json_db('data/test_deps_set.json')
 
-  assert DEPS_MODERATE == deps, \
-      "JSON write and load via load_raw_deps_from_json is breaking!"
+  assert testdata.DEPS_MODERATE == deps, \
+      "JSON write and load via load_json_db is breaking!"
 
 
-  versions_by_package = deptools.generate_dict_versions_by_package(deps)
+  versions_by_package = depdata.generate_dict_versions_by_package(deps)
 
   assert 10 == len(versions_by_package) # different package names
 
@@ -53,7 +51,7 @@ def test_deptools():
       + "of 41."
   
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
-      deptools.elaborate_dependencies(deps, versions_by_package)
+      depdata.elaborate_dependencies(deps, versions_by_package)
 
   #print(str(len(edeps)))
   from pprint import pprint
@@ -77,19 +75,12 @@ def test_deptools():
       ",[satisfying_version] pair. Instead, got " + \
       str(n_dependencies_elaborated)
 
-  assert deptools.are_deps_valid(DEPS_MODERATE) and \
-      deptools.are_deps_valid(DEPS_SIMPLE), \
+  assert depdata.are_deps_valid(testdata.DEPS_MODERATE) and \
+      depdata.are_deps_valid(testdata.DEPS_SIMPLE), \
       'The test dependencies are coming up as invalid for some reason....'
 
-  # Clear any pre-existing test database.
-  deptools.sqli.initialize(db_fname='data/test_dependencies.db')
-  deptools.sqli.delete_all_tables()
 
-  deptools.populate_sql_with_full_dependency_info(
-      edeps, versions_by_package, packs_wout_avail_version_info, 
-      dists_w_missing_dependencies, db_fname='data/test_dependencies.db')
-
-  print("test_deptools(): All tests OK.")
+  print("test_depdata(): All tests OK.")
 
 
 

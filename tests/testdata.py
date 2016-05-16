@@ -10,7 +10,7 @@
 """
 
 import depresolve
-import depresolve.deptools as deptools
+import depresolve.depdata as depdata
 
 import json # not really ideal here...
 
@@ -20,24 +20,26 @@ EDEPS_SERIOUS = None
 VERSIONS_BY_PACKAGE = None
 
 
-def ensure_full_data_loaded():
-  """
-  Auxiliary test data (very large). Moving into an optional loading function
-  so that it doesn't slow down anything that needs any test data.
-  """
-  global DEPS_SERIOUS
-  global EDEPS_SERIOUS
-  global VERSIONS_BY_PACKAGE
+# Replacing this with use of depdata's own data.
 
-  if DEPS_SERIOUS is None:
-    DEPS_SERIOUS = deptools.load_raw_deps_from_json('data/dependencies.json')
+# def ensure_full_data_loaded():
+#   """
+#   Auxiliary test data (very large). Moving into an optional loading function
+#   so that it doesn't slow down anything that needs any test data.
+#   """
+#   global DEPS_SERIOUS
+#   global EDEPS_SERIOUS
+#   global VERSIONS_BY_PACKAGE
 
-  if EDEPS_SERIOUS is None:
-    EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
+#   if DEPS_SERIOUS is None:
+#     DEPS_SERIOUS = depdata.load_raw_deps_from_json('data/dependencies.json')
 
-  if VERSIONS_BY_PACKAGE is None:
-    VERSIONS_BY_PACKAGE = \
-        deptools.generate_dict_versions_by_package(DEPS_SERIOUS)
+#   if EDEPS_SERIOUS is None:
+#     EDEPS_SERIOUS = json.load(open('data/elaborated_dependencies.json', 'r'))
+
+#   if VERSIONS_BY_PACKAGE is None:
+#     VERSIONS_BY_PACKAGE = \
+#         depdata.generate_dict_versions_by_package(DEPS_SERIOUS)
 
 
 

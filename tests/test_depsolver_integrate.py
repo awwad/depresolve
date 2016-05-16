@@ -10,7 +10,7 @@
 
 """
 import depresolve
-import depresolve.deptools as deptools
+import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as resolvability
 import tests.test_resolvability as test_resolvability
 
@@ -19,7 +19,7 @@ import depresolve.resolver.depsolver_integrate as depsolver_integrate # SAT solv
 # Don't from-import, or target module globals don't stay bound if the aliases
 # are rebound.
 #from tests.testdata import *
-import tests.testdata as data
+import tests.testdata as testdata
 
 logger = depresolve.logging.getLogger('test_depsolver_integrate.py')
 
@@ -46,9 +46,9 @@ def main():
   # Basic resolvability test.
   successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
-      data.DEPS_SIMPLE_SOLUTION, #expected result
+      testdata.DEPS_SIMPLE_SOLUTION, #expected result
       'x(1)', # dist to install
-      data.DEPS_SIMPLE, # dependency data
+      testdata.DEPS_SIMPLE, # dependency data
       use_raw_deps=True # Do not convert deps to edeps - func expects deps.
   ))
 
@@ -56,25 +56,25 @@ def main():
   # The next three test resolvable conflicts that my backtracker can't solve.
   successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
-      data.DEPS_SIMPLE2_SOLUTION, #expected result
+      testdata.DEPS_SIMPLE2_SOLUTION, #expected result
       'x(1)', # dist to install
-      data.DEPS_SIMPLE2, # dependency data
+      testdata.DEPS_SIMPLE2, # dependency data
       use_raw_deps=True # Do not convert deps to edeps - func expects deps.
   ))
 
   successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
-      data.DEPS_SIMPLE3_SOLUTION, #expected result
+      testdata.DEPS_SIMPLE3_SOLUTION, #expected result
       'x(1)', # dist to install
-      data.DEPS_SIMPLE3, # dependency data
+      testdata.DEPS_SIMPLE3, # dependency data
       use_raw_deps=True # Do not convert deps to edeps - func expects deps.
   ))
 
   successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
-      data.DEPS_SIMPLE4_SOLUTION, #expected result
+      testdata.DEPS_SIMPLE4_SOLUTION, #expected result
       'x(1)', # dist to install
-      data.DEPS_SIMPLE4, # dependency data
+      testdata.DEPS_SIMPLE4, # dependency data
       use_raw_deps=True # Do not convert deps to edeps - func expects deps.
   ))
 
@@ -108,9 +108,9 @@ def main():
   # This one tests an unresolvable conflict.
   successes.append(test_resolvability.test_resolver(
       depsolver_integrate.resolve_via_depsolver, # resolver function
-      data.DEPS_UNRESOLVABLE_SOLUTION, #expected result
+      testdata.DEPS_UNRESOLVABLE_SOLUTION, #expected result
       'x(1)', # dist to install
-      data.DEPS_UNRESOLVABLE, # dependency data
+      testdata.DEPS_UNRESOLVABLE, # dependency data
       use_raw_deps=True, # Do not convert deps to edeps - func expects deps.
       expected_exception=depresolve.UnresolvableConflictError
   ))
@@ -118,21 +118,21 @@ def main():
 
 
   # Now try a conversion of all deps into depsolver format.
-  # We need to load the full dependencies dict (for DEPS_SERIOUS)
-  data.ensure_full_data_loaded()
+  # We need to load the full dependencies dict
+  depdata.ensure_data_loaded()
 
-  assert(len(data.DEPS_SERIOUS))
+  assert(len(depdata.dependencies_by_dist))
 
   (deps_serious_depsolver, dists_unable_to_convert) = \
       depsolver_integrate.convert_packs_to_packageinfo_for_depsolver(
-      data.DEPS_SERIOUS)
+      depdata.dependencies_by_dist)
 
-  assert len(data.DEPS_SERIOUS) == \
+  assert len(depdata.dependencies_by_dist) == \
       len(deps_serious_depsolver) + len(dists_unable_to_convert), \
       'Programming error. Output of ' + \
       'convert_packs_to_packageinfo_for_depsolver does not make sense.'
 
-  if not len(deps_serious_depsolver > 100000):
+  if not len(deps_serious_depsolver) > 100000:
       logger.info('Full conversion has failed. Number of converted packages '
           'is: ' + len(deps_serious_depsolver))
       successes.append(False)
@@ -180,7 +180,7 @@ def test_depsolver_conversion():
   expected_depsolver_deps = DEPS_SIMPLE_PACKAGEINFOS
   (depsolver_deps, dists_unable_to_convert) = \
       depsolver_integrate.convert_packs_to_packageinfo_for_depsolver(
-      data.DEPS_SIMPLE)
+      testdata.DEPS_SIMPLE)
 
   logger.info(depsolver_deps)
 
@@ -223,7 +223,7 @@ def test_depsolver_conversion3():
   """
   (depsolver_deps, dists_unable_to_convert) = \
       depsolver_integrate.convert_packs_to_packageinfo_for_depsolver(
-      data.DEPS_MODERATE)
+      testdata.DEPS_MODERATE)
 
   logger.info('Product of DEPS_MODERATE conversion:\n' + str(depsolver_deps))
 

@@ -11,6 +11,7 @@
 """
 
 import depresolve # __init__ for logging
+import depresolve.depdata as depdata
 import sqlite3 # dependency db as sqlite db is the future of this :P
 
 
@@ -82,6 +83,7 @@ SQL_MISSING_DEPS_TBLDEF = (
 
 
 
+
 # SQLITE3 interfacing functions
 def initialize(db_fname=None):
   """
@@ -120,6 +122,9 @@ def initialize(db_fname=None):
   for tabledef in all_tabledefs:
     print("Creating table " + tabledef)
     SQL_CURSOR.execute(tabledef)
+
+
+
 
 
 def add_to_table(
@@ -196,3 +201,113 @@ def _ensure_connected_to_sqlite():
   if SQL_CURSOR is None:
     SQL_CURSOR = SQL_CONNECTION.cursor()
   
+
+
+
+
+
+
+def populate_sql_with_dependency_specifiers(deps, db_fname=None):
+  """
+  Function that feeds dependency info in my old internal format into a sqlite3
+  db with a format more amenable to pip and tidier that I think I'll use in the
+  future.
+  """
+  log = depresolve.logging.getLogger('populate_sql_with_dependency_specifiers')
+  log.info("Initializing db")
+
+  # Initialize the sqlite3 database that will be populated with dependency
+  # information as interpreted from the json files above.
+  initialize(db_fname)
+
+  for distkey in deps:
+    log.info("Working through " + distkey + "'s dependencies.")
+
+    assume_dep_data_exists_for(distkey, deps)
+
+    if not deps[distkey]:
+      log.info(distkey + ' has no dependencies. Adding to that table.')
+
+    for dep in deps[distkey]: # for every one of its dependencies,
+      satisfying_packagename = dep[0]
+      spectuples = dep[1]
+      specstring = spectuples_to_specstring(spectuples)
+
+      log.info("  satisfying_packagename:" + satisfying_packagename)
+      log.info("  specstring: " + specstring)
+
+      add_to_table(
+          SQL_DEP_SPECIFIER_TABLE,
+          distkey,
+          satisfying_packagename,
+          specstring)
+
+  flush()
+
+
+
+
+
+def populate_sql_with_full_dependency_info(
+    deps_elaborated,
+    versions_by_package, # <---- NOT USED. TODO: Remove.
+    packages_without_available_version_info,
+    dists_with_missing_dependencies,
+    db_fname=None):
+  """
+  (Write this docstring last.)
+  """
+  log = depresolve.logging.getLogger('populate_sql_with_full_dependency_info')
+
+  log.info("Initializing db")
+
+  # Initialize the sqlite3 database that will be populated with dependency
+  # information as interpreted from the json files above.
+  initialize(db_fname)
+
+  for distkey in deps_elaborated: # for every dist,
+
+    log.info("Working through " + distkey + "'s dependencies.")
+    for e_dep in deps_elaborated[distkey]: # for every one of its dependencies,
+
+      satisfying_packagename = e_dep[0]
+      list_of_satisfying_versions = e_dep[1]
+      specstring = e_dep[2]
+      # We don't need the SpecifierSet, element 3 (4th) of the tuple right now.
+
+      log.info("  satisfying_packagename:" + satisfying_packagename)
+      log.info("  list_of_satisfying_versions: " +
+          str(list_of_satisfying_versions))
+      log.info("  specstring: " + specstring)
+
+      # First, let's add the dependency specifier to that table.
+      add_to_table(
+          SQL_DEP_SPECIFIER_TABLE,
+          distkey,
+          satisfying_packagename,
+          specstring
+          )
+
+      # Now let's add every satisfying version to the full dependency info
+      # table.
+      for version in list_of_satisfying_versions:
+        satisfying_distkey = depdata.distkey_format(
+            satisfying_packagename, version)
+
+        add_to_table(
+            SQL_DEPENDENCY_TABLE,
+            distkey, # depending dist: 'codegrapher(0.1.1)'
+            satisfying_packagename, # package depended on: 'click'
+            satisfying_distkey # one distkey that could satisfy: 'click(1.0)'
+        )
+
+  flush()
+
+
+
+
+
+def load_raw_deps_from_sql():
+  """
+  """
+  assert False, "Not written yet"

@@ -5,7 +5,7 @@
 <Purpose>
   Provides depsolver integration for my resolver and dependency tools.
   (Wraps depsolver to be compatible with my tools, e.g.
-  test_deptools.test_resolver().)
+  test_depdata.test_resolver().)
 
   Essentially, this can be thought of as a SAT-solving extension for
   resolver.resolvability that wraps depsolver to be compatible. The end result
@@ -18,7 +18,7 @@
   See https://github.com/enthought/depsolver
 
   Apologies for the unexpected namespace clash / difficult-to-distinguish
-  names. Please don't mix this up with resolver or deptools. ):
+  names. Please don't mix this up with resolver or depdata. ):
 
   NOTE THAT THIS module requires external packages depsolver and six!
   depsolver can be obtained here: https://github.com/enthought/depsolver
@@ -27,7 +27,7 @@
 """
 
 import depresolve
-import depresolve.deptools as deptools
+import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout # to kill too-slow resolution
 
@@ -159,7 +159,7 @@ def convert_distkey_for_depsolver(distkey, as_req=False):
   e.g. 'pip-accel(1.0.0) to 'pip_accel-1.0.0'.
   (Shudder)
   """
-  (packname, version) = deptools.get_pack_and_version(distkey)
+  (packname, version) = depdata.get_pack_and_version(distkey)
   
   # depsolver can't handle '-' in package names (ARGH!), so turn all '-' to '_'
   # Must turn them back in the conversion back........
@@ -195,7 +195,7 @@ def convert_distkey_for_depsolver(distkey, as_req=False):
 #   # Convert back from depsolver's backward name constraints.
 #   packname = packname.replace('_', '-')
   
-#   return deptools.distkey_format(packname, version)
+#   return depdata.distkey_format(packname, version)
 
 
 
@@ -260,7 +260,7 @@ def convert_dist_to_packageinfo_for_depsolver(distkey, deps):
   # Convert the dependencies.....
   my_ds_deps = ''
 
-  deptools.assume_dep_data_exists_for(distkey, deps)
+  depdata.assume_dep_data_exists_for(distkey, deps)
 
   for dep in deps[distkey]:
     # dep is e.g. ['A', '>=2,<4']
@@ -471,9 +471,9 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None,
   Solves a dependency structure for a given package's dependencies, using
   the external depsolver package.
 
-  Intended to be compatible with resolver.deptools.test_resolver.
+  Intended to be compatible with resolver.depdata.test_resolver.
   e.g.:
-  deptools.test_resolver(resolve_via_depsolver, DEPS_SIMPLE_DEPSOLVER_SOLUTION,
+  depdata.test_resolver(resolve_via_depsolver, DEPS_SIMPLE_DEPSOLVER_SOLUTION,
       'X(1)', DEPS_SIMPLE, use_raw_deps=True)
 
   Converts the output of depsolve back into a comprehensible format for
@@ -555,17 +555,17 @@ def resolve_via_depsolver(distkey, deps, versions_by_package=None,
   #
   # We want to strip the nonsense in it and return something like:
   #   ['X(1)', 'B(1)', 'C(1)', 'A(3)']
-  # so that the output can be assessed by the resolver.test_deptools module.
+  # so that the output can be assessed by the resolver.test_depdata module.
   #
   parsed_depsolver_solution = []
   for install in depsolver_solution:
     packname = convert_packname_from_depsolver(install.package.name)
     version = convert_version_from_depsolver(install.package.version)
-    distkey = deptools.distkey_format(packname, version)
+    distkey = depdata.distkey_format(packname, version)
 
     parsed_depsolver_solution.append(distkey)
 
-  return parsed_depsolver_solution, None, None
+  return parsed_depsolver_solution
 
 
 
@@ -611,7 +611,7 @@ def resolve_all_via_depsolver(dists_to_solve_for, pinfos, fname_solutions, fname
     # resolver errors.
 
     try:
-      (solution, _junk, _junk) = \
+      solution = \
           resolve_via_depsolver(distkey, pinfos, already_converted=True)
 
     # This is what the unresolvables look like:
