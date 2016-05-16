@@ -10,6 +10,7 @@
 import subprocess # shell commands to create and use virtual environments
 import random, string # randomized naming for virtual environments
 import sys # for arguments to main
+import os # for directory creation
 import json
 import depresolve
 import depresolve.depdata as depdata
@@ -19,11 +20,10 @@ import depresolve._external.timeout as timeout
 
 SOLUTIONS_JSON_FNAME = 'data/resolved_via_rbtpip.json'
 VENV_CATALOG_JSON_FNAME = 'data/rbtpip_venv_catalog.json'
-ELABORATED_DEPS_JSON_FNAME = 'data/elaborated_dependencies.json'
-# This one shouldn't be used directly, but it's faster than
-# depdata.ensure_...
-CONFLICTS_3_JSON_FNAME = 'data/conflicts_3.json'
+VENVS_DIR = 'rbt_venvs'
 
+
+venv_catalog = None
 
 
 def rbttest(distkey, edeps, versions, local=False,
@@ -150,8 +150,10 @@ def rbttest(distkey, edeps, versions, local=False,
           ' Full exception:' + str(e))
 
 
-  # Load venv catalog to print debug info. Clunky.
-  venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
+  # Use venv catalog to print debug info. Clunky.
+  global venv_catalog
+  if venv_catalog is None:
+    venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
 
   logger.info('Tried solving ' + distkey + ' using rbtcollins pip patch. '
       'Installed: ' + str(installed) + '. Satisfied: ' + str(satisfied) +
@@ -209,13 +211,16 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   # Save a map of this virtual environment name to distkey for later auditing
   # if interesting things happen.
-  venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
+  global venv_catalog
+  if venv_catalog is None:
+    venv_catalog = depdata.load_json_db(VENV_CATALOG_JSON_FNAME)
   venv_catalog[distkey] = venv_name
   json.dump(venv_catalog, open(VENV_CATALOG_JSON_FNAME, 'w'))
 
 
-  cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + venv_name
-  cmd_sourcevenv = 'source ' + venv_name + '/bin/activate'
+  cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + VENVS_DIR + \
+      '/' + venv_name
+  cmd_sourcevenv = 'source ' + VENVS_DIR + '/' + venv_name + '/bin/activate'
   cmd_piplist = cmd_sourcevenv + '; pip list --disable-pip-version-check'
   cmd_install_rbt_pip = cmd_sourcevenv + '; cd ' + dir_rbt_pip + \
       '; pip install -e . --disable-pip-version-check'
@@ -362,6 +367,10 @@ def main():
   """
 
   logger = depresolve.logging.getLogger('rbtpip_integrate.main')
+
+  # Create virtual environments directory if it doesn't exist.
+  if not os.path.exists(VENVS_DIR):
+    os.makedirs(VENVS_DIR)
 
 
   distkeys_to_solve = []
