@@ -16,7 +16,7 @@ import depresolve
 import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout
-#import depresolve.scrape_deps_and_detect_conflicts as scraper
+import traceback
 
 SOLUTIONS_JSON_FNAME = 'data/resolved_via_rbtpip.json'
 VENV_CATALOG_JSON_FNAME = 'data/rbtpip_venv_catalog.json'
@@ -25,6 +25,8 @@ VENVS_DIR = 'rbt_venvs'
 
 venv_catalog = None
 
+class UnrelatedInstallFailure(Exception):
+  pass
 
 def rbttest(distkey, edeps, versions, local=False,
     dir_rbt_pip='../pipcollins'):
@@ -65,6 +67,13 @@ def rbttest(distkey, edeps, versions, local=False,
     - Solution: the solution set (all distkeys installed)
     - errstring: a string describing the error encountered if any was
       encountered.
+    - stderr_installation: stderr.read().decode() for the pip install
+      subprocess command that installed the distribution. In case of install
+      errors. Empty string if stderr was empty.
+
+  Raises:
+    - UnrelatedInstallFailure if the the installation fails in some trivial way
+      that merits trying again.
 
   """
 
@@ -89,17 +98,26 @@ def rbttest(distkey, edeps, versions, local=False,
   # declaring two for distkey normalization & debug
   unsanitized_solution = []
   solution = []
+  stderr_installation = '' # will be whatever is printed to stderr during the
+  # installation of the distribution using rbtpip
 
   # Run rbtcollins' pip branch to find the solution, with some acrobatics.
   try:
-    unsanitized_solution = \
+    (unsanitized_solution, stderr_installation) = \
         rbt_backtracking_satisfy(distkey, edeps, versions, local)
 
   except depresolve._external.timeout.TimeoutException as e:
     errstring = 'Timed out during install'
     logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
         errstring)
-    return (False, False, [], errstring)
+    return (False, False, [], errstring, stderr_installation)
+
+  except UnrelatedInstallFailure as e:
+    # Expect this to just be retried immediately.
+    raise
+    #errstring = e.msg
+    # Failed to get through the early stages of the install.
+    #return (False, False, [], errstring, stderr_installation)
 
   
   # Sanitize solution, which may in particular have non-lowercase names:
@@ -120,7 +138,22 @@ def rbttest(distkey, edeps, versions, local=False,
   installed = distkey in [d.lower() for d in solution] # sanitize old data
 
   if not installed:
-    if solution:
+
+    if 'Hit step limit during requirement resolving.' in stderr_installation:
+      errstring = 'Hit step limit during requirement resolving.'
+      logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
+          errstring + '. Solution does not contain ' + distkey + '. Solution '
+          'was: ' + str(solution))
+
+
+    elif 'Timed out' in stderr_installation:
+      errstring = 'Timed out: >5min install'
+      logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
+          errstring + '. Solution does not contain ' + distkey + '. Solution '
+          'was: ' + str(solution))
+
+
+    elif solution:
       errstring = 'Non-empty solution without target distkey'
       logger.error('Unable to install ' + distkey + ' using rbt pip. ' + 
           errstring + '. Solution does not contain ' + distkey + '. Presume '
@@ -129,7 +162,7 @@ def rbttest(distkey, edeps, versions, local=False,
           'installed? Solution was: ' + str(solution))
     
     else:
-      errstring = 'Empty solution'
+      errstring = 'Empty solution, reason unknown.'
       logger.error('Unable to install ' + distkey + ' using rbt pip. ' +
           errstring + '. Presume pip failure.')
 
@@ -164,7 +197,7 @@ def rbttest(distkey, edeps, versions, local=False,
   #  - whether or not the install set is fully satisfied and conflict-less
   #  - what the solution set is
   #  - error string if there was an error
-  return (installed, satisfied, solution, errstring)
+  return (installed, satisfied, solution, errstring, stderr_installation)
 
 
 
@@ -194,6 +227,20 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
           the location of the simple index listing of packages on the mirror
           to use.
 
+  Returns:
+    - solution: the list of distributions to install to satisfy all of the
+      given distkey's dependencies (and all their dependencies and so on). In
+      other words, an install candidate set that should include the given
+      distkey and provide for a functioning environment.
+    - std_err: a string (stderr.read().decode()) that contains the stderr from
+      the process running the pip install command for the distribution, using
+      rbtcollins' pip branch. This is potentially helpful in the case of
+      errors.
+
+  Raises:
+    - UnrelatedInstallFailure if creation of a virtualenv fails (before we even
+      get to the point of trying to install the dist). Should probably just be
+      retried right away.
 
   """
 
@@ -206,7 +253,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
   ###############
   # Steps 1 and 2: Create venv and install rbt pip.
   venv_name = 'v3_'
-  for i in range(0,5):
+  for i in range(0,7):
     venv_name += random.choice(string.ascii_lowercase + string.digits)
 
   # Save a map of this virtual environment name to distkey for later auditing
@@ -221,19 +268,32 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
   cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + VENVS_DIR + \
       '/' + venv_name
   cmd_sourcevenv = 'source ' + VENVS_DIR + '/' + venv_name + '/bin/activate'
-  cmd_piplist = cmd_sourcevenv + '; pip list --disable-pip-version-check'
+  cmd_piplist = cmd_sourcevenv + '; pip list -l --disable-pip-version-check'
   cmd_install_rbt_pip = cmd_sourcevenv + '; cd ' + dir_rbt_pip + \
       '; pip install -e . --disable-pip-version-check'
   #cmd_check_pip_ver = cmd_sourcevenv + '; pip --version'
   #cmd_install_seb_pip = cmd_sourcevenv + '; cd ' + dir_seb_pip + '; pip install -e .'
   #cmd_install_depresolve = cmd_sourcevenv + '; cd ' + dir_depresolve + '; pip install -e .'
 
+
   # Create venv
   logger.info('For ' + distkey + ', creating virtual environment ' + venv_name)
-  popen_wrapper(cmd_venvcreate)
+  stdout, stderr = popen_wrapper(cmd_venvcreate)
 
-  # Initial snapshot of installed packages
-  popen_wrapper(cmd_piplist)
+  # Validate the venv by trying to source it. Sometimes this goes wrong....
+  # I don't know why yet.
+  stdout, stderr = popen_wrapper(cmd_sourcevenv)
+  if 'No such file or directory' in stderr:
+    raise UnrelatedInstallFailure('Failed to create the virtual environment ' +
+        venv_name + ' for dist ' + distkey + ' installation. bin/activate is '
+        'missing.')
+  else:
+    logger.info('For ' + distkey + ', venv '  + venv_name + 'looks OK.')
+
+
+  ## Initial snapshot of installed packages
+  #popen_wrapper(cmd_piplist)
+
 
   # Install rbtcollins' issue_988 pip branch and display pip version
   # (should then be 8.0.0dev0)
@@ -274,58 +334,48 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
       index_optional_args + ' ' + requirement
 
   logger.info('For ' + distkey + ', using rbtpip to install in ' + venv_name)
-  popen_wrapper(cmd_install_dist) # have incorporated 5 min timeout
 
+  # Install using rbtcollins pip, incorporating a 5 min timeout, and taking
+  # the std_err output (which comes out as a bytes object which we
+  # auto-decode).
+  stdout_installation, stderr_installation = popen_wrapper(cmd_install_dist)
+
+  # Print output, if there is any.
+  if stdout_installation:
+    logger.info('Installation process for ' + distkey + ' using rbtpip yields '
+        'stdout: ' + stdout_installation)
+
+  if stderr_installation:
+    logger.warn('Installation process for ' + distkey + ' using rbtpip yields '
+        'stderr: ' + stderr_installation)
 
 
 
   ###############
   # Step 4: Run `pip list` and harvest the solution set
   # Initial snapshot of installed packages
-  piplist_output = subprocess.Popen(cmd_piplist, shell=True,
-      executable='/bin/bash', stdout=subprocess.PIPE).stdout.readlines()
-
-  # Now I have to parse out the actual installs from the output... /:
-  # It looks like this, for example, in python3:
-  #[b'cffi==1.5.0\n',
-  # b'cryptography==1.2.2\n',
-  # b'idna==2.0\n',
-  # b'iso8601==0.1.11\n',
-  # b'pyasn1==0.1.9\n',
-  # b'pycparser==2.14\n',
-  # b'pycrypto==2.6.1\n',
-  # b'PyNaCl==1.0.1\n',
-  # b'six==1.10.0\n',
-  # b'tuf==0.10.0\n',
-  # b'wheel==0.26.0\n']
+  stdout_list, stderr_list = popen_wrapper(cmd_piplist)
+  piplist_output = stdout_list.splitlines()
 
   solution = []
 
   # Convert list_output into solution set here.
 
-  # Yeah, this isn't really kosher, and it probably breaks in python2.
-  # Principle for this week: first, get it to work.
   for line in piplist_output:
-
-    installed_distkey = line.decode()[:-1] # decode and cut off \n at end (assumption: actual newline)
 
     # pip list outputs almost-distkeys, like: 'pbr (0.11.1)'.
     # We cut out the space, lowercase, and pray they work. /:
-    installed_distkey = installed_distkey.replace(' ', '').lower()
-
-    ## Old way, using `pip freeze`.
-    ## # Split it into package name and version:
-    ## (name, ver) = installed_package.split('==')
-    ##
-    ## # Put it together into a distkey.
-    ## installed_distkey = depdata.distkey_format(name, ver)
-
+    installed_distkey = line.replace(' ', '').lower()
 
     # These distributions are installed when a new virtual environment is
     # created, so ignore them. This is an unpleasant hack: some packages
     # actually declare dependencies on these, and so the stored solutions may
     # be incomplete, and there's a hack in is_dep_satisfied to disregard these
     # when given disregard_setuptools=True.
+    # Also note that because pip here is installed using -e option, it'll show
+    # up as having more than just the version string in the ()s where its
+    # version string is expected: 'pip (8.0.0.dev0, /Users/s/w/pipcollins)'
+    # Since we're excluding pip here anyway, we don't have to deal with that.
     if installed_distkey.startswith('wheel(') or \
         installed_distkey.startswith('pip(') or \
         installed_distkey.startswith('setuptools('):
@@ -333,20 +383,26 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
     solution.append(installed_distkey)
 
-  return solution
+  return solution, stderr_installation
 
 
 
 
 
 @timeout.timeout(300) # Timeout after 5 minutes.
-def popen_wrapper(cmd):
+def popen_wrapper(cmd, return_stderr=False):
   """
-  Just runs subprocess.popen with the given command and prints the output to
-  the screen. Times out after 5 minutes.
+  Just runs subprocess.popen with the given command, waits, and returns the
+  output (stdout and stderr, decoded from bytes into strings).
+  Times out after 5 minutes.
   """
-  print(subprocess.Popen(cmd, shell=True, executable='/bin/bash',
-      stdout=subprocess.PIPE).stdout.readlines())
+  sub_obj = subprocess.Popen(cmd, shell=True, executable='/bin/bash',
+      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+  (stdout, stderr) = sub_obj.communicate()
+
+  return stdout.decode(), stderr.decode()
+
 
 
 
@@ -447,27 +503,59 @@ def main():
 
   ###############
   # Step 2: Run rbttest to solve and test solution.
-  for distkey in distkeys_to_solve:
+  try:
+    for distkey in distkeys_to_solve:
 
-    if not noskip and distkey in solution_dict:
-      logger.info('Skipping rbt solve for ' + distkey + ' (already have '
-          'results).')
-      continue
+      if not noskip and distkey in solution_dict:
+        logger.info('Skipping rbt solve for ' + distkey + ' (already have '
+            'results).')
+        continue
 
-    logger.info('Starting rbt solve for ' + distkey)
-    # Explicit with multiple variables for clarity for the reader.
-    (installed, satisfied, solution, errstring) = \
-        rbttest(distkey, edeps, versions, local)
-    solution_dict[distkey] = (installed, satisfied, solution, errstring)
+      # Try-scoping paranoia.
+      installed = None
+      satisfied = None
+      solution = None
+      errstring = None
+      stderr_installation = None
 
-    ###############
-    # Step 3: Dump solutions and solution correctness info to file.
-    # Until this is stable, write after every solution so as not to lose data.
-    logger.info('Writing results for ' + distkey)
-    json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
+      try:
+        # Explicit with multiple variables for clarity for the reader.
+        (installed, satisfied, solution, errstring, stderr_installation) = \
+            rbttest(distkey, edeps, versions, local)
+        solution_dict[distkey] = (installed, satisfied, solution, errstring,
+            stderr_installation)
+
+      except UnrelatedInstallFailure as e:
+        # Installation failed in some trivial way and should be retried once.
+        # For example, virtual environment creation failed.
+        (installed, satisfied, solution, errstring, stderr_installation) = \
+            rbttest(distkey, edeps, versions, local)
+        solution_dict[distkey] = (installed, satisfied, solution, errstring,
+            stderr_installation)
 
 
+      # ###############
+      # # Step 3: Dump solutions and solution correctness info to file.
+      # # Until this is stable, write after every solution so as not to lose data.
+      # logger.info('Writing results for ' + distkey)
+      # json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
+  
+  except:
+    print('Encountered ERROR. Saving solutions to file and halting. Error:')
+    traceback.print_exc()
 
+  ###############
+  # Step 3: Dump solutions and solution correctness info to file.
+
+  finally:
+    print('Writing solutions gathered to ' + SOLUTIONS_JSON_FNAME)
+    try:
+      json.dump(solution_dict, open(SOLUTIONS_JSON_FNAME, 'w'))
+    except:
+      import ipdb
+      ipdb.set_trace()
+      print('Tried to write gathered solutions to file, but failed to write.'
+          'Entering debug mode to allow data recovery.')
 
 
 
