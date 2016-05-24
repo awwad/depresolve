@@ -288,7 +288,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
         venv_name + ' for dist ' + distkey + ' installation. bin/activate is '
         'missing.')
   else:
-    logger.info('For ' + distkey + ', venv '  + venv_name + 'looks OK.')
+    logger.info('For ' + distkey + ', venv '  + venv_name + ' looks OK.')
 
 
   ## Initial snapshot of installed packages
@@ -390,7 +390,7 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
 
 @timeout.timeout(300) # Timeout after 5 minutes.
-def popen_wrapper(cmd, return_stderr=False):
+def popen_wrapper(cmd):
   """
   Just runs subprocess.popen with the given command, waits, and returns the
   output (stdout and stderr, decoded from bytes into strings).
