@@ -6,19 +6,18 @@
   Provides tools determining the resolvability of dependency conflicts, and
   attempts to provide a backtracking resolver for such conflicts.
 
-  For definitions of resolvability, please see the pypi-depresolve project's
-  readme, and what it links to.
+  For definitions of resolvability, please see the depresolve project's
+  README.md and docs/background.md
 
 """
 
 import depresolve # __init__ for errors and logging
-
-# Moved the code for dealing with dependency data directly into its own module,
-# and should tweak this to use it as a separate module later.
 import depresolve.depdata as depdata
 import depresolve._external.timeout as timeout # to kill too-slow resolution
-import pip._vendor.packaging # for pip's specifiers and versions
+import pip._vendor.packaging.version # pip-style version comparisons
 
+# for acceptable nested exception traceback handling on python 2 & 3:
+import sys, six
 
 
 
@@ -38,7 +37,7 @@ def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
   logger = depresolve.logging.getLogger(
       'resolvability.detect_model_2_conflict_from_distkey')
 
-  candidates = fully_satisfy_strawman1(distkey, edeps, versions_by_package)
+  candidates = naive_satisfy(distkey, edeps, versions_by_package)
 
   logger.debug("Running with candidates: " + str(candidates))
 
@@ -404,7 +403,7 @@ def combine_candidate_sets(orig_candidates, addl_candidates):
 
 
 
-def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package=None):
+def naive_satisfy(depender_distkey, edeps, versions_by_package=None):
   """
   An exercise. Recurse and list all dists required to satisfy a dependency.
   Where there is ambiguity, select the first result from sort_versions().
@@ -423,7 +422,7 @@ def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package=None):
       depender_distkey
   """
 
-  logger = depresolve.logging.getLogger('resolvability.fully_satisfy_strawman1')
+  logger = depresolve.logging.getLogger('resolvability.naive_satisfy')
 
   if versions_by_package is None:
     versions_by_package = depdata.generate_dict_versions_by_package(edeps)
@@ -451,103 +450,7 @@ def fully_satisfy_strawman1(depender_distkey, edeps, versions_by_package=None):
 
     # Now recurse.
     satisfying_candidate_set.extend(
-        fully_satisfy_strawman1(chosen_distkey, edeps, versions_by_package))
-
-  return satisfying_candidate_set
-
-
-
-
-
-def fully_satisfy_strawman2(depender_distkey, edeps, versions_by_package=None,
-    depth=0):
-  """
-  An exercise. Recurse and list all dists required to satisfy a dependency.
-  
-  This time, test for any potential conflicts when adding a dist to the
-  satisfying_candidate_set, and only add to the satisfying_candidate_set when
-  there isn't a conflict.
-
-  This version loops forever on circular dependencies, and seems not to
-  find some solutions where they exist. (Example of latter: metasort(0.3.6))
-  UPDATE: Algorithm is wrong. See Daily Notes.
-
-  Additionally, this recursion is extremely inefficient, and would profit from
-  dynamic programming in general.
-
-  Arguments:
-    - depender_distkey ('django(1.8.3)'),
-    - edeps (dictionary returned by depdata.deps_elaborated; see there.)
-    - versions_by_package (dictionary of all distkeys, keyed by package name)
-
-  Returns:
-    - list of distkeys needed as direct or indirect dependencies to install
-      depender_distkey, including depender_distkey
-  """
-
-  logger = depresolve.logging.getLogger('resolvability.fully_satisfy_strawman2')
-
-  if versions_by_package is None:
-    versions_by_package = depdata.generate_dict_versions_by_package(edeps)
-
-  depdata.assume_dep_data_exists_for(depender_distkey, edeps)
-
-  my_edeps = edeps[depender_distkey] # my elaborated dependencies
-  satisfying_candidate_set = [depender_distkey] # Start with ourselves.
-
-  if not my_edeps: # if no dependencies, return only ourselves
-    logger.debug('    '*depth + depender_distkey + ' had no dependencies. '
-        'Returning just it.')
-    return satisfying_candidate_set
-
-
-  for edep in my_edeps:
-
-    satisfying_packname = edep[0]
-    satisfying_versions = sort_versions(edep[1])
-    chosen_version = None
-
-    if not satisfying_versions:
-      raise depresolve.NoSatisfyingVersionError('Dependency of ' +
-          depender_distkey + ' on ' + satisfying_packname + ' with specstring '
-          + edep[2] + ' cannot be satisfied: no versions found in elaboration '
-          'attempt.')
-
-    logger.debug('    '*depth + 'Dependency of ' + depender_distkey + ' on ' + 
-        satisfying_packname + ' with specstring ' + edep[2] + ' is satisfiable'
-        ' with these versions: ' + str(satisfying_versions))
-
-    for candidate_version in sort_versions(satisfying_versions):
-      logger.debug('    '*depth + '  Trying version ' + candidate_version)
-
-      candidate_distkey = depdata.distkey_format(satisfying_packname,
-          candidate_version)
-
-      # Would the addition of this candidate result in a conflict?
-      # Recurse and test result.
-      candidate_satisfying_candidate_set = \
-          fully_satisfy_strawman2(candidate_distkey, edeps,
-              versions_by_package, depth+1)
-      combined_satisfying_candidate_set = combine_candidate_sets(
-          satisfying_candidate_set, candidate_satisfying_candidate_set)
-
-      if detect_direct_conflict(combined_satisfying_candidate_set):
-        # If this candidate version conflicts, try the next.
-        logger.debug('    '*depth + '  ' + candidate_version + ' conflicted. '
-            'Trying next.')
-        continue
-      else: # save the new candidates
-        chosen_version = candidate_version
-        satisfying_candidate_set = combined_satisfying_candidate_set
-        logger.debug('    '*depth + '  ' + candidate_version + ' fits. Next '
-            'dependency.')
-        break
-
-    if chosen_version is None:
-      raise depresolve.UnresolvableConflictError('Dependency of ' + 
-          depender_distkey + ' on ' + satisfying_packname + ' with specstring '
-          + edep[2] + ' cannot be satisfied: versions found, but none had 0 '
-          'conflicts.')
+        naive_satisfy(chosen_distkey, edeps, versions_by_package))
 
   return satisfying_candidate_set
 
@@ -603,9 +506,21 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package=None):
         _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package)
 
   except depresolve.ConflictingVersionError as e:
-    raise depresolve.UnresolvableConflictError('Unable to find solution to '
-        'conflict with one of ' + distkey_to_satisfy + "'s immediate "
-        'dependencies. Lower level conflict exception follows: ' + str(e))
+    # Compromise traceback style so as not to give up python2 compatibility.
+    six.reraise(depresolve.UnresolvableConflictError,
+        depresolve.UnresolvableConflictError('Unable to find solution'
+        ' to a conflict with one of ' + distkey_to_satisfy + "'s immediate "
+        'dependencies.'), sys.exc_info()[2])
+
+    # Python 3 style (by far the nicest):
+    #raise depresolve.UnresolvableConflictError('Unable to find solution to '
+    #    'a conflict with one of ' + distkey_to_satisfy + "'s immediate "
+    #    'dependencies.') from e
+
+    # Original (2 or 3 compatible but not great on either, especially not 2)
+    #raise depresolve.UnresolvableConflictError('Unable to find solution to '
+    #     'conflict with one of ' + distkey_to_satisfy + "'s immediate "
+    #     'dependencies.' Lower level conflict exception follows: ' + str(e))
 
   else:
     return satisfying_candidate_set
@@ -873,7 +788,6 @@ def satisfy2(distkey_to_satisfy, edeps, versions_by_package):
 
 
 
-#   assert False, 'Still writing this.'
 
 
 # def _satisfy2(distkey_to_satisfy, edeps, versions_by_package, _incl, _inclQ,
@@ -883,9 +797,7 @@ def satisfy2(distkey_to_satisfy, edeps, versions_by_package):
 #   to work, plus probably easier to understand this way.)
 #   """
 #   logger = depresolve.logging.getLogger('resolvability.satisfy2')
-
-
-
+#
 #   assert False, 'Still writing this.'
 
 
@@ -965,10 +877,6 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
   for distkey in dists_to_solve_for:
     i += 1
 
-    # TODO: Exclude the ones we don't have PackageInfo for (due to conversion
-    # errors) so as not to skew the numbers. Currently, they should show up as
-    # resolver errors.
-
     logger.info(str(i) + '/' + str(len(dists_to_solve_for)) + ': Starting ' + 
         distkey + '....')
 
@@ -1008,6 +916,7 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
 
 
 
+# Retaining the below for eventual use with satisfy2 function.
 # ........
 # Re-architecting from a different angle......
 # What if we try to work directly from the specifier strings, instead of

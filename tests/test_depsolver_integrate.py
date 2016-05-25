@@ -12,14 +12,14 @@
 import depresolve
 import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as resolvability
-import tests.test_resolvability as test_resolvability
+import test_resolvability
 
 import depresolve.resolver.depsolver_integrate as depsolver_integrate # SAT solver
 
 # Don't from-import, or target module globals don't stay bound if the aliases
 # are rebound.
 #from tests.testdata import *
-import tests.testdata as testdata
+import testdata
 
 logger = depresolve.logging.getLogger('test_depsolver_integrate.py')
 
