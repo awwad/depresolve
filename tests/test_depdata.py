@@ -13,7 +13,7 @@ import os
 
 import depresolve # __init__ for errors
 import depresolve.depdata as depdata
-import tests.testdata as testdata
+import testdata
 
 
 def main():
@@ -53,9 +53,6 @@ def test_depdata():
   (edeps, packs_wout_avail_version_info, dists_w_missing_dependencies) = \
       depdata.elaborate_dependencies(deps, versions_by_package)
 
-  #print(str(len(edeps)))
-  from pprint import pprint
-  #pprint(edeps)
 
   # 1 entry in the edeps dict
   assert 41 == len(edeps), \

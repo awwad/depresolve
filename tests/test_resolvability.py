@@ -20,9 +20,16 @@ import depresolve.resolver.resolvability as ry # backtracking solver
 # Don't from-import dynamic global variables, or target module globals don't
 # stay bound if the aliases are rebound.
 #from tests.testdata import *
-import tests.testdata as testdata
+import testdata
+
+# for acceptable nested exception traceback handling on python 2 & 3:
+import six, sys
 
 logger = depresolve.logging.getLogger('test_resolvability')
+
+
+class UnexpectedException(Exception):
+  pass
 
 
 def main():
@@ -266,8 +273,20 @@ def test_resolver(resolver_func, expected_result, distkey, deps,
 
   except Exception as e:
     if expected_exception is None or type(e) is not expected_exception:
-      logger.exception('Unexpectedly unable to resolve ' + distkey)
-      raise
+      logger.exception('Test Failure: Unexpectedly unable to resolve ' +
+          distkey)
+
+      # Compromise traceback style so as not to give up python2 compatibility.
+      six.reraise(UnexpectedException, UnexpectedException('Unexpectedly '
+          'unable to resolve ' + distkey), sys.exc_info()[2])
+
+      # Python 3 style (by far the nicest):
+      #raise UnexpectedException('Unexpectedly unable to resolve ' + distkey) \
+      #    from e
+
+      # Original (2 or 3 compatible but not great on either, especially not 2)
+      #raise
+
       #return False
 
     else:
