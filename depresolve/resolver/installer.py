@@ -16,6 +16,7 @@ import random, string # randomized naming for virtual environments
 import sys # for arguments to main
 import os # for directory creation
 import depresolve
+logger = depresolve.logging.getLogger('depresolve')
 import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout
@@ -64,9 +65,6 @@ def install_and_report(solution, local=False, dir_pip=None):
     1. Sets up a random-name new virtual environment
     2. Installs the given distributions using pip
   """
-
-  logger = depresolve.logging.getLogger('installer.install_and_report')
-
   errstring = ''
 
   # Argument processing: Sanitize solution set distkeys.

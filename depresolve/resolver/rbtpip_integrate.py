@@ -13,6 +13,8 @@ import sys # for arguments to main
 import os # for directory creation
 import json
 import depresolve
+logger = depresolve.logging.getLogger('depresolve')
+
 import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout
@@ -76,10 +78,6 @@ def rbttest(distkey, edeps, versions, local=False,
       that merits trying again.
 
   """
-
-
-  logger = depresolve.logging.getLogger('rbtpip_integrate.rbttest')
-
   errstring = ''
 
   # Sanitize distkey:
@@ -243,10 +241,6 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
       retried right away.
 
   """
-
-  logger = depresolve.logging.getLogger(
-      'rbtpip_integrate.rbt_backtracking_satisfy')
-
   assert distkey == distkey.lower(), 'distkeys should always be lowercase!' + \
       distkey + ' is not!'  # Remember not to use distkey.islower(). Bug.
 
@@ -421,9 +415,6 @@ def main():
     3. Write all the solution sets and correctness info to a json file.
 
   """
-
-  logger = depresolve.logging.getLogger('rbtpip_integrate.main')
-
   # Create virtual environments directory if it doesn't exist.
   if not os.path.exists(VENVS_DIR):
     os.makedirs(VENVS_DIR)

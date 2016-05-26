@@ -19,7 +19,7 @@ import pip._vendor.packaging.version # pip-style version comparisons
 # for acceptable nested exception traceback handling on python 2 & 3:
 import sys, six
 
-
+logger = depresolve.logging.getLogger('depresolve')
 
 
 def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
@@ -34,9 +34,6 @@ def detect_model_2_conflict_from_distkey(distkey, edeps, versions_by_package):
   False. (See conflict definitions in README.md / background.md)
 
   """
-  logger = depresolve.logging.getLogger(
-      'resolvability.detect_model_2_conflict_from_distkey')
-
   candidates = naive_satisfy(distkey, edeps, versions_by_package)
 
   logger.debug("Running with candidates: " + str(candidates))
@@ -75,8 +72,6 @@ def dist_lists_are_equal(distlist1, distlist2):
 
   Runtime: O(N^2)
   """
-
-  logger = depresolve.logging.getLogger('resolvability.dist_lists_are_equal')
 
   if len(distlist1) != len(distlist2):
     logger.debug('dist lists do not have the same length, thus are not equal.')
@@ -216,8 +211,6 @@ def detect_direct_conflict(candidates):
 
   Runtime: O(N^2)
   """
-  logger = depresolve.logging.getLogger('resolvability.detect_direct_conflict')
-
   logger.debug("Running with candidates: " + str(candidates))
 
   for candidate in candidates: # for each candidate distkey
@@ -248,8 +241,6 @@ def is_dep_satisfied(edep, candidates, disregard_setuptools=False,
   argparse).
 
   """
-  logger = depresolve.logging.getLogger('resolvability.is_dep_satisfied')
-
   packname = edep[0]
   list_of_acceptable_versions = edep[1]
 
@@ -345,8 +336,6 @@ def are_fully_satisfied(candidates, edeps, versions_by_package,
         e.g. if solution employs a version not in the outdated dependency data
 
   """
-  logger = depresolve.logging.getLogger('resolvability.are_fully_satisfied')
-
   # Lowercase the distkeys for our all-lowercase data, just in case.
   candidates = [distkey.lower() for distkey in candidates]
 
@@ -421,9 +410,6 @@ def naive_satisfy(depender_distkey, edeps, versions_by_package=None):
     - list of distkeys needed as direct or indirect dependencies to install
       depender_distkey
   """
-
-  logger = depresolve.logging.getLogger('resolvability.naive_satisfy')
-
   if versions_by_package is None:
     versions_by_package = depdata.generate_dict_versions_by_package(edeps)
 
@@ -551,8 +537,6 @@ def _backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package,
 
 
   """
-  logger = depresolve.logging.getLogger('resolvability.backtracking_satisfy')
-
   # (Not sure this check is necessary yet, but we'll see.)
   if conflicts_with(distkey_to_satisfy, _candidates):
     assert False, "This should be impossible now...."# Can't install me! You " +\
@@ -737,8 +721,6 @@ def satisfy2(distkey_to_satisfy, edeps, versions_by_package):
   Throws:
 
   """
-  logger = depresolve.logging.getLogger('resolvability.satisfy2')
-
   solution = [] # current solution 
   inclQ = [] # queue of dists to process for inclusion in solution set
   calcQ = [] # queue of version constraints to process
@@ -796,7 +778,6 @@ def satisfy2(distkey_to_satisfy, edeps, versions_by_package):
 #   Helper for satisfy2's recursion. (Must be separate in order for the timeout
 #   to work, plus probably easier to understand this way.)
 #   """
-#   logger = depresolve.logging.getLogger('resolvability.satisfy2')
 #
 #   assert False, 'Still writing this.'
 
@@ -847,10 +828,6 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
   if the process is interrupted, as it very slow.
 
   """
-
-  logger = depresolve.logging.getLogger(
-      'resolvability.resolve_all_via_backtracking')
-
 
   def _write_data_out(solutions, unable_to_resolve, unresolvables):
     """THIS IS AN INNER FUNCTION WITHIN resolve_all_via_depsolver!"""

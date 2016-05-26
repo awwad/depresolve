@@ -11,6 +11,7 @@
 """
 
 import depresolve # __init__ for logging
+logger = depresolve.logging.getLogger('depresolve')
 import depresolve.depdata as depdata
 import sqlite3 # dependency db as sqlite db is the future of this :P
 
@@ -139,7 +140,6 @@ def add_to_table(
   TODO: Rewrite slightly to use **kwargs for arbitrary column names, and
   validate.
   """
-  logger = depresolve.logging.getLogger('add_to_table')
   _ensure_connected_to_sqlite()
 
   global SQL_CURSOR

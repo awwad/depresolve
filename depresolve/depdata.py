@@ -217,6 +217,7 @@
 
 #from depresolve import MissingDependencyInfoError
 import depresolve # for errors and logging
+log = depresolve.logging.getLogger('depresolve')
 import pip._vendor.packaging.version # for version validation
 
 dependencies_by_dist = None
@@ -658,9 +659,6 @@ def is_dep_valid(dep, is_elaborated=False, thorough=False):
   pip versions with them all.
 
   """
-
-  log = depresolve.logging.getLogger('is_dep_valid')
-
   if thorough and not is_elaborated:
     raise ValueError('Calling with thorough on and is_elaborated off makes '
         'no sense. The thorough option is only for elaborated dependencies.')
@@ -736,8 +734,6 @@ def are_deps_valid(deps, is_elaborated=False, thorough=False):
   thorough is off. With thorough on, this takes about 5 minutes!
 
   """
-  log = depresolve.logging.getLogger('are_deps_valid')
-
   if not isinstance(deps, dict):
     log.debug('deps not valid: not a dictionary (or dict subclass)')
     return False
@@ -793,7 +789,7 @@ def normalize_version_string(version):
   
   except pip._vendor.packaging.version.InvalidVersion:
     normalized = old_normalize_version_string(version)
-    logger.debug('converting ' + version + ' via pip version class failed. '
+    log.debug('converting ' + version + ' via pip version class failed. '
       'using bandaid normalization: ' + old_normalize_version_string(version))
 
   finally:
@@ -1190,9 +1186,6 @@ def elaborate_dependencies(deps, versions_by_package, allow_prerelease=False):
        dists which have a dependency which we can't elaborate due to a lack of
        information on the available versions of the satisfying package).
   """
-
-  log = depresolve.logging.getLogger('elaborate_dependencies')
-
   deps_elaborated = dict()
 
   # The set of all package names for which we do not have a list of available

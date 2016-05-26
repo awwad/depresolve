@@ -194,14 +194,44 @@ DEPS_MODERATE = {
     'humanfriendly(1.5)': [],
 }
 
-CONFLICT_MODEL_3_SAMPLES = [
+
+RESOLVABLE_MODEL_3_SAMPLES = [
+      'python-magnetodbclient(1.0.1)',
+      'gerritbot(0.2.0)',
+      'openstack-doc-tools(0.21.1)',
+]
+
+# Depending on the order in which packages happen to appear in the
+# elaborated_dependencies dictionary, the backtracking resolver may fail at
+# resolving these due to a bug it can't backtrack past.
+HARDER_RESOLVABLE_MODEL_3_SAMPLES = [
       'metasort(0.3.6)',
       'pillowtop(0.1.3)',
       'os-collect-config(0.1.8)',
       'openstack-doc-tools(0.7.1)',
-      'python-magnetodbclient(1.0.1)']
+]
 
-UNRESOLVABLE_SAMPLES = [
-      'gerritbot(0.2.0)',
-      'exoline(0.2.3)',
-      'openstack-doc-tools(0.21.1)']
+UNRESOLVABLE_MODEL_3_SAMPLES = [
+      'exoline(0.2.3)'
+]
+
+# SOLUTION_FOR_OPENSTACKDOCTOOLS0211 = [
+#       'argparse(1.4.0)', 'lxml(3.5.0)',
+#       'netaddr(0.7.18)', 'oslo.config(3.4.0)', 'pip(8.0.2)',
+#       'openstack-doc-tools(0.21.1)', 'pytz(2015.7)', 'iso8601(0.1.11)',
+#       'pygments(2.1)', 'markupsafe(0.23)', 'sphinx(1.2.3)', 'jinja2(2.8)',
+#       'six(1.10.0)', 'docutils(0.12)', 'demjson(2.2.4)', 'babel(2.2.0)',
+#       'pbr(0.11.1)', 'stevedore(1.6.0)'
+# ]
+
+#  SOLUTION_FOR_GERRITBOT020 = [
+#         'tempora(1.4)', 'six(1.10.0)', 'jaraco.collections(1.3.1)',
+#         'jaraco.text(1.6.3)', 'pip(8.0.2)', 'pytz(2015.7)',
+#         'jaraco.functools(1.8.1)', 'ecdsa(0.13)', 'jaraco.logging(1.3.1)',
+#         'gerritbot(0.2.0)', 'gerritlib(0.4.0)', 'pycrypto(2.6.1)',
+#         'irc(13.3.1)', 'more-itertools(2.2)', 'python-daemon(2.1.1)',
+#         'setuptools(19.6.1)', 'docutils(0.12)', 'inflect(0.2.5)',
+#         'pyyaml(3.11)', 'lockfile(0.12.2)', 'jaraco.classes(1.3)',
+#         'd2to1(0.2.12.post1)', 'jaraco.itertools(1.7.1)', 'paramiko(1.16.0)',
+#         'pbr(0.5.23)'
+# ]

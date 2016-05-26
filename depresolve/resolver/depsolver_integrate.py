@@ -27,6 +27,7 @@
 """
 
 import depresolve
+logger = depresolve.logging.getLogger('depresolve')
 import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as ry
 import depresolve._external.timeout as timeout # to kill too-slow resolution
@@ -36,8 +37,6 @@ import depsolver # external
 import pip._vendor.packaging # for pip's SpecifierSets and versions
 
 import json
-
-logger = depresolve.logging.getLogger('depsolver_integrate')
 
 # Exception indicating that a dist cannot be converted to a depsolver
 # PackageInfo object due to incompatibility - e.g. its own version string or

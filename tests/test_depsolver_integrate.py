@@ -10,6 +10,7 @@
 
 """
 import depresolve
+logger = depresolve.logging.getLogger('depresolve')
 import depresolve.depdata as depdata
 import depresolve.resolver.resolvability as resolvability
 import test_resolvability
@@ -20,8 +21,6 @@ import depresolve.resolver.depsolver_integrate as depsolver_integrate # SAT solv
 # are rebound.
 #from tests.testdata import *
 import testdata
-
-logger = depresolve.logging.getLogger('test_depsolver_integrate.py')
 
 
 def main():
