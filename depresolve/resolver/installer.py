@@ -5,9 +5,7 @@
 <Purpose>
   The primary function here is install_and_report, which, given a set of
   candidates, installs them in a fresh virtual environment and reports back on
-  the status of the installation:
-    - whether the full set of distributions indicated was installed
-
+  the status of the installation.
 
 """
 
@@ -23,11 +21,13 @@ import depresolve._external.timeout as timeout
 
 VENVS_DIR = 'installer_venvs'
 
+PACKAGES_IN_ALL_VENVS = ['setuptools', 'pip', 'wheel']
 
 
 
 
-def install_and_report(solution, local=False, dir_pip=None):
+def install_and_report(solution, local=False, dir_pip=None,
+    ignore_setuptools=True):
   """
 
   Accepts a list of distkeys indicating what distributions to try to install
@@ -47,9 +47,14 @@ def install_and_report(solution, local=False, dir_pip=None):
       is the directory where it resides. If left as None, we simply use the
       default version of pip installed with virtualenv. If provided, we'll use
       'pip install -e .' to install it.
-
+    - ignore_setuptools (optional): Default True. If True, when testing the
+      given solution to see that it was installed, ignores distributions of
+      packages setuptools, pip, and wheel, which would already be in any
+      virtual environment anyway.
 
   Returns:
+    - success: True if all distkeys in the solution were actually installed
+      in the virtual environment, else False.
     - venv: The directory containing the virtual environment created for this
       install.
     - stderr_installation: stderr.read().decode() for the pip install
@@ -70,7 +75,7 @@ def install_and_report(solution, local=False, dir_pip=None):
   # Argument processing: Sanitize solution set distkeys.
   try:
     solution = [depdata.normalize_distkey(distkey) for distkey in solution]
-  except Exception, e:
+  except Exception as e:
     logger.error('Unable to sanitize distkeys in the solution provided. '
         'Solution: ' + str(solution))
     raise
@@ -89,7 +94,8 @@ def install_and_report(solution, local=False, dir_pip=None):
     try:
       venv_dir = create_venv()
     except UnrelatedInstallFailure:
-      logger.error('Failed to create virtual environment.')
+      logger.error('Failed to create virtual environment. Trying once more.')
+      venv_dir = create_venv()
     else:
       success = True
       logger.info('Successfully created virtual environment: ' + venv_dir)
@@ -116,24 +122,86 @@ def install_and_report(solution, local=False, dir_pip=None):
 
   
 
+  # The actual installation.
   logger.info('Starting installation in venv ' + venv_dir + ' of solution '
       'set: ' + str(solution))
-
-  install_into_venv(solution, venv_dir, local)
-
+  stdout_install, stderr_install = install_into_venv(solution, venv_dir, local)
 
 
+  # Determine what actually got installed (excluding default stuff like pip
+  # and setuptools and wheel).
+  installed_distkeys = get_dists_installed_in_venv(venv_dir)
 
 
+  # Determine if the full set of things directed to be installed was actually
+  # installed.
+  dists_missing = []
 
-  
+  for distkey in solution:
+    if depdata.get_packname(distkey) not in PACKAGES_IN_ALL_VENVS and \
+        distkey not in installed_distkeys:
+      logger.info('Missing distkey from solution: ' + distkey)
+      dists_missing.append(distkey)
 
-  # Return the solution that rbt generates for this distkey:
-  #  - whether or not the distkey itself was installed
-  #  - whether or not the install set is fully satisfied and conflict-less
-  #  - what the solution set is
+  # Return:
+  #  - whether or not the distkeys were all installed
+  #  - where the new virtual environment with everything installed is
   #  - error string if there was an error
-  return (venv_name, stderr_installation)
+  return not dists_missing, venv_dir, stderr_install
+
+
+
+
+
+def get_dists_installed_in_venv(venv_dir, ignore_setuptools=True):
+  """
+  Uses 'pip list' to get a list of the distributions installed in a given
+  virtual environment.
+
+  Arguments:
+    - venv_dir should be e.g. 'installer_venvs/v3_random' if the activate
+      script for the venv is at 'installer_venvs/v3_random/bin/activate'.
+
+    - ignore_setuptools: if True, does not include pip, wheel, or setuptools
+      distributions in the list returned. (Default: True. These are always
+      installed by virtualenv, and so their presence is not informative.)
+
+  """
+  cmd_sourcevenv = get_source_venv_cmd_str(venv_dir)
+
+  cmd_piplist = cmd_sourcevenv + '; pip list -l --disable-pip-version-check'
+
+  # Run the 'pip list' command.
+  stdout_list, stderr_list = popen_wrapper(cmd_piplist)
+  piplist_output = stdout_list.splitlines()
+
+  installed = []
+
+  # Convert list_output into list of installed distkeys here.
+  for line in piplist_output:
+
+    # pip list outputs almost-distkeys, like: 'pbr (0.11.1)'.
+    # We cut out the space, lowercase, and pray they work. /:
+    installed_distkey = line.replace(' ', '').lower()
+
+    # These distributions are installed when a new virtual environment is
+    # created, so ignore them. This is an unpleasant hack: some packages
+    # actually declare dependencies on these, and so the stored solutions may
+    # be incomplete, and there's a hack in is_dep_satisfied to disregard these
+    # when given disregard_setuptools=True.
+    # Also note that because pip here is installed using -e option, it'll show
+    # up as having more than just the version string in the ()s where its
+    # version string is expected: 'pip (8.0.0.dev0, /Users/s/w/pipcollins)'
+    # Since we're excluding pip here anyway, we don't have to deal with that.
+    if ignore_setuptools and (
+        installed_distkey.startswith('wheel(') or
+        installed_distkey.startswith('pip(') or
+        installed_distkey.startswith('setuptools(')):
+      continue
+
+    installed.append(installed_distkey)
+
+  return installed  
 
 
 
@@ -153,12 +221,22 @@ def install_into_venv(distkeys, venv_dir, local=False):
       packages from index on local filesystem: /srv/pypi/web/simple (local
       mirror); if a non-empty string, use the given string as the index
       location - e.g. 'file:///srv/pypi/web/simple'.
+
+  Returns:
+    - stdout_install: stdout from the subprocess.Popen command to install
+      the given distributions, processed into a string. This is the form that
+      popen_wrapper returns.
+    - stderr_install: Likewise, but stderr instead of stdout.
   """
 
-  packname = depdata.get_packname(distkey)
-  version_string = depdata.get_version(distkey)
-  # Construct as a requirement for pip install command.
-  requirement = packname + '==' + version_string
+  requirements = ''
+  # Spool requirement strings from each distkey in the list.
+  for distkey in distkeys:
+
+    packname = depdata.get_packname(distkey)
+    version_string = depdata.get_version(distkey)
+    # Construct as a requirement for pip install command.
+    requirements += packname + '==' + version_string
 
 
   # Put together the pip command.
@@ -177,26 +255,27 @@ def install_into_venv(distkeys, venv_dir, local=False):
   # Would love to be able to just call
   # scraper._call_pip_with_timeout(pip_arglist), but can't because we have to
   # do this in a virtual environment, so doing it this way instead:
+  cmd_sourcevenv = get_source_venv_cmd_str(venv_dir)
   cmd_install_dist = cmd_sourcevenv + \
       '; pip install --disable-pip-version-check --quiet ' + \
-      index_optional_args + ' ' + requirement
+      index_optional_args + ' ' + requirements
 
-  logger.info('For ' + distkey + ', using rbtpip to install in ' + venv_name)
+  logger.info('Using pip to install a list of distkeys into venv ' + venv_dir)
 
   # Install using pip, incorporating a 5 min timeout, and taking the std_err
   # output (which comes out as a bytes object which we auto-decode).
-  stdout_installation, stderr_installation = popen_wrapper(cmd_install_dist)
+  stdout_install, stderr_install = popen_wrapper(cmd_install_dist)
 
   # Print output, if there is any.
-  if stdout_installation:
-    logger.info('Installation process for ' + distkey + ' using pip yields '
-        'stdout: ' + stdout_installation)
+  if stdout_install:
+    logger.info('Installation process using pip yields stdout: ' +
+        stdout_install)
 
-  if stderr_installation:
-    logger.warn('Installation process for ' + distkey + ' using pip yields '
-        'stderr: ' + stderr_installation)
+  if stderr_install:
+    logger.warn('Installation process using pip yields stderr: ' +
+        stderr_install)
 
-
+  return stdout_install, stderr_install
 
 
 
@@ -211,11 +290,11 @@ def create_venv():
   """
   venv_dir = VENVS_DIR + '/v3_'
   for i in range(0,7):
-    venv_name += random.choice(string.ascii_lowercase + string.digits)
+    venv_dir += random.choice(string.ascii_lowercase + string.digits)
 
   cmd_venvcreate = 'virtualenv -p python3 --no-site-packages ' + venv_dir
 
-  logger.info('For ' + distkey + ', creating virtual environment ' + venv_dir)
+  logger.info('Creating virtual environment ' + venv_dir)
   stdout, stderr = popen_wrapper(cmd_venvcreate)
 
   validate_venv(venv_dir)
@@ -242,10 +321,9 @@ def validate_venv(venv_dir):
   stdout, stderr = popen_wrapper(cmd_sourcevenv)
   if 'No such file or directory' in stderr:
     raise UnrelatedInstallFailure('Failed to create the virtual environment ' +
-        venv_name + ' for dist ' + distkey + ' installation. bin/activate is '
-        'missing.')
+        venv_dir + '. bin/activate is missing.')
   else:
-    logger.info('For ' + distkey + ', venv '  + venv_name + ' looks OK.')
+    logger.info('Virtual environment ' + venv_dir + ' looks OK.')
 
 
 

@@ -347,7 +347,6 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
 
   ###############
   # Step 4: Run `pip list` and harvest the solution set
-  # Initial snapshot of installed packages
   stdout_list, stderr_list = popen_wrapper(cmd_piplist)
   piplist_output = stdout_list.splitlines()
 
