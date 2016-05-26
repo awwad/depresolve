@@ -24,6 +24,32 @@ VENVS_DIR = 'installer_venvs'
 PACKAGES_IN_ALL_VENVS = ['setuptools', 'pip', 'wheel']
 
 
+def check_many_installs(distkeys, local=False, dir_pip=None,
+    ignore_setuptools=True):
+  """
+  Given individual distkeys, try installing each one separately in its own
+  virtual environment, using pip (custom version if indicated), and return
+  whether or not the installation of that distkey succeeded (by the simple
+  measure of whether or not that distkey appears in 'pip list' afterwards).
+  No dependencies are compared. The test is simply whether or not the indicated
+  distribution itself is installed.
+
+  Returns a dictionary of the installation results by distkey.
+  """
+  install_results = dict()
+
+  for distkey in distkeys:
+
+    success, venv_dir, stderr_install = install_and_report([distkey],
+        local=local, dir_pip=dir_pip, ignore_setuptools=ignore_setuptools)
+
+    install_results[distkey] = (success, venv_dir, stderr_install)
+
+  return install_results
+
+
+
+
 
 
 def install_and_report(solution, local=False, dir_pip=None,
