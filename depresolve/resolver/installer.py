@@ -182,7 +182,7 @@ def install_and_report(solution, local=False, dir_pip=None,
 def get_dists_installed_in_venv(venv_dir, ignore_setuptools=True):
   """
   Uses 'pip list' to get a list of the distributions installed in a given
-  virtual environment.
+  virtual environment. Unfortunate hacks required.
 
   Arguments:
     - venv_dir should be e.g. 'installer_venvs/v3_random' if the activate

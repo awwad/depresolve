@@ -329,6 +329,8 @@ def are_fully_satisfied(candidates, edeps, versions_by_package,
 
   Returns:
     - True or False
+    - (ONLY if report_issue is True), A string description of unsatisfied
+      dependencies.
 
   Throws:
     - depresolve.MissingDependencyInfoError:
