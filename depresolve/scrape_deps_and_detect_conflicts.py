@@ -24,8 +24,8 @@ import depresolve._external.timeout as timeout # to prevent endless pip calls
 
 
 # Local resources
-BANDERSNATCH_MIRROR_DIR = '/srv/pypi/web/packages/source/'
-LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING = 'file:///srv/pypi/web/simple'
+BANDERSNATCH_MIRROR_SDIST_DIR = '/srv/pypi/web/packages/source/'
+BANDERSNATCH_MIRROR_INDEX_DIR = 'file:///srv/pypi/web/simple'
 WORKING_DIRECTORY = os.path.join(os.getcwd()) #'/Users/s/w/git/pypi-depresolve' in my setup
 TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY,
   'temp_distros')
@@ -38,6 +38,14 @@ SDIST_FILE_EXTENSION = '.tar.gz'
 
 
 # Argument handling:
+#
+#    ANY ARGS NOT MATCHING the patterns below are interpreted as what I will
+#    refer to as 'distkeys':
+#      packagename(packageversion)
+#      e.g.:   "django(1.8)"
+#      Your shell will presumably want these the distkeys passed in quotes
+#      because of the parentheses.
+#
 #  DEPENDENCY CONFLICT MODELS (see README)
 #   --cm1  use conflict model 1: all resolvable & unresolvable conflicts
 #   --cm2  use conflict model 2: all unresolvable and some resolvable conflicts
@@ -51,38 +59,27 @@ SDIST_FILE_EXTENSION = '.tar.gz'
 #                  conflict info.
 #
 #  REMOTE OPERATION:   (DEFAULT!)
-#    ANY ARGS NOT MATCHING the other patterns are interpreted as what I will
-#    refer to as 'distkeys':
-#    packagename(packageversion)
-#    e.g.:   "django(1.8)"
-#    Using one of these means we're downloading from PyPI, per pip's defaults.
-#    Your shell will presumably want these arguments passed in quotes because
-#    of the parentheses.
+#    Not using --local means we're downloading from PyPI, per pip's defaults.
 #
 #
 #  LOCAL OPERATION: For use when operating with local sdist files
 #                   (e.g. with a bandersnatched local PyPI mirror)
-#   --local=FNAME  specifies a local .tar.gz sdist to inspect for dependency
-#                  conflicts with pip for dependency conflicts
-#                  e.g. '--local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz'
-#                  You can specify as many of these as you like with separate
-#                  --local=<file> arguments.
-#                  Local and remote execution are mutually exclusive.
 #
-#   --local  Using this without "=<file.tar.gz>" means we should alphabetically
-#            scan from the local PyPI mirror. This is mutually exclusive with
-#            the --local=<fname> usage above. If files are specified, we only
-#            check the files specified.
+#   --local  Instead of fetching packages from PyPI normally via pip, instruct
+#            pip to use a local mirror index on this machine, with address
+#            equal to BANDERSNATCH_MIRROR_INDEX_DIR
+#            This is used with pip's '-i' argument.
+#
+#            If you use --local and specify no distkeys to scrape, they will
+#            be chosen alphabetically from the local mirror index until we have
+#            the number specified by the --n argument below.
 #   
-#   --n=N    For use only with --local (not remotes, not --local=<file>).
+#   --n=N    For use only with --local.
 #            Sets N as the max packages to inspect when pulling alphabetically
 #            from local PyPI mirror.
 #            e.g. --n=1  or  --n=10000
 #            Default for --local runs, if this arg is not specified, is all
 #            packages in the entire local PyPI mirror at /srv/pypi)
-#            (TODO: Must confirm that using this arg won't impact remote
-#            operation, just for cleanliness.)
-#
 #
 #
 #   EXAMPLE CALLS:
@@ -90,7 +87,7 @@ SDIST_FILE_EXTENSION = '.tar.gz'
 #    ~~ Run on a single package (in this case, arnold version 0.3.0) pulled
 #       from remote PyPI, using conflict model 3 (default):
 #
-#       >  python scrape_deps_and_detect_conflicts.py "arnold(0.3.0)"
+#       >  python scrape_deps_and_detect_conflicts.py 'arnold(0.3.0)'
 #
 #
 #    ~~ Run on a few packages from PyPI, using conflict model 2, and without
@@ -98,27 +95,28 @@ SDIST_FILE_EXTENSION = '.tar.gz'
 #       available, or if they're in the blacklist for having hit unexpected
 #       errors in previous runs:
 #
-#       >  python scrape_deps_and_detect_conflicts.py "motorengine(0.7.4)" "django(1.6.3)" --cm2 --noskip
+#       >  python scrape_deps_and_detect_conflicts.py 'motorengine(0.7.4)' 'django(1.6.3)' --cm2 --noskip
 #
-#
-#    ~~ Run on a single specified package, motorengine 0.7.4, stored locally,
-#       using conflict model 2:
-#           
-#       >  python scrape_deps_and_detect_conflicts.py --cm2 --local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz
 #
 #    ~~ Run on the first 10 packages in the local pypi mirror
 #       (assumed /srv/pypi) alphabetically, using conflict model 1.
 #
 #       >  python scrape_deps_and_detect_conflicts.py --cm1 --local --n=10
 #
+#
+#    ~~ Run on django(1.8.3), but use the local mirror to install packages.
+#
+#       > python scrape_deps_and_detect_conflicts.py --local 'django(1.8.3)'
+#
+#
+
 def main():
   # Some defaults:
-  DEBUG__N_SDISTS_TO_PROCESS = 0 # debug; max packages to explore during debug - overriden by --n=N argument.
-  CONFLICT_MODEL = 3
-  NO_SKIP = False
-  CAREFUL_SKIP = False
-  USE_BANDERSNATCH_MIRROR = False
-
+  n_sdists_to_process = 0 # debug; max packages to explore during debug - overriden by --n=N argument.
+  conflict_model = 3
+  no_skip = False
+  careful_skip = False
+  use_local_index = False
 
   # Files and directories.
   assert(os.path.exists(WORKING_DIRECTORY)), 'Working dir does not exist...??'
@@ -131,88 +129,94 @@ def main():
 
 
 
-  logger.info("scrape_deps_and_detect_conflicts - Version 0.4")
-  list_of_sdists_to_inspect = [] # potentially filled with local sdist filenames, from arguments
-  list_of_remotes_to_inspect = [] # potentially filled with remote packages to check, from arguments
+  logger.info("scrape_deps_and_detect_conflicts - Version 0.5")
+  distkeys_to_inspect_not_normalized = [] # not-yet-normalized user input, potentially filled with distkeys to check, from arguments
+  distkeys_to_inspect = [] # list after argument normalization
 
   # Argument processing.
   # If we have arguments coming in, treat those as the packages to inspect.
   if len(sys.argv) > 1:
     for arg in sys.argv[1:]:
       if arg.startswith("--n="):
-        DEBUG__N_SDISTS_TO_PROCESS = int(arg[4:])
+        n_sdists_to_process = int(arg[4:])
       elif arg == "--cm1":
-        CONFLICT_MODEL = 1
+        conflict_model = 1
       elif arg == "--cm2":
-        CONFLICT_MODEL = 2
+        conflict_model = 2
       elif arg == "--cm3":
-        CONFLICT_MODEL = 3
+        conflict_model = 3
       elif arg == "--noskip":
-        NO_SKIP = True
+        no_skip = True
       elif arg == '--carefulskip':
-        CAREFUL_SKIP = True
+        careful_skip = True
       elif arg == "--local":
-      # without ='<some file>' means we pull alphabetically from local PyPI mirror at /srv/pypi/
-        USE_BANDERSNATCH_MIRROR = True
-      elif arg.startswith("--local="):
-        list_of_sdists_to_inspect.append(arg[8:])
-        # e.g. '--local=/srv/pypi/web/packages/source/M/motorengine/motorengine-0.7.4.tar.gz'
-        USE_BANDERSNATCH_MIRROR = True
+        # without ='<directory>' means we pull alphabetically from local PyPI
+        # mirror at /srv/pypi/
+        use_local_index = True
       else:
-        list_of_remotes_to_inspect.append(arg) # e.g. 'motorengine(0.7.4)'
+        distkeys_to_inspect_not_normalized.append(arg) # e.g. 'motorengine(0.7.4)'
         # For simplicity right now, I'll use one mode or another, not both.
         # Last arg has it if both.
-        USE_BANDERSNATCH_MIRROR = False
 
-  # If we were told to work with a local mirror, but weren't given specific
-  # sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_DIR until
-  # we have DEBUG__N_SDISTS_TO_PROCESS sdists.
-  if USE_BANDERSNATCH_MIRROR and not list_of_sdists_to_inspect:
-    # Ensure that the local PyPI mirror directory exists first.
-    if not os.path.exists(BANDERSNATCH_MIRROR_DIR):
-      raise Exception('--- Exception. Expecting a bandersnatched mirror of '
-          'PyPI at ' + BANDERSNATCH_MIRROR_DIR + ' but that directory does not'
-          ' exist.')
-    i = 0
-    for dir, subdirs, files in os.walk(BANDERSNATCH_MIRROR_DIR):
-      for fname in files:
-        if is_sdist(fname):
-          list_of_sdists_to_inspect.append(os.path.join(dir, fname))
-          i += 1
-          # awkward control structures, but saving debug run time. tidy later.
-          if i >= DEBUG__N_SDISTS_TO_PROCESS:
-            break
-      if i >= DEBUG__N_SDISTS_TO_PROCESS:
-        break
+
+  # Normalize any input distkeys we were given.
+  for distkey in distkeys_to_inspect_not_normalized:
+    assert '(' in distkey and distkey.endswith(')'), 'Invalid input.'
+    distkey = depdata.normalize_distkey(distkey)
+    distkeys_to_inspect.append(distkey)
+
+
+  # Were we not given any distkeys to inspect?
+  if not distkeys_to_inspect:
+
+    if not use_local_index:
+      # If we're not using a local index, we have nothing to do.
+      raise ValueError('You neither specified distributions to scrape nor '
+          '(alternatively) indicated that they should be chosen from a local '
+          'mirror.')
+
+    else:
+      # If we were told to work with a local mirror, but weren't given specific
+      # sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_SDIST_DIR
+      # until we have n_sdists_to_process sdists.
+      # There is a better way to do this, but I'll leave this as is for now.
+
+      # Ensure that the local PyPI mirror directory exists first.
+      if not os.path.exists(BANDERSNATCH_MIRROR_SDIST_DIR):
+        raise Exception('--- Exception. Expecting a bandersnatched mirror of '
+            'PyPI at ' + BANDERSNATCH_MIRROR_SDIST_DIR + ' but that directory '
+            'does not exist.')
+      i = 0
+      for dir, subdirs, files in os.walk(BANDERSNATCH_MIRROR_SDIST_DIR):
+        for fname in files:
+          if is_sdist(fname):
+            tarfilename_full = os.path.join(dir, fname)
+            # Deduce package names and versions from sdist filename.
+            distkey = get_distkey_from_full_filename(tarfilename_full)
+            distkeys_to_inspect.append(distkey)
+            i += 1
+            # awkward control structures, but saving debug run time. tidy later.
+            if i >= n_sdists_to_process:
+              break
+        if i >= n_sdists_to_process:
+          break
+
+
+  # We should now have distkeys to inspect.
 
 
   # Load the dependencies, conflicts, and blacklist databases.
   # The blacklist is a list of runs that resulted in errors or runs that were
   # manually added because, for example, they hang seemingly forever or take an
   # inordinate length of time.
-  depdata.ensure_data_loaded([CONFLICT_MODEL])
+  depdata.ensure_data_loaded([conflict_model])
 
   # Alias depdata.conflicts_db to the relevant conflicts db. (Ugly)
-  depdata.set_conflict_model_legacy(CONFLICT_MODEL)
+  depdata.set_conflict_model_legacy(conflict_model)
 
 
   n_inspected = 0
   n_successfully_processed = 0
-
-  # Generate a list of distkeys (e.g. 'django(1.8.3)') to inspect, from the
-  # lists of sdists and "remotes".
-  distkeys_to_inspect = []
-  if USE_BANDERSNATCH_MIRROR:
-    for tarfilename_full in list_of_sdists_to_inspect:
-      # Deduce package names and versions from sdist filename.
-      distkey = get_distkey_from_full_filename(tarfilename_full)
-      distkeys_to_inspect.append(distkey)
-      
-  else: # if not using local bandersnatched PyPI mirror
-    for distkey in list_of_remotes_to_inspect:
-      assert '(' in distkey and distkey.endswith(')'), "Invalid input."
-      distkey = depdata.normalize_distkey(distkey)
-      distkeys_to_inspect.append(distkey)
     
 
   # Now take all of the distkeys ( e.g. 'python-twitter(0.2.1)' ) indicated and
@@ -223,7 +227,7 @@ def main():
     # every 20 dists.
     if n_inspected % 10000 == 9999 or n_successfully_processed % 100 == 99:
       logger.info("Writing early.")
-      depdata.write_data_to_files([CONFLICT_MODEL])
+      depdata.write_data_to_files([conflict_model])
 
 
     # The skip conditions.
@@ -236,23 +240,23 @@ def main():
     already_in_conflicts = distkey in depdata.conflicts_db
 
     # Do we have dep info for the dist? Not a skip condition, but part of
-    # CAREFUL_SKIP tests.
+    # careful_skip tests.
     already_in_dependencies = distkey in depdata.dependencies_by_dist
 
 
-    # If we're not in NO_SKIP mode, perform the skip checks.
+    # If we're not in no_skip mode, perform the skip checks.
     # Skip checks. If the dist is blacklisted or we already have dependency
     # data, then skip it - unless we're in careful skip mode and we don't
     # have dependency data for the dist.
-    if not NO_SKIP and (blacklisted or already_in_conflicts):
+    if not no_skip and (blacklisted or already_in_conflicts):
 
       # If dist isn't blacklisted, we already have conflict info, there's no
       # dependency info, and careful skip is on, don't actually skip.
-      if CAREFUL_SKIP and not already_in_dependencies and not blacklisted:
+      if careful_skip and not already_in_dependencies and not blacklisted:
         print('---    Not skipping ' + distkey + ': ' +
             'Already have conflict data, however there is no dependency info '
             'for the dist, the dist is not blacklisted, and we are in '
-            'CAREFUL_SKIP mode.')
+            'careful_skip mode.')
 
       else: # Skip, since we don't have a reason not to.
         n_inspected += 1
@@ -260,7 +264,7 @@ def main():
             'Blacklisted. '*blacklisted +
             'Already have conflict data. '*already_in_conflicts +
             '(Finished ' + str(n_inspected) + ' out of ' +
-            str(len(list_of_sdists_to_inspect)) + ')')
+            str(len(distkeys_to_inspect)) + ')')
         continue
 
 
@@ -271,7 +275,7 @@ def main():
     #assert(distkey.rfind(')') == len(distkey) - 1)
     formatted_requirement = packagename + "==" + version_string
     exitcode = None
-    assert(CONFLICT_MODEL in [1, 2, 3])
+    assert(conflict_model in [1, 2, 3])
 
     # Construct the argument list.
     # Include argument to pass to pip to tell it not to prod users about our
@@ -281,11 +285,11 @@ def main():
       'install',
       '-d', TEMPDIR_FOR_DOWNLOADED_DISTROS,
       '--disable-pip-version-check',
-      '--find-dep-conflicts', str(CONFLICT_MODEL),
+      '--find-dep-conflicts', str(conflict_model),
       '--quiet']
     
-    if USE_BANDERSNATCH_MIRROR:
-      pip_arglist.extend(['-i', LOCATION_OF_LOCAL_INDEX_SIMPLE_LISTING])
+    if use_local_index:
+      pip_arglist.extend(['-i', BANDERSNATCH_MIRROR_INDEX_DIR])
 
     pip_arglist.append(formatted_requirement)
 
@@ -322,24 +326,24 @@ def main():
       print('--- X  SDist ' + distkey + ' : pip errored out (code=' +
         str(exitcode) + '). Possible DEPENDENCY CONFLICT. Result recorded in '
         'conflicts_<...>.json. (Finished ' +
-        str(n_inspected) + ' out of ' + str(len(list_of_sdists_to_inspect)) +
+        str(n_inspected) + ' out of ' + str(len(distkeys_to_inspect)) +
         ')')
     elif exitcode == 0:
       print('--- .  SDist ' + distkey + ' : pip completed successfully. '
         'No dependency conflicts observed. (Finished ' + str(n_inspected)
-        + ' out of ' + str(len(list_of_sdists_to_inspect)) + ')')
+        + ' out of ' + str(len(distkeys_to_inspect)) + ')')
     else:
       print('--- .  SDist ' + distkey + ': pip errored out (code=' +
         str(exitcode) + '), but it seems to have been unrelated to any dep '
         'conflict.... (Finished ' + str(n_inspected) + ' out of ' +
-        str(len(list_of_sdists_to_inspect)) + ')')
+        str(len(distkeys_to_inspect)) + ')')
       # Store in the list of failing packages along with the python version
       # we're running. (sys.version_info.major yields int 2 or 3)
       # Contents are to eventually be a list of the major versions in which it
       # fails. We should never get here if the dist is already in the blacklist
       # for this version of python, but let's keep going even if so.
       if distkey in depdata.blacklist and sys.version_info.major in \
-        depdata.blacklist[distkey] and not NO_SKIP:
+        depdata.blacklist[distkey] and not no_skip:
         logger.warning('  WARNING! This should not happen! ' + distkey + ' was'
           'already in the blacklist for python ' + str(sys.version_info.major)
           + ', thus it should not have been run unless we have --noskip on '
@@ -351,7 +355,7 @@ def main():
           depdata.blacklist[distkey] = [sys.version_info.major]
           logger.info("  Added entry to blacklist for " + distkey)
         else:
-          assert(NO_SKIP or sys.version_info.major not in depdata.blacklist[distkey])
+          assert(no_skip or sys.version_info.major not in depdata.blacklist[distkey])
           depdata.blacklist[distkey].append(sys.version_info.major)
           logger.info("  Added additional entry to blacklist for " + distkey)
 
@@ -364,7 +368,7 @@ def main():
 
   # We're done with all packages. Write the collected data back to file.
   logger.debug("Writing.")
-  depdata.write_data_to_files([CONFLICT_MODEL])
+  depdata.write_data_to_files([conflict_model])
 
 
 
