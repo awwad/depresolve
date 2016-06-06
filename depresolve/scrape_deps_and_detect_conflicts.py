@@ -211,7 +211,7 @@ def main():
   else: # if not using local bandersnatched PyPI mirror
     for distkey in list_of_remotes_to_inspect:
       assert '(' in distkey and distkey.endswith(')'), "Invalid input."
-      distkey = normalize_distkey(distkey)
+      distkey = depdata.normalize_distkey(distkey)
       distkeys_to_inspect.append(distkey)
     
 
