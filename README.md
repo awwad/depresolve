@@ -20,28 +20,22 @@ Along with these components are a few additional scripts for making use of them.
 ##Installation of scraper and resolver
 1. `git clone https://github.com/awwad/depresolve`
 2. `cd depresolve`
-3. `virtualenv -p python2 --no-site-packages v2`
+3. `virtualenv -p python3 --no-site-packages v3`
 3. `source v3/bin/activate`
-4. `pip install -e .`
-5. `cd ..`
-6. `git clone https://github.com/enthought/depsolver`
-7. `cd depsolver`
-8. `pip install -e .`
-9. `cd ..`
-10.  `git clone https://github.com/awwad/pip`
-11.  `cd pip`
-12.  `pip install -e .`
+4. `pip install .`
+5. `pip install git+https://github.com/awwad/pip.git`
 
 Notes:
-- Those installs must be done in that order for the scraper to work.
-- Python version 2 is suggested above because the external SAT solver has python 3 compatibility issues. The rest of the project is 2/3 compatible, so if you don't intend to use the external SAT solver, feel free to use python 3.
+- Python version 3 is suggested above, but 2 should also work just fine.
 - `pip install -e` installs a package in editable mode, for development convenience. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs)
 - enthought/depsolver is not necessary if you do not wish to use the SAT solver-based resolver.
 - The awwad/pip installation is not necessary if you will not be using the scraper to harvest dependencies and detect conflicts, but have dependency data from another source, like:
 - **[You can download my data, compiled for you here.](https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=0)**. Dependency data for all PyPI packages, conflict data, and solution data there is calculated from a rough PyPI mirror current in late 2015. What you choose to use should be placed in the data/ directory in the main depresolve directory. The data there was crunched on an Ubuntu machine, generally running python 3 within a minimal virtualenv, from hundreds of thousands of abbreviated package installs. You can pull it from dropbox at the link provided or download all of it (52MB zipped) via shell like so:
   - `curl -L -o dep_data.zip https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=1`
   - `unzip dep_data.zip`
-
+- If you wish to try out the SAT solver integration (uses enthought/depsolver, WIP), you must also install depsolver:
+  - `pip install git+https://github.com/enthought/depsolver`
+  - Note that the external SAT solver has python 3 compatibility issues, and so you may wish to switch to using python2 if you're using python3.
 
 ##Resolver Documentation
 The resolver subpackage provides package dependency conflict resolution and assessments of resolvability of conflicts, primarily for experimental purposes.
