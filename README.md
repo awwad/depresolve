@@ -27,8 +27,6 @@ Along with these components are a few additional scripts for making use of them.
 
 Notes:
 - Python version 3 is suggested above, but 2 should also work just fine.
-- `pip install -e` installs a package in editable mode, for development convenience. Reference here: https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs)
-- enthought/depsolver is not necessary if you do not wish to use the SAT solver-based resolver.
 - The awwad/pip installation is not necessary if you will not be using the scraper to harvest dependencies and detect conflicts, but have dependency data from another source, like:
 - **[You can download my data, compiled for you here.](https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=0)**. Dependency data for all PyPI packages, conflict data, and solution data there is calculated from a rough PyPI mirror current in late 2015. What you choose to use should be placed in the data/ directory in the main depresolve directory. The data there was crunched on an Ubuntu machine, generally running python 3 within a minimal virtualenv, from hundreds of thousands of abbreviated package installs. You can pull it from dropbox at the link provided or download all of it (52MB zipped) via shell like so:
   - `curl -L -o dep_data.zip https://www.dropbox.com/sh/2x870eosiknww68/AAArQBivh2jlu6auqNLHsm1Ja?dl=1`
