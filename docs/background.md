@@ -43,7 +43,7 @@ As for automatic resolution of the dependency conflict problem, common approache
 
 ## SAT Solving vs Blind Backtracking
 
-First, [this post by Justin Cappos](https://github.com/pypa/pip/issues/988#issuecomment-93866523) serves as a good introduction to SAT solving and backtracking as resolvers.
+First, [this post by Justin Cappos](https://github.com/pypa/pip/issues/988#issuecomment-93866523) serves as a good introduction to SAT solving and backtracking dependency conflict resolvers.
 
 The dependency conflict problem plagues package managers in general, and SAT solving, as the highly optimized and well studied discipline, is automatically the privileged candidate; however, PyPI is slightly special. PyPI package dependencies are not known until install time, i.e. are not fixed metadata; a package can actually dynamically decide what its dependencies are at install time, based on a user's environment (or any other arbitrary reason). *In order to determine what a given version of a package's dependencies are, pip downloads that package and processes it.* (Caveat for PEP 426, PEP 508.... If dependencies eventually *are* reliably static - or at least static metadata with included conditionals - this analysis changes and we can start talking about the size of adequate compressed metadata that would be required for client-side SAT solving - hint, probably ~6MB compressed).
 
