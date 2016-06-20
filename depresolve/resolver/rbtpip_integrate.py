@@ -201,8 +201,8 @@ def rbttest(distkey, edeps, versions, local=False,
 
 
 
-def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
-    dir_rbt_pip='../pipcollins'):
+def rbt_backtracking_satisfy(distkey, edeps=None, versions_by_package=None,
+    local=False, dir_rbt_pip='../pipcollins'):
   """
   Determine correct install candidates by using rbtcollins' pip branch
   issue-988.
@@ -214,6 +214,8 @@ def rbt_backtracking_satisfy(distkey, edeps, versions_by_package, local=False,
     4. Runs `pip list` and harvests the solution set
 
   Args & output modeled after resolver.resolvability.backtracking_satisfy().
+  edeps and versions_by_package are not used, however, but simply taken
+  optionally so that the two functions can be called the same way.
 
   Additional, optional argument:
    - local (optional):
