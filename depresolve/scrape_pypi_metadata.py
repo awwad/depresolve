@@ -54,9 +54,9 @@ try: #Making this retry-friendly.
       distkey = data.distkey_format(p, v)
       distkey_to_packver_map[distkey] = (p, v)
 
-    # If we lack the metadata for this version, fetch it.
-    if distkey not in metadata_by_distkey:
-      metadata_by_distkey[distkey] = client.release_data(p, v)
+      # If we lack the metadata for this version, fetch it.
+      if distkey not in metadata_by_distkey:
+        metadata_by_distkey[distkey] = client.release_data(p, v)
 
     print('Done with package  ' + p)
 
