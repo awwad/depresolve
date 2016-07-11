@@ -117,6 +117,7 @@ def main():
   no_skip = False
   careful_skip = False
   use_local_index = False
+  #run_all_conflicting = False
 
   # Files and directories.
   assert(os.path.exists(WORKING_DIRECTORY)), 'Working dir does not exist...??'
@@ -153,6 +154,11 @@ def main():
         # without ='<directory>' means we pull alphabetically from local PyPI
         # mirror at /srv/pypi/
         use_local_index = True
+      #elif arg == '--conflicting':
+      #  # Operate locally and run on the distkeys provided in the indicated
+      #  # file, each on its own line.
+      #  use_local_index = True
+      #  run_all_conflicting = True
       else:
         distkeys_to_inspect_not_normalized.append(arg) # e.g. 'motorengine(0.7.4)'
         # For simplicity right now, I'll use one mode or another, not both.
@@ -167,7 +173,7 @@ def main():
 
 
   # Were we not given any distkeys to inspect?
-  if not distkeys_to_inspect:
+  if not distkeys_to_inspect:# and not run_all_conflicting:
 
     if not use_local_index:
       # If we're not using a local index, we have nothing to do.
@@ -202,7 +208,7 @@ def main():
           break
 
 
-  # We should now have distkeys to inspect.
+  # We should now have distkeys to inspect (unless run_all_conflicting is True).
 
 
   # Load the dependencies, conflicts, and blacklist databases.
@@ -215,17 +221,27 @@ def main():
   depdata.set_conflict_model_legacy(conflict_model)
 
 
+  #if run_all_conflicting:
+  #  distkeys_to_inspect = [distkey for distkey in depdata.conflicts_3_db if
+  #      depdata.conflicts_3_db[distkey]]
+
+
   n_inspected = 0
   n_successfully_processed = 0
-    
+  last_wrote_at = 0
 
   # Now take all of the distkeys ( e.g. 'python-twitter(0.2.1)' ) indicated and
   # run on them.
   for distkey in distkeys_to_inspect:
     
     # To avoid losing too much data, make sure we at least write data to disk
-    # every 20 dists.
-    if n_inspected % 10000 == 9999 or n_successfully_processed % 100 == 99:
+    # about every 100 successfully processed or 10000 inspected dists. Avoid
+    # writing repeatedly in edge cases (e.g. when we write after 100
+    # successfully processed and then have to keep writing for every skip that
+    # occurs after that.
+    progress = n_inspected + n_successfully_processed * 100
+    if progress > last_wrote_at + 10000:
+      last_wrote_at = progress
       logger.info("Writing early.")
       depdata.write_data_to_files([conflict_model])
 
