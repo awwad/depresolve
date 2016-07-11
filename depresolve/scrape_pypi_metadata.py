@@ -6,7 +6,7 @@
   Script to scrape all distribution metadata from PyPI via the xmlrpc
   interface. Stores data in files: OUTPUT_FNAME_METADATA,
   OUTPUT_FNAME_VERSIONS, OUTPUT_FNAME_DISTKEYS.
-  If interrupted, stores data in filenames postpended with '_aborted'.
+  If interrupted, stores data in filenames with '_aborted' postfixed.
   Recovers on next run if interrupted (except that you should move the
   _aborted files to the proper filename).
 
@@ -44,10 +44,14 @@ n_total_packages = len(packages)
 try: #Making this retry-friendly.
   for p in packages:
     n_packs_processed += 1
-    print('Processing package ' + p + '(' + str(n_packs_processed) + '/' +
+    print('Processing package ' + p + '  (' + str(n_packs_processed) + '/' +
         str(n_total_packages) + ')')
     # If we lack the catalog of versions for this package, get it from PyPI.
     if p not in versions_by_package:
+      # The True here requests all hidden packages. (Packages on PyPI can be
+      # hidden by the package maintainer. I suspect that hidden packages are
+      # more likely to be packages that had issues (like potential conflicts)
+      # that were hidden when fixed versions were released.
       versions_by_package[p] = client.package_releases(p, True)
 
     for v in versions_by_package[p]:
@@ -72,12 +76,5 @@ except:
 write_file(metadata_by_distkey, OUTPUT_FNAME_METADATA)
 write_file(versions_by_package, OUTPUT_FNAME_VERSIONS)
 write_file(distkey_to_packver_map, OUTPUT_FNAME_DISTKEYS)
-
-
-
-
-
-
-
 
 
