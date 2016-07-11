@@ -30,7 +30,8 @@ The process of finding a set of package versions/dists that satisfies all requir
 Please feel free to [skip ahead](#prevalence-of-conflict) and come back only if you need semantic clarity - else, bear with me for these tedious semantics.
 
 Terminology around dependency conflicts is not always consistent. I've referred to the nifty-webshop scenario above as having a **potential** conflict. I'm looking at a dependency conflict as something that happens when a set of installed packages is not fully resolved - that is, when not all dependencies are met by satisfactory versions - due to different packages having different demands on the versions of other packages. Having a conflict is a property of a set of distributions - not a property of a specific distribution's dependency tree. Some people would say instead that in the scenario above, there are conflicting dependencies, and so there is a dependency conflict that just happens to be resolvable, regardless of what is or is not installed - in this alternative definition, having a dependency conflict would be a property of the graph of dependencies, rather than the state of what is installed. I will try not to use that terminology here, as I think it can be confusing. For reference and to (hopefully) settle things for anyone who finds things unclear, here are the strict definitions I'll use:
-**Potential dependency conflict**: *Distribution A-1's dependencies exhibit a potential dependency conflict if there are multiple non-identical constraints on the acceptable versions of at least one depended-on package in A's dependencies.* For example: A-1 depends on B-1 and C; B-1 depends on C; the A-on-C and B-on-C dependencies are not identical (even if they overlap). The nifty-webshop scenario certainly fits this definition.   ~~(In the past, I have referred to this as a "model 1 conflict".)~~ This is extremely common, with a lower bound of 22% of distributions on PyPI.  (The lower bound is about 32% of the distributions with any dependencies at all.)
+
+**Potential dependency conflict**: *Distribution A-1's dependencies exhibit a potential dependency conflict if there are multiple non-identical constraints on the acceptable versions of at least one depended-on package in A's dependencies.* For example: A-1 depends on B-1 and C; B-1 depends on C; the A-on-C and B-on-C dependencies are not identical (even if they overlap). The nifty-webshop scenario certainly fits this definition.  ~~(In the past, I have referred to this as a "model 1 conflict".)~~ This is extremely common, with a lower bound of 22% of distributions on PyPI.  (The lower bound is about 32% of the distributions with any dependencies at all.)
 
 **Unresolved dependency**: *A set of distributions S has an "unresolved dependency" if there is a distribution in S with a dependency that is not satisfied by one of the distributions in S.* S = [A-1, B-1] is unresolved if, e.g., B-1 depends on C-2. (C-2 is not in S.) S = [A-1, B-1, C-1] is also unresolved, for the same reason. In the latter case, unlike the former, there is a dependency conflict:
 
@@ -44,9 +45,20 @@ Terminology around dependency conflicts is not always consistent. I've referred 
 
 ### Prevalence of Conflict
 
-That wall of text now behind us, the basics are this: potential dependency conflicts are extremely common, if not downright expected anytime there is a common dependency among distributions. Despite the potential, though, these dependencies are still usually resolvable. In practice, if you just aim for the most recent versions (which pip does anyway), you can avoid most dependency conflicts... but not all. Below, we'll get to the statistics on pip failures, and by the end, we'll have discussed several possible mitigations (with and without changes to pip).
+That wall of text now behind us, the basics are this: potential dependency conflicts are extremely common, if not downright expected anytime there is a common dependency among distributions. Despite the potential, though, these dependencies are still usually resolvable. In practice, if you just aim for the most recent versions (which pip does anyway), you can avoid most dependency conflicts... but not all. Next, we'll get to the statistics on pip failures, and by the end, we'll have discussed several possible mitigations (with and without changes to pip).
+
+#### Prevalence of Potential Dependency Conflicts
+
+*It turns out that almost a quarter of all package versions on PyPI have potential dependency conflicts<sup>+</sup>*. Because of the behavior of most package managers, these cases are *mostly* OK: most of the time, dependency ranges overlap and the same version (generally the most recent stable version) is chosen. A common case looks like: A depends on C>=1.1 and B depends on C>=1.2, and the latest version of C is 1.4 anyway. Given an option, pip will generally install the latest available version of a package, so this scenario is only an issue if the user already has, say, C==1.2 installed.
+
+For this reason, *most* potential conflicts are averted by the usual pip installation rules, as long as you're installing in an empty, clean, isolated environment (e.g. with a fresh virtualenv). This is a suboptimal constraint, but it covers most cases in effect. Notwithstanding even those mitigations, there are still plenty of dependencies pip fails to resolve.
+
+Some questions we should ask, then, are:
+1. How many distributions on PyPI have potential dependency conflicts? (*At least 25%.*)
+2. How often does pip install a set of packages with an actual conflict? (In other words, how often does pip fail to resolve dependencies due to a dependency conflict?) (*1.3%*)
 
 
+<sup>+</sup><sub>(This is a conservative floor on the number of distributions with potential dependency conflicts. It is generated by climbing down along one side of the dependency tree: in particular, when given a range of possible versions, we always explore only the version pip prefers within that range (generally the highest version number). The effect this has is to fail to capture a great number of potential dependency conflicts. Example: A-1 depends on B-any and C-any, B-1 depends on C-1, B-2 depends on C-2. My assessment does not explore B-1 and therefore does not catch the potential conflict because it does not see these conflicts: [A-1, B-2, C-1], [A-1, B-1, C-2]. In a clean environment with a connection to current PyPI and no separate dependencies, we would not expect to encounter those conflicts... but *if those things aren't true*, we might.)</sub>
 
 
 
@@ -65,19 +77,13 @@ Eliminated text: ~~The nifty-webshop scenario above only a **potential** conflic
 
 
 
+## Mitigations By Developers
 
 
 As a package maintainer, you could remove ambiguity and somewhat mitigate the threat of a potential dependency conflict if you pin versions for every package your distribution depends on (and every package *those* depend on and so on)... but then that opens you up to dependency conflicts in the future - or even right away if your users don't all use a clean, single-purpose virtualenv to use your project, with no additional/external dependencies. As a side effect, pinning everything also makes it more likely that users will have to persist in the use of outdated packages even after they have, for example, had security vulnerabilities updated. If you pin packages, then you need to release *every time an important release of anything you depend on comes out, or anything anything you depend on depends on comes out, and so on.*. In general, pinning increases the number of users we can expect to have outdated dependencies, and the number of outdated dependencies they'll have.
 
 
-Some questions we should ask, then, are:
-1. How many distributions on PyPI have potential dependency conflicts? (*At least 25%.*)
-2. How often does pip install a set of packages with an actual conflict? (In other words, how often does pip fail to resolve dependencies due to a dependency conflict?) (*1.3%*)
 
-
-*It turns out that almost a quarter of all package versions on PyPI have potential dependency conflicts*. Because of the behavior of most package managers, these cases are *mostly* OK: most of the time, dependency ranges overlap and the same version (generally the most recent stable version) is chosen. A common case looks like: A depends on C>=1.1 and B depends on C>=1.2, and the latest version of C is 1.4 anyway. Given an option, pip will generally install the latest available version of a package, so this scenario is only an issue if the user already has, say, C==1.2 installed.
-
-While most potential conflicts are moot for this reason, there are still plenty of dependencies pip fails to resolve.
 
 
 
@@ -130,17 +136,17 @@ Consequently, for us, there is a substantial problem with a general SAT solver: 
 
 ##Addenda
 
-###Conflict Prevalence and Models
+###~~Conflict Prevalence and Models~~
 
-####Conflict Model 1 - Nonidentical Requirement Strings
-25% of a sample of 23,134* dists possesses a configuration of dependencies that is potentially conflict-inducing, like that in the situation given above. That is to say that somewhere in the dependency tree rooted at some dist you want to install, there are two (or more) nonequivalent constraints applied to the same depended-on package. For example: X-1 depends on B-any and C-any, and C-2 depends on B==1. This fits conflict model 1, because there are two different requirements on B (in this case: any and ==1).
+####~~Conflict Model 1 - Nonidentical Requirement Strings~~
+~~25% of a sample of 23,134* dists possesses a configuration of dependencies that is potentially conflict-inducing, like that in the situation given above. That is to say that somewhere in the dependency tree rooted at some dist you want to install, there are two (or more) nonequivalent constraints applied to the same depended-on package. For example: X-1 depends on B-any and C-any, and C-2 depends on B==1. This fits conflict model 1, because there are two different requirements on B (in this case: any and ==1).~~
 
-####Conflict Model 2 - Nonidentical Dist Selection
-I define a model 2 conflict as a scenario in which pip's first choices for two (or more) dependencies on the same package are not the same.
+####~~Conflict Model 2 - Nonidentical Dist Selection~~
+~~I define a model 2 conflict as a scenario in which pip's first choices for two (or more) dependencies on the same package are not the same.~~
 
-5% of a sample of 25,707* dists possesses a configuration of dependencies such that if pip were to select the best candidate to satisfy one dependency, it would conflict with the best candidate to satisfy another dependency.
+~~5% of a sample of 25,707* dists possesses a configuration of dependencies such that if pip were to select the best candidate to satisfy one dependency, it would conflict with the best candidate to satisfy another dependency.~~
 
-For example, consider this case:
+~~For example, consider this case:~~
 Three packages, [X, B, C], each have two versions [1, 2]. pip will prefer the highest version number possible when it selects a dist to satisfy a dependency. If X depends on any B and any C, but C-2 depends on B-1 specifically, then pip would choose B-2 to satisfy X-2, but B-1 to satisfy C-2. This constitutes a model 2 conflict: pip's first choices for each dependency don't all match.
 
 (* The marked samples are neither random nor consciously selected, but instead just the first x dists in an alphabetical order walk of the PyPI package tree, ending after a prescribed time for collection, discounting packages that the current version of pip was unable to process.)
@@ -156,18 +162,38 @@ The most pragmatic (and somewhat limited) conflict model I use is in effect "Doe
 This may be the most useful figure when discussing how to improve pip, but it is good to remember that this ignores other cases like those in conflict model 2, where any new release could result in a conflict. That pip doesn't run into the conflict is not an assurance that it is doing the right thing - it is often just lucky, or a result of developers doing extra work before uploading a package to pin versions so that things at least install for now (a way of doing things that takes more time and results in more arbitrary and stagnant pinned dependencies).
 
 
-###Problem #2: Unresolvable Dependency Conflicts
+###~~Problem #2: Unresolvable Dependency Conflicts~~
 
-Further complicating matters, not all dependency conflicts *are* resolvable. Data crunched with the resolver tools provided here on the full set of packages / source distributions on PyPI indicates that of the 1.3% that have model 3 conflicts, fewer than 35% are unresolvable. Better data will be forthcoming after resolver improvements. ([Issue 12](https://github.com/awwad/depresolve/issues/12))
+~~Further complicating matters, not all dependency conflicts *are* resolvable. Data crunched with the resolver tools provided here on the full set of packages / source distributions on PyPI indicates that of the 1.3% that have model 3 conflicts, fewer than 35% are unresolvable. Better data will be forthcoming after resolver improvements. ([Issue 12](https://github.com/awwad/depresolve/issues/12))~~
 
 --TODO: Expand on a real example of an unresolvable conflict, explaining a few ways these happen. Even if a developer is mindful about the dependencies of her dependencies at dev time, new versions or different platforms can result in etc. etc. etc.--
 
 
 
 
-###Further background
-<sup>1</sup>The lack of dependency resolution for pip is established. See for example:
-* [Pip doesn't spot conflicting versions](https://github.com/pypa/pip/issues/775#issuecomment-12748095)
-* [Pip needs a dependency resolver](https://github.com/pypa/pip/issues/988)
-* [pip install -r does not respect package dependencies](https://github.com/pypa/pip/issues/3183)
+###Further Background
+<sup>1</sup>The lack of dependency resolution for pip is established.
+
+*Issue discussions:*
+* [775: pip doesn't spot conflicting versions](https://github.com/pypa/pip/issues/775#issuecomment-12748095)
+* [988: pip needs a dependency resolver](https://github.com/pypa/pip/issues/988)
+* [3183: pip install -r does not respect package dependencies](https://github.com/pypa/pip/issues/3183)
+* [2687: install doesn't detect conflicts with already installed packages](https://github.com/pypa/pip/issues/2687)
+* [2981: When a flexible requirement is present in the dependency tree, pip does not respect hard-pinned requirements further down the tree](https://github.com/pypa/pip/issues/2981)
 * [the name of the dependency problem](https://code.activestate.com/lists/python-distutils-sig/25512/)
+
+*Other people exploring PyPI dependencies in blog posts:*
+* http://kgullikson88.github.io/blog/pypi-analysis.html
+* https://martin-thoma.com/analyzing-pypi-metadata/
+* Bing: http://dependencyreferences.blogspot.com/ & http://pipdependencyresolution.blogspot.com/
+
+*Sensible people advocating the pinning of all dependencies (which can be problematic):*
+* https://carljm.github.io/tamingdeps/#38
+* http://nvie.com/posts/pin-your-packages/
+  * Also provides tool https://github.com/nvie/pip-tools for managing dependencies
+
+*Some dependency conflicts in practice:*
+* https://github.com/machinalis/iepy/issues/86
+
+*Related Endeavors:*
+* [3745: pip check command](https://github.com/pypa/pip/pull/3745) / [3750 merged](https://github.com/pypa/pip/pull/3750)
