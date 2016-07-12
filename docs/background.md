@@ -1,33 +1,30 @@
 # Dependency Resolution Background
 
-##Resolvable Dependency Conflicts
+Installation of a package may require a number of other packages, making these other packages dependencies of the first. The process of finding a set of package versions/distributions that satisfies all requirements constitutes the problem of dependency resolution.
 
-Installation of a package may require a number of other packages, making these other packages dependencies of the first.
+##Conflicting Dependencies
 
-#### Example 1: Innocence
+Let's explore a simple example of a developer coping with conflicting dependencies.
+
+#### Example 1: A Potential Dependency Conflict Arises
 
 Your project, nifty-webshop, a storefront webapp, depends on django. Version 1.1 of nifty-webshop is written in python 3.4, and therefore needs a version of django >= 1.7 (Earlier django versions do not support python 3.4+.). You'd configure your nifty-webshop package to list django>=1.7 as an install requirement, and so when a user runs `pip install nifty-webshop`, pip will grab the latest version of your nifty-webshop package, 1.1, figure out its dependencies (django>=1.7), fetch the latest version of django, and install both that and nifty-webshop. Success!
 
 ![Dependency Example 1](dep_conflict_examples.png "Dependency Example 1")
 
-
-
-#### Example 2
-
-Suppose you expand your successful project, releasing nifty-webshop 1.2, which can do some fun new things like delivery tracking by taking advantage of someone else's open source webapp, wheresmydelivery. nifty-webshop depends, then, on django>=1.7, and on wheresmydelivery (any version). Now, when a user tries to `pip install nifty-webshop`, pip will fetch nifty-webshop(1.2) and see that it requires django>=1.7 and wheresmydelivery. pip will fetch both and see that the latest version of wheresmydelivery, wheresmydelivery(0.5), requires django>=1.5,<1.8. (Some of the django 1.8 changes break wheresmydelivery!)
+Suppose you expand your successful project, releasing to PyPI **nifty-webshop 1.2**, which can do some fun new things like delivery tracking by taking advantage of someone else's open source webapp, wheresmydelivery. nifty-webshop depends, then, on django>=1.7, and on wheresmydelivery (any version). Now, when a user tries to `pip install nifty-webshop`, pip will fetch nifty-webshop(1.2) and see that it requires django>=1.7 and wheresmydelivery. pip will fetch both and see that the latest version of wheresmydelivery, wheresmydelivery(0.5), requires django>=1.5,<1.8. (Some of the django 1.8 changes break wheresmydelivery!)
 
 ![Dependency Example 2](dep_conflict_examples2.png "Dependency Example 2")
 
-We now have a **potential dependency conflict**: nifty-webshop needs django, and nifty-webshop needs wheresmydelivery, which also needs django... but the version ranges of django that they need are not the same. In order to get a functioning set of installs (or at least an install set that satisfies all projects' stated requirements), pip (or the user) needs to choose a version of django that satisfies both dependencies. In this case, it has to be django 1.7.x. Anything more or less fails to meet one of the requirements and breaks nifty-webshop directly or indirectly (by breaking wheresmydelivery). So, pip just has to install one of those, and all dependencies are met. That makes nifty-webshop(1.2)'s dependencies **resolvable**: there is at least one solution that satisfies all stated dependencies (and theirs and theirs, etc). (Some dependencies are **unresolvable** due to unavoidable conflicts - a discussion of these is left for further down.)
+We now have a **potential dependency conflict**: nifty-webshop needs django, and nifty-webshop needs wheresmydelivery, which also needs django... but the version ranges of django that they need are not the same. In order to get a functioning set of installs (or at least an install set that satisfies all projects' stated requirements), pip (or the user) needs to choose a version of django that satisfies both dependencies. In this case, it has to be django 1.7.x. Anything more or less fails to meet one of the requirements and breaks nifty-webshop directly or indirectly (by breaking wheresmydelivery). So, pip just has to install one of those, and all dependencies are met. That makes nifty-webshop(1.2)'s dependencies **resolvable**: there is at least one solution that satisfies all stated dependencies (and theirs and theirs, etc). (Some dependencies are **unresolvable** due to unavoidable conflicts - more on these further down.)
 
-The process of finding a set of package versions/dists that satisfies all requirements constitutes the problem of dependency resolution.
 
 
 
 ## What is a Dependency Conflict and How Common Are They?
 
 ### Defining Conflict
-Please feel free to [skip ahead](#prevalence-of-conflict) and come back only if you need semantic clarity - else, bear with me for these tedious semantics.
+Please feel free to [skip ahead](#prevalence-of-conflict) and come back only if you need semantic clarity - else, bear with me.
 
 Terminology around dependency conflicts is not always consistent. I've referred to the nifty-webshop scenario above as having a **potential** conflict. I'm looking at a dependency conflict as something that happens when a set of installed packages is not fully resolved - that is, when not all dependencies are met by satisfactory versions - due to different packages having different demands on the versions of other packages. Having a conflict is a property of a set of distributions - not a property of a specific distribution's dependency tree. Some people would say instead that in the scenario above, there are conflicting dependencies, and so there is a dependency conflict that just happens to be resolvable, regardless of what is or is not installed - in this alternative definition, having a dependency conflict would be a property of the graph of dependencies, rather than the state of what is installed. I will try not to use that terminology here, as I think it can be confusing. For reference and to (hopefully) settle things for anyone who finds things unclear, here are the strict definitions I'll use:
 
@@ -47,19 +44,20 @@ Terminology around dependency conflicts is not always consistent. I've referred 
 
 That wall of text now behind us, the basics are this: potential dependency conflicts are extremely common, if not downright expected anytime there is a common dependency among distributions. Despite the potential, though, these dependencies are still usually resolvable. In practice, if you just aim for the most recent versions (which pip does anyway), you can avoid most dependency conflicts... but not all. Next, we'll get to the statistics on pip failures, and by the end, we'll have discussed several possible mitigations (with and without changes to pip).
 
-#### Prevalence of Potential Dependency Conflicts
-
-*It turns out that almost a quarter of all package versions on PyPI have potential dependency conflicts<sup>+</sup>*. Because of the behavior of most package managers, these cases are *mostly* OK: most of the time, dependency ranges overlap and the same version (generally the most recent stable version) is chosen. A common case looks like: A depends on C>=1.1 and B depends on C>=1.2, and the latest version of C is 1.4 anyway. Given an option, pip will generally install the latest available version of a package, so this scenario is only an issue if the user already has, say, C==1.2 installed.
-
-For this reason, *most* potential conflicts are averted by the usual pip installation rules, as long as you're installing in an empty, clean, isolated environment (e.g. with a fresh virtualenv). This is a suboptimal constraint, but it covers most cases in effect. Notwithstanding even those mitigations, there are still plenty of dependencies pip fails to resolve.
-
-Some questions we should ask, then, are:
+Some questions we should ask are:
 1. How many distributions on PyPI have potential dependency conflicts? (*At least 25%.*)
 2. How often does pip install a set of packages with an actual conflict? (In other words, how often does pip fail to resolve dependencies due to a dependency conflict?) (*1.3%*)
 
+#### 1. Prevalence of Potential Dependency Conflicts
 
-<sup>+</sup><sub>(This is a conservative floor on the number of distributions with potential dependency conflicts. It is generated by climbing down along one side of the dependency tree: in particular, when given a range of possible versions, we always explore only the version pip prefers within that range (generally the highest version number). The effect this has is to fail to capture a great number of potential dependency conflicts. Example: A-1 depends on B-any and C-any, B-1 depends on C-1, B-2 depends on C-2. My assessment does not explore B-1 and therefore does not catch the potential conflict because it does not see these conflicts: [A-1, B-2, C-1], [A-1, B-1, C-2]. In a clean environment with a connection to current PyPI and no separate dependencies, we would not expect to encounter those conflicts... but *if those things aren't true*, we might.)</sub>
+*It turns out that almost a quarter of all package versions on PyPI have potential dependency conflicts<sup>[**+**](#caveat-potential-dependency-conflicts)</sup>*. Because of the behavior of most package managers, these cases are *mostly* OK: most of the time, dependency ranges overlap and the same version (generally the most recent stable version) is chosen. A common case looks like: A depends on C>=1.1 and B depends on C>=1.2, and the latest version of C is 1.4 anyway. Given an option, pip will generally install the latest available version of a package, so this scenario is only an issue if the user already has, say, C==1.2 installed.
 
+For this reason, *most* potential conflicts are averted by the usual pip installation rules, as long as you're installing in an empty, clean, isolated environment (e.g. with a fresh virtualenv). This is a suboptimal constraint, but it covers most cases in effect. Notwithstanding even those mitigations, there are still plenty of dependencies pip fails to resolve.
+
+
+#### 2. Prevalence of Conflicts Pip Fails to Avoid
+
+A small but meaningful proportion of distributions will fail to have their dependencies resolved correctly by pip due to conflicting dependencies that pip is not currently written to handle.
 
 
 
@@ -171,6 +169,7 @@ This may be the most useful figure when discussing how to improve pip, but it is
 
 
 
+
 ###Further Background
 <sup>1</sup>The lack of dependency resolution for pip is established.
 
@@ -197,3 +196,11 @@ This may be the most useful figure when discussing how to improve pip, but it is
 
 *Related Endeavors:*
 * [3745: pip check command](https://github.com/pypa/pip/pull/3745) / [3750 merged](https://github.com/pypa/pip/pull/3750)
+
+
+
+
+###Caveats and Footnotes
+#####Caveat: Potential Dependency Conflicts
+<sup>**+**</sup>(This is a conservative floor on the number of distributions with potential dependency conflicts. It is generated by climbing down along one side of the dependency tree: in particular, when given a range of possible versions, we always explore only the version pip prefers within that range (generally the highest version number). The effect this has is to fail to capture a great number of potential dependency conflicts. Example: A-1 depends on B-any and C-any, B-1 depends on C-1, B-2 depends on C-2. My assessment does not explore B-1 and therefore does not catch the potential conflict because it does not see these conflicts: [A-1, B-2, C-1], [A-1, B-1, C-2]. In a clean environment with a connection to current PyPI and no separate dependencies, we would not expect to encounter those conflicts... but *if those things aren't true*, we might.) [back](#prevalence-of-potential-dependency-conflicts)
+
