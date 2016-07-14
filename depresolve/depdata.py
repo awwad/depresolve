@@ -227,6 +227,8 @@ conflicts_db = None  # ALIAS to conflict db in use. For convenience/legacy. /:
 conflicts_1_db = None
 conflicts_2_db = None
 conflicts_3_db = None
+elaborated_alpha = None
+elaborated_reverse = None
 #conflict_model = None # Not currently used.
 
 # Shouldn't REALLY be in here, since only scrape uses this, but it's tidier
@@ -238,19 +240,22 @@ import json
 
 # Filenames
 WORKING_DIRECTORY = os.path.join(os.getcwd()) #'/Users/s/w/git/depresolve' in my setup
-DEPENDENCY_CONFLICTS1_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+DEPENDENCY_CONFLICTS1_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
     'conflicts_1.json') # db for model 1 conflicts
-DEPENDENCY_CONFLICTS2_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+DEPENDENCY_CONFLICTS2_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
     'conflicts_2.json') # db for model 2 conflicts
-DEPENDENCY_CONFLICTS3_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+DEPENDENCY_CONFLICTS3_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
     'conflicts_3.json') # db for model 3 conflicts
-BLACKLIST_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data', 
+BLACKLIST_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data', 
     'blacklist.json')
-DEPENDENCIES_DB_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+DEPENDENCIES_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
     'dependencies.json')
-ELAORATED_DEPS_FILENAME = os.path.join(WORKING_DIRECTORY, 'data',
+ELABORATED_DEPS_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
     'elaborated_dependencies.json')
-
+ELABORATED_ALPHA_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
+    'elaborated_alpha.json')
+ELABORATED_REVERSE_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
+    'elaborated_reverse.json')
 
 # Constants
 PACKAGE_VERSIONS_UNKNOWN = ['----ERROR--UNAVAILABLE-VERSION-INFORMATION----']
@@ -323,7 +328,8 @@ def load_json_db(fname):
 
 
 
-def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3], include_edeps=False):
+def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3], include_edeps=False,
+    include_sorts=False):
   """
   Ensure that the global dependencies, conflicts, and blacklist dictionaries
   are loaded, importing them now if not.
@@ -343,31 +349,37 @@ def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3], include_edeps=False):
   global conflicts_2_db
   global conflicts_3_db
   global blacklist
-
-
+  global elaborated_alpha
+  global elaborated_reverse
 
   if dependencies_by_dist is None:
-    dependencies_by_dist = load_json_db(DEPENDENCIES_DB_FILENAME)
+    dependencies_by_dist = load_json_db(DEPENDENCIES_DB_FNAME)
 
   if versions_by_package is None:
     versions_by_package = generate_dict_versions_by_package(
         dependencies_by_dist)
 
   if conflicts_1_db is None and 1 in CONFLICT_MODELS:
-    conflicts_1_db = load_json_db(DEPENDENCY_CONFLICTS1_DB_FILENAME)
+    conflicts_1_db = load_json_db(DEPENDENCY_CONFLICTS1_DB_FNAME)
 
   if conflicts_2_db is None and 2 in CONFLICT_MODELS:
-    conflicts_2_db = load_json_db(DEPENDENCY_CONFLICTS2_DB_FILENAME)
+    conflicts_2_db = load_json_db(DEPENDENCY_CONFLICTS2_DB_FNAME)
 
   if conflicts_3_db is None and 3 in CONFLICT_MODELS:
-    conflicts_3_db = load_json_db(DEPENDENCY_CONFLICTS3_DB_FILENAME)
+    conflicts_3_db = load_json_db(DEPENDENCY_CONFLICTS3_DB_FNAME)
 
   if blacklist is None:
-    blacklist = load_json_db(BLACKLIST_DB_FILENAME)
+    blacklist = load_json_db(BLACKLIST_DB_FNAME)
 
   if include_edeps and elaborated_dependencies is None:
-    elaborated_dependencies = load_json_db(ELAORATED_DEPS_FILENAME)
+    elaborated_dependencies = load_json_db(ELABORATED_DEPS_FNAME)
 
+  if include_sorts:
+    assert include_edeps, 'Will not include sorted edeps without edeps!'
+    if elaborated_alpha is None:
+      elaborated_alpha = load_json_db(ELABORATED_ALPHA_FNAME)
+    if elaborated_reverse is None:
+      elaborated_reverse = load_json_db(ELABORATED_REVERSE_FNAME)
 
 
   # Trivial validation.
@@ -426,17 +438,17 @@ def write_data_to_files(CONFLICT_MODELS=[1, 2, 3]):
   global conflicts_3_db
   global blacklist
 
-  json.dump(dependencies_by_dist, open(DEPENDENCIES_DB_FILENAME, 'w'))
-  json.dump(blacklist, open(BLACKLIST_DB_FILENAME, 'w'))
+  json.dump(dependencies_by_dist, open(DEPENDENCIES_DB_FNAME, 'w'))
+  json.dump(blacklist, open(BLACKLIST_DB_FNAME, 'w'))
 
   if 1 in CONFLICT_MODELS:
-    json.dump(conflicts_1_db, open(DEPENDENCY_CONFLICTS1_DB_FILENAME, 'w'))
+    json.dump(conflicts_1_db, open(DEPENDENCY_CONFLICTS1_DB_FNAME, 'w'))
 
   if 2 in CONFLICT_MODELS:
-    json.dump(conflicts_2_db, open(DEPENDENCY_CONFLICTS2_DB_FILENAME, 'w'))
+    json.dump(conflicts_2_db, open(DEPENDENCY_CONFLICTS2_DB_FNAME, 'w'))
 
   if 3 in CONFLICT_MODELS:
-    json.dump(conflicts_3_db, open(DEPENDENCY_CONFLICTS3_DB_FILENAME, 'w'))
+    json.dump(conflicts_3_db, open(DEPENDENCY_CONFLICTS3_DB_FNAME, 'w'))
 
 
 

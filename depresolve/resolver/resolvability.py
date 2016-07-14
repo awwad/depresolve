@@ -458,8 +458,50 @@ def naive_satisfy(depender_distkey, edeps, versions_by_package=None):
 
 
 
+def backtracking_satisfy_alpha(distkey_to_satisfy, edeps=None,
+    edeps_alpha=None, edeps_rev=None, versions_by_package=None):
+  """
+  Small workaround.
+  See https://github.com/awwad/depresolve/issues/12
+  """
+  if edeps is None or edeps_alpha is None or edeps_rev is None:
+    depdata.ensure_data_loaded(include_edeps=True, include_sorts=True)
+    edeps = depdata.elaborated_dependencies
+    edeps_alpha = depdata.elaborated_alpha
+    edeps_rev = depdata.elaborated_reverse
+    versions_by_package = depdata.versions_by_package
+
+  elif versions_by_package is None:
+    versions_by_package = depdata.generate_dict_versions_by_package(edeps)
+
+
+  satisfy_output = None
+  # Try three different ways until one works or all fail.
+  for edeps_trying in [edeps_rev, edeps_alpha]:
+    try:
+      satisfy_output = backtracking_satisfy(distkey_to_satisfy, edeps_trying,
+          versions_by_package)
+
+    except depresolve.UnresolvableConflictError:
+      pass
+
+    else:
+      assert satisfy_output, 'Programming error. Should not be empty.'
+      break
+
+  if satisfy_output is None:
+    satisfy_output = backtracking_satisfy(distkey_to_satisfy, edeps,
+        versions_by_package)
+
+  return satisfy_output
+
+
+
+
+
 @timeout.timeout(300) # Timeout after 5 minutes.
-def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package=None):
+def backtracking_satisfy(distkey_to_satisfy, edeps=None,
+    versions_by_package=None):
   """
   Provide a list of distributions to install that will fully satisfy a given
   distribution's dependencies (and its dependencies' dependencies, and so on),
@@ -498,7 +540,12 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package=None):
       (Should not raise, ideally, but might - requires more testing)
 
   """
-  if versions_by_package is None:
+  if edeps is None:
+    depdata.ensure_data_loaded(include_edeps=True)
+    edeps = depdata.elaborated_dependencies
+    versions_by_package = depdata.versions_by_package
+
+  elif versions_by_package is None:
     versions_by_package = depdata.generate_dict_versions_by_package(edeps)
 
   try:
@@ -873,10 +920,10 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
 
     try:
       solution = \
-          backtracking_satisfy(distkey, edeps, versions_by_package)
+          backtracking_satisfy_alpha(distkey, edeps, versions_by_package)
 
     # This is what the unresolvables look like:
-    except (depresolve.ConflictingVersionError,
+    except (#depresolve.ConflictingVersionError,      # This should no longer happen?
         depresolve.UnresolvableConflictError) as e:
 
       unresolvables.append(str(distkey)) # cleansing unicode prefixes (python2)
