@@ -381,6 +381,16 @@ def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3], include_edeps=False,
     if elaborated_reverse is None:
       elaborated_reverse = load_json_db(ELABORATED_REVERSE_FNAME)
 
+    # If the forward and reverse sorted elaborated dependencies dictionaries
+    # are empty, but the elaborated dependencies dictionary is not empty,
+    # then create alpha and reverse alpha dictionaries from the base one.
+    if not elaborated_alpha or not elaborated_reverse:
+      if elaborated_dependencies:
+        for distkey in elaborated_dependencies:
+          elaborated_alpha[distkey] = sorted(elaborated_dependencies[distkey])
+          elaborated_reverse[distkey] = sorted(
+              elaborated_dependencies[distkey], reverse=True)
+
 
   # Trivial validation.
   # More detailed validation is now available with are_deps_valid, but it is
