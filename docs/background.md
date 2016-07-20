@@ -1,3 +1,11 @@
+# Outdated
+
+**This text is now outdated and readers should refer instead to [This Google Document](https://docs.google.com/document/d/1x_VrNtXCup75qA3glDd2fQOB2TakldwjKZ6pXaAjAfg/edit?usp=sharing).**
+
+
+
+
+
 # Dependency Resolution Background
 
 Installation of a package may require a number of other packages, making these other packages dependencies of the first. The process of finding a set of package versions/distributions that satisfies all requirements constitutes the problem of dependency resolution.
