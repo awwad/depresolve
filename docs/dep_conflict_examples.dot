@@ -1,6 +1,6 @@
 digraph example1 {
 
-  nifty11 [label="nifty-webshop(1.1)",fillcolor="burlywood",style="filled"]
+  nifty11 [label="nifty_webshop(1.1)",fillcolor="burlywood",style="filled"]
   #nifty12 [label="nifty-webshop(1.2)",fillcolor="burlywood",style="filled"]
   #wheresmydelivery05 [label="wheresmydelivery(0.5)"]
   #wheresmydelivery04 [label="wheresmydelivery(0.4)"]
@@ -14,7 +14,7 @@ digraph example1 {
 
   subgraph n1 {
     label = "Case 1"
-    nifty11 -> django18 [label="django>=1.7",fontsize=8]
+    nifty11 -> django18 [label="django>=1.7",fontsize=8,arrowhead=vee]
     #nifty11 -> django17 [label="django>=1.7",style=dotted,fontsize=8]
     #nifty11 -> django16 [label="django>=1.7",style=dotted,fontsize=8]
   }

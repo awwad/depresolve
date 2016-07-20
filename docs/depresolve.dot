@@ -6,7 +6,7 @@ digraph imports {
   resolvability [label="backtracker",fillcolor="burlywood",style="filled"]
   depsolver_integrate [label="SAT solver",fillcolor="gray",style="filled",fontsize=9]
   //pip_vendor_packaging [label="pip._vendor.packaging",shape=ellipse,fontsize=7]
-  depsolver [label="depsolver",shape=ellipse,fontsize=7]
+  depsolver [label="depsolver",shape=ellipse,fontsize=9]
   pip_plugin [label="pip_plugin",fillcolor="gray",style="filled"]
 
 
