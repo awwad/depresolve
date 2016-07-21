@@ -406,9 +406,27 @@ def combine_candidate_sets(orig_candidates, addl_candidates):
 
 
 
-def naive_satisfy(depender_distkey, edeps, versions_by_package=None):
+@timeout.timeout(120) # Timeout after 5 minutes.
+def naive_satisfy_timeout(depender_distkey, edeps, versions_by_package=None):
   """
-  An exercise. Recurse and list all dists required to satisfy a dependency.
+  See naive_satisfy. This function is simply a wrapper to allow the timeout
+  functionality to work.
+
+  Throws timeout.TimeoutException if the process takes longer than 2 minutes.
+  """
+  return naive_satisfy(depender_distkey, edeps, versions_by_package=None)
+
+
+
+
+
+def naive_satisfy(depender_distkey, edeps, versions_by_package=None,
+    _preexisting_candidates=[], _preexisting_candidate_packs=[]):
+  """
+  Vaguely pip-like "simple dependency resolution". Recurse and list all dists
+  that together form a simple resolution to a given distribution's dependencies
+  (may have dependency conflicts and not be a true resolution).
+
   Where there is ambiguity, select the first result from sort_versions().
   If multiple dists depend on the same package, we get both in this result.
 
@@ -424,20 +442,31 @@ def naive_satisfy(depender_distkey, edeps, versions_by_package=None):
     - list of distkeys needed as direct or indirect dependencies to install
       depender_distkey
   """
+  # Avoid circular dependencies and ignore conflicts.
+  satisfying_candidate_set = _preexisting_candidates[:]
+  satisfying_candidate_packs = _preexisting_candidate_packs[:]
+  if depender_distkey in satisfying_candidate_set or \
+      depdata.get_packname(depender_distkey) in satisfying_candidate_packs:
+    return []
+  else:
+    satisfying_candidate_set.append(depender_distkey)
+    satisfying_candidate_packs.append(depdata.get_packname(depender_distkey))
+
   if versions_by_package is None:
     versions_by_package = depdata.generate_dict_versions_by_package(edeps)
 
   depdata.assume_dep_data_exists_for(depender_distkey, edeps)
 
   my_edeps = edeps[depender_distkey]
-  if not my_edeps: # if no dependencies, return empty set
-    return []
-
-  satisfying_candidate_set = []
+  if not my_edeps: # if no dependencies, return nothing new
+    return satisfying_candidate_set
 
   for edep in my_edeps:
     satisfying_packname = edep[0]
     satisfying_versions = edep[1]
+    if satisfying_packname in satisfying_candidate_packs:
+      # Avoid circular dependencies and ignore conflicts.
+      continue
     if not satisfying_versions:
       raise depresolve.NoSatisfyingVersionError("Dependency of " +
         depender_distkey + " on " + satisfying_packname + " with specstring " +
@@ -446,11 +475,13 @@ def naive_satisfy(depender_distkey, edeps, versions_by_package=None):
     chosen_version = sort_versions(satisfying_versions)[0] # grab first
     chosen_distkey = \
         depdata.distkey_format(satisfying_packname, chosen_version)
-    satisfying_candidate_set.append(chosen_distkey)
+    #satisfying_candidate_set.append(chosen_distkey)
+    #satisfying_candidate_packs.append(satisfying_packname)
 
     # Now recurse.
-    satisfying_candidate_set.extend(
-        naive_satisfy(chosen_distkey, edeps, versions_by_package))
+    satisfying_candidate_set = naive_satisfy(chosen_distkey, edeps,
+        versions_by_package, satisfying_candidate_set,
+        satisfying_candidate_packs)
 
   return satisfying_candidate_set
 
@@ -458,8 +489,50 @@ def naive_satisfy(depender_distkey, edeps, versions_by_package=None):
 
 
 
+def backtracking_satisfy_alpha(distkey_to_satisfy, edeps=None,
+    edeps_alpha=None, edeps_rev=None, versions_by_package=None):
+  """
+  Small workaround.
+  See https://github.com/awwad/depresolve/issues/12
+  """
+  if edeps is None or edeps_alpha is None or edeps_rev is None:
+    depdata.ensure_data_loaded(include_edeps=True, include_sorts=True)
+    edeps = depdata.elaborated_dependencies
+    edeps_alpha = depdata.elaborated_alpha
+    edeps_rev = depdata.elaborated_reverse
+    versions_by_package = depdata.versions_by_package
+
+  elif versions_by_package is None:
+    versions_by_package = depdata.generate_dict_versions_by_package(edeps)
+
+
+  satisfy_output = None
+  # Try three different ways until one works or all fail.
+  for edeps_trying in [edeps_rev, edeps_alpha]:
+    try:
+      satisfy_output = backtracking_satisfy(distkey_to_satisfy, edeps_trying,
+          versions_by_package)
+
+    except depresolve.UnresolvableConflictError:
+      pass
+
+    else:
+      assert satisfy_output, 'Programming error. Should not be empty.'
+      break
+
+  if satisfy_output is None:
+    satisfy_output = backtracking_satisfy(distkey_to_satisfy, edeps,
+        versions_by_package)
+
+  return satisfy_output
+
+
+
+
+
 @timeout.timeout(300) # Timeout after 5 minutes.
-def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package=None):
+def backtracking_satisfy(distkey_to_satisfy, edeps=None,
+    versions_by_package=None):
   """
   Provide a list of distributions to install that will fully satisfy a given
   distribution's dependencies (and its dependencies' dependencies, and so on),
@@ -498,7 +571,12 @@ def backtracking_satisfy(distkey_to_satisfy, edeps, versions_by_package=None):
       (Should not raise, ideally, but might - requires more testing)
 
   """
-  if versions_by_package is None:
+  if edeps is None:
+    depdata.ensure_data_loaded(include_edeps=True)
+    edeps = depdata.elaborated_dependencies
+    versions_by_package = depdata.versions_by_package
+
+  elif versions_by_package is None:
     versions_by_package = depdata.generate_dict_versions_by_package(edeps)
 
   try:
@@ -873,10 +951,10 @@ def resolve_all_via_backtracking(dists_to_solve_for, edeps,
 
     try:
       solution = \
-          backtracking_satisfy(distkey, edeps, versions_by_package)
+          backtracking_satisfy_alpha(distkey, edeps, versions_by_package)
 
     # This is what the unresolvables look like:
-    except (depresolve.ConflictingVersionError,
+    except (#depresolve.ConflictingVersionError,      # This should no longer happen?
         depresolve.UnresolvableConflictError) as e:
 
       unresolvables.append(str(distkey)) # cleansing unicode prefixes (python2)
