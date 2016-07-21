@@ -223,6 +223,7 @@ import pip._vendor.packaging.version # for version validation
 dependencies_by_dist = None
 versions_by_package = None
 elaborated_dependencies = None
+pip_solutions_by_dist = None
 conflicts_db = None  # ALIAS to conflict db in use. For convenience/legacy. /:
 conflicts_1_db = None
 conflicts_2_db = None
@@ -246,6 +247,8 @@ DEPENDENCY_CONFLICTS2_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
     'conflicts_2.json') # db for model 2 conflicts
 DEPENDENCY_CONFLICTS3_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
     'conflicts_3.json') # db for model 3 conflicts
+PIP_SOLUTIONS_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
+    'pipsolutions.json')
 BLACKLIST_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data', 
     'blacklist.json')
 DEPENDENCIES_DB_FNAME = os.path.join(WORKING_DIRECTORY, 'data',
@@ -345,6 +348,7 @@ def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3], include_edeps=False,
   global dependencies_by_dist
   global versions_by_package # not KEPT in sync with dependencies_by_dist
   global elaborated_dependencies # not KEPT in sync with dependencies_by_dist
+  global pip_solutions_by_dist
   global conflicts_1_db
   global conflicts_2_db
   global conflicts_3_db
@@ -358,6 +362,9 @@ def ensure_data_loaded(CONFLICT_MODELS=[1, 2, 3], include_edeps=False,
   if versions_by_package is None:
     versions_by_package = generate_dict_versions_by_package(
         dependencies_by_dist)
+
+  if pip_solutions_by_dist is None:
+    pip_solutions_by_dist = load_json_db(PIP_SOLUTIONS_DB_FNAME)
 
   if conflicts_1_db is None and 1 in CONFLICT_MODELS:
     conflicts_1_db = load_json_db(DEPENDENCY_CONFLICTS1_DB_FNAME)
@@ -442,14 +449,19 @@ def set_conflict_model_legacy(CONFLICT_MODEL):
 
 def write_data_to_files(CONFLICT_MODELS=[1, 2, 3]):
   """"""
-  global dependencies_by_dist
-  global conflicts_1_db
-  global conflicts_2_db
-  global conflicts_3_db
-  global blacklist
+  #global dependencies_by_dist
+  #global pip_solutions_by_dist
+  #global conflicts_1_db
+  #global conflicts_2_db
+  #global conflicts_3_db
+  #global blacklist
 
   json.dump(dependencies_by_dist, open(DEPENDENCIES_DB_FNAME, 'w'))
+  json.dump(pip_solutions_by_dist, open(PIP_SOLUTIONS_DB_FNAME, 'w'))
+
   json.dump(blacklist, open(BLACKLIST_DB_FNAME, 'w'))
+
+
 
   if 1 in CONFLICT_MODELS:
     json.dump(conflicts_1_db, open(DEPENDENCY_CONFLICTS1_DB_FNAME, 'w'))
