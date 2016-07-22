@@ -9,7 +9,7 @@
 """
 
 import sys # for arguments and exceptions
-import pip # for SpecifierSet and Version (TODO: Refine.)
+import pip # for SpecifierSet, Version, and pip itself.
 import os
 import json
 ## for use in version parsing
@@ -25,6 +25,7 @@ import depresolve._external.timeout as timeout # to prevent endless pip calls
 
 # Local resources
 BANDERSNATCH_MIRROR_SDIST_DIR = '/srv/pypi/web/packages/source/'
+BANDERSNATCH_NEW_MIRROR_SDIST_DIR = '/srv/pypi/web/packages/'
 BANDERSNATCH_MIRROR_INDEX_DIR = 'file:///srv/pypi/web/simple'
 WORKING_DIRECTORY = os.path.join(os.getcwd()) #'/Users/s/w/git/pypi-depresolve' in my setup
 TEMPDIR_FOR_DOWNLOADED_DISTROS = os.path.join(WORKING_DIRECTORY,
@@ -65,20 +66,33 @@ SDIST_FILE_EXTENSION = '.tar.gz'
 #  LOCAL OPERATION: For use when operating with local sdist files
 #                   (e.g. with a bandersnatched local PyPI mirror)
 #
-#   --local  Instead of fetching packages from PyPI normally via pip, instruct
-#            pip to use a local mirror index on this machine, with address
-#            equal to BANDERSNATCH_MIRROR_INDEX_DIR
+#   --local-old Instead of fetching packages from PyPI normally via pip,
+#            instruct pip to use a local mirror index on this machine, with
+#            address equal to BANDERSNATCH_MIRROR_INDEX_DIR.
 #            This is used with pip's '-i' argument.
+#            It is assumed that the mirror directory structure is consistent
+#            with versions of bandersnatch <=1.8. Newer versions of
+#            bandersnatch will store source distribution files differently,
+#            and if you created your mirror with a newer version of
+#            bandersnatch, you should use --local instead of --local-old.
 #
-#            If you use --local and specify no distkeys to scrape, they will
-#            be chosen alphabetically from the local mirror index until we have
-#            the number specified by the --n argument below.
+#            If you use --local-old and specify no distkeys to scrape, they
+#            will be chosen alphabetically from the local mirror index until we
+#            we have the number specified by the --n argument below.
+#
+#   --local  As with --local-old, but expecting the directory structure created
+#            by bandersnatch version 1.11 (not sure what the cutoff version is)
+#            
+#            If you use --local and specify no distkeys to scrape, they will be
+#            chosen in some arbitrary order, all distributions of one package
+#            consecutively, one package at a time, until we have the number
+#            specified by the --n argument below.
 #   
-#   --n=N    For use only with --local.
-#            Sets N as the max packages to inspect when pulling alphabetically
-#            from local PyPI mirror.
+#   --n=N    For use only with --local and --local-old.
+#            Sets N as the max packages to inspect when pulling from local PyPI
+#            mirror.
 #            e.g. --n=1  or  --n=10000
-#            Default for --local runs, if this arg is not specified, is all
+#            Default for --local* runs, if this arg is not specified, is all
 #            packages in the entire local PyPI mirror at /srv/pypi)
 #
 #
@@ -104,7 +118,7 @@ SDIST_FILE_EXTENSION = '.tar.gz'
 #       >  python scrape_deps_and_detect_conflicts.py --cm1 --local --n=10
 #
 #
-#    ~~ Run on django(1.8.3), but use the local mirror to install packages.
+#    ~~ Run on django(1.8.3), but use the local mirror to retrieve packages.
 #
 #       > python scrape_deps_and_detect_conflicts.py --local 'django(1.8.3)'
 #
@@ -117,6 +131,7 @@ def main():
   no_skip = False
   careful_skip = False
   use_local_index = False
+  use_local_index_old = False
   #run_all_conflicting = False
 
   # Files and directories.
@@ -150,9 +165,22 @@ def main():
         no_skip = True
       elif arg == '--carefulskip':
         careful_skip = True
-      elif arg == "--local":
+      elif arg == "--local-old":
         # without ='<directory>' means we pull alphabetically from local PyPI
         # mirror at /srv/pypi/
+        # Parse .tar.gz files as they appear in bandersnatch version <= 1.8
+        # For newer versions of bandersnatch, the sdist files are stored
+        # differently (not in project-based directories) and so the argument
+        # --local should be used instead.
+        use_local_index_old = True
+      elif arg == "--local":
+        # without ='<directory>' means we pull from local PyPI mirror at
+        # /srv/pypi/
+        # Parse .tar.gz files as they appear in bandersnatch version 1.11
+        # For bandersnatch 1.11, the sdist files are stored differently than in
+        # <1.8. They are no longer kept in project-based directories).
+        # If you are using a version of bandersnatch <=1.8, the argument
+        # --local-old should be used instead.
         use_local_index = True
       #elif arg == '--conflicting':
       #  # Operate locally and run on the distkeys provided in the indicated
@@ -175,16 +203,16 @@ def main():
   # Were we not given any distkeys to inspect?
   if not distkeys_to_inspect:# and not run_all_conflicting:
 
-    if not use_local_index:
+    if not use_local_index and not use_local_index_old:
       # If we're not using a local index, we have nothing to do.
       raise ValueError('You neither specified distributions to scrape nor '
           '(alternatively) indicated that they should be chosen from a local '
           'mirror.')
 
-    else:
+    elif use_local_index_old:
       # If we were told to work with a local mirror, but weren't given specific
-      # sdists to inspect, we'll scan everything in BANDERSNATCH_MIRROR_SDIST_DIR
-      # until we have n_sdists_to_process sdists.
+      # sdists to inspect, we'll scan everything in
+      # BANDERSNATCH_MIRROR_SDIST_DIR until we have n_sdists_to_process sdists.
       # There is a better way to do this, but I'll leave this as is for now.
 
       # Ensure that the local PyPI mirror directory exists first.
@@ -201,11 +229,51 @@ def main():
             distkey = get_distkey_from_full_filename(tarfilename_full)
             distkeys_to_inspect.append(distkey)
             i += 1
-            # awkward control structures, but saving debug run time. tidy later.
+            # awkward control structures, but saving debug run time. tidy later
             if i >= n_sdists_to_process:
               break
         if i >= n_sdists_to_process:
           break
+
+    else: # use_local_index (modern bandersnatch version)
+      assert use_local_index, 'Programming error.'
+      # # sdists live here: /srv/pypi/web/packages/??/??/*/*.tar.gz
+      # # Can implement this such that it checks those places.
+      # for name1 in os.listdir(BANDERSNATCH_NEW_MIRROR_SDIST_DIR):
+      #   if len(name1) != 2:
+      #     continue
+      #   for name2 in os.listdir(os.path.join(
+      #       BANDERSNATCH_NEW_MIRROR_SDIST_DIR, name1)):
+      #     if len(name2) != 2:
+      #       continue
+      #     for name3 in os.listdir(os.path.join(
+      #         BANDERSNATCH_NEW_MIRROR_SDIST_DIR, name1, name2)):
+      #       if len(name3) != 60:
+      #         continue
+      #       for fname in os.listdir():
+      #  #.... No, this is not going to unambiguously get me the package name
+      #  # in the way that it used to in older versions of bandersnatch.
+      #  # Rather than dealing with unexpected naming consequences, I'll go
+      #  # with the following even more annoying hack....
+
+      # A dictionary of all versions of all packages on the mirror,
+      # collected out-of-band (via xml-rpc at same time as mirroring occurred).
+      vbp_mirror = json.load(open('data/versions_by_package.json', 'r'))
+      i = 0
+      for package in vbp_mirror:
+        if i >= n_sdists_to_process:
+          break
+
+        for version in vbp_mirror[package]:
+
+          if i >= n_sdists_to_process:
+            break
+
+          distkey = depdata.distkey_format(package, version)
+          distkeys_to_inspect.append(distkey)
+
+          i += 1
+
 
 
   # We should now have distkeys to inspect (unless run_all_conflicting is True).
@@ -218,7 +286,7 @@ def main():
   depdata.ensure_data_loaded([conflict_model])
 
   # Alias depdata.conflicts_db to the relevant conflicts db. (Ugly)
-  depdata.set_conflict_model_legacy(conflict_model)
+  depdata.set_conflict_model_legacy(conflict_model) # should remove this
 
 
   #if run_all_conflicting:

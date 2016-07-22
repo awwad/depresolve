@@ -54,6 +54,9 @@ try: #Making this retry-friendly.
       # that were hidden when fixed versions were released.
       versions_by_package[p] = client.package_releases(p, True)
 
+    # # Alternatively, instead, generate new vbp every time.
+    # versions_by_package[p] = client.package_releases(p, True)
+
     for v in versions_by_package[p]:
       distkey = data.distkey_format(p, v)
       distkey_to_packver_map[distkey] = (p, v)
